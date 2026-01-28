@@ -1,6 +1,9 @@
 # Ovie Programming Language - Offline-First .gitignore
 # This file ensures no sensitive data or build artifacts go online
 
+# Kiro development artifacts (should not be deployed)
+.kiro/
+
 # Rust build artifacts
 /target/
 **/target/
