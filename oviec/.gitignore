@@ -1,0 +1,21 @@
+# Ovie Compiler - Build artifacts
+/target/
+*.rlib
+*.so
+*.dylib
+*.dll
+
+# Compiler outputs
+*.ir
+*.wasm
+*.ll
+output.*
+
+# Test artifacts
+proptest-regressions/
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

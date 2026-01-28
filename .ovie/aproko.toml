@@ -1,0 +1,87 @@
+# Aproko Assistant Engine Configuration
+# This file configures the behavior of the Aproko code analysis engine
+
+# Enabled analysis categories
+enabled_categories = [
+    "Syntax",
+    "Logic", 
+    "Performance",
+    "Security",
+    "Correctness",
+    "Style"
+]
+
+# Minimum severity level to report (Info, Warning, Error, Critical)
+min_severity = "Info"
+
+# Category-specific configurations
+[category_configs.Syntax]
+enabled = true
+
+[category_configs.Syntax.settings]
+# Check for grammar compliance
+check_grammar = "true"
+# Validate keyword usage
+validate_keywords = "true"
+
+[category_configs.Logic]
+enabled = true
+
+[category_configs.Logic.settings]
+# Check for unreachable code
+check_unreachable = "true"
+# Validate control flow
+validate_control_flow = "true"
+
+[category_configs.Performance]
+enabled = true
+
+[category_configs.Performance.settings]
+# Check for algorithmic complexity issues
+check_complexity = "true"
+# Maximum allowed cyclomatic complexity
+max_complexity = "10"
+
+[category_configs.Security]
+enabled = true
+
+[category_configs.Security.settings]
+# Check for unsafe operations
+check_unsafe = "true"
+# Validate memory safety
+validate_memory_safety = "true"
+
+[category_configs.Correctness]
+enabled = true
+
+[category_configs.Correctness.settings]
+# Enforce ownership rules
+enforce_ownership = "true"
+# Check state transitions
+check_state_transitions = "true"
+
+[category_configs.Style]
+enabled = true
+
+[category_configs.Style.settings]
+# Enforce naming conventions
+enforce_naming = "true"
+# Check code formatting
+check_formatting = "true"
+# Maximum line length
+max_line_length = "100"
+
+# Custom analysis rules
+[[custom_rules]]
+id = "no_magic_numbers"
+description = "Avoid magic numbers in code"
+pattern = "\\b\\d{2,}\\b"
+suggestion = "Consider defining this number as a named constant"
+severity = "Warning"
+
+[[custom_rules]]
+id = "prefer_seeam"
+description = "Use seeAm instead of print-like functions"
+pattern = "\\b(print|println|console\\.log)\\b"
+suggestion = "Use 'seeAm' for output in Ovie"
+severity = "Info"

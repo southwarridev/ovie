@@ -1,0 +1,48 @@
+[package]
+name = "oviec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "The Ovie programming language compiler"
+keywords = ["compiler", "programming-language", "ovie"]
+categories = ["compilers", "development-tools"]
+
+[dependencies]
+# Lexer and parsing
+logos.workspace = true
+# Error handling
+thiserror.workspace = true
+miette.workspace = true
+# Serialization
+serde.workspace = true
+serde_json = "1.0"
+# WASM generation
+wasm-encoder = "0.38"
+wasmparser = "0.118"
+# LLVM backend (optional)
+inkwell = { version = "0.4", features = ["llvm17-0"], optional = true }
+# CLI argument parsing
+clap.workspace = true
+# Async runtime
+tokio.workspace = true
+# Package management
+sha2.workspace = true
+dirs.workspace = true
+chrono.workspace = true
+toml = "0.8"
+
+[features]
+default = []
+llvm = ["inkwell"]
+
+[dev-dependencies]
+# Property-based testing
+proptest = "1.0"
+# Additional testing utilities
+quickcheck = "1.0"
+# Temporary directories for testing
+tempfile.workspace = true

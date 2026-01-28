@@ -1,0 +1,365 @@
+// Unit and property-based testing examples
+// Key concepts: testing, assertions, property-based testing, test organization
+
+// Simple unit tests
+fn test_basic_arithmetic() {
+    seeAm "Running test_basic_arithmetic..."
+    
+    // Test addition
+    mut result = 2 + 3
+    assert_equals(result, 5, "Addition test")
+    
+    // Test subtraction
+    result = 10 - 4
+    assert_equals(result, 6, "Subtraction test")
+    
+    // Test multiplication
+    result = 6 * 7
+    assert_equals(result, 42, "Multiplication test")
+    
+    // Test division
+    result = 15 / 3
+    assert_equals(result, 5, "Division test")
+    
+    seeAm "✓ All arithmetic tests passed"
+}
+
+// Test helper functions
+fn assert_equals<T>(actual: T, expected: T, test_name: string) {
+    if actual == expected {
+        seeAm "  ✓ " + test_name + " passed"
+    } else {
+        seeAm "  ✗ " + test_name + " failed: expected " + expected + ", got " + actual
+    }
+}
+
+fn assert_true(condition: bool, test_name: string) {
+    if condition {
+        seeAm "  ✓ " + test_name + " passed"
+    } else {
+        seeAm "  ✗ " + test_name + " failed: expected true, got false"
+    }
+}
+
+fn assert_false(condition: bool, test_name: string) {
+    if !condition {
+        seeAm "  ✓ " + test_name + " passed"
+    } else {
+        seeAm "  ✗ " + test_name + " failed: expected false, got true"
+    }
+}
+
+// Function to test
+fn calculate_factorial(n: u32) -> u32 {
+    if n <= 1 {
+        return 1
+    }
+    return n * calculate_factorial(n - 1)
+}
+
+// Unit tests for factorial function
+fn test_factorial() {
+    seeAm "Running test_factorial..."
+    
+    // Test base cases
+    assert_equals(calculate_factorial(0), 1, "Factorial of 0")
+    assert_equals(calculate_factorial(1), 1, "Factorial of 1")
+    
+    // Test normal cases
+    assert_equals(calculate_factorial(2), 2, "Factorial of 2")
+    assert_equals(calculate_factorial(3), 6, "Factorial of 3")
+    assert_equals(calculate_factorial(4), 24, "Factorial of 4")
+    assert_equals(calculate_factorial(5), 120, "Factorial of 5")
+    
+    seeAm "✓ All factorial tests passed"
+}
+
+// Function to test - string utilities
+fn reverse_string(input: string) -> string {
+    mut chars = input.chars()
+    mut reversed = ""
+    
+    for i in 0..chars.length() {
+        mut index = chars.length() - 1 - i
+        reversed = reversed + chars[index]
+    }
+    
+    return reversed
+}
+
+fn is_palindrome(input: string) -> bool {
+    mut cleaned = input.to_lowercase().replace(" ", "")
+    return cleaned == reverse_string(cleaned)
+}
+
+// Unit tests for string functions
+fn test_string_functions() {
+    seeAm "Running test_string_functions..."
+    
+    // Test string reversal
+    assert_equals(reverse_string("hello"), "olleh", "Reverse 'hello'")
+    assert_equals(reverse_string("world"), "dlrow", "Reverse 'world'")
+    assert_equals(reverse_string(""), "", "Reverse empty string")
+    assert_equals(reverse_string("a"), "a", "Reverse single character")
+    
+    // Test palindrome detection
+    assert_true(is_palindrome("racecar"), "Palindrome: racecar")
+    assert_true(is_palindrome("A man a plan a canal Panama"), "Palindrome: A man a plan a canal Panama")
+    assert_false(is_palindrome("hello"), "Not palindrome: hello")
+    assert_true(is_palindrome(""), "Empty string is palindrome")
+    
+    seeAm "✓ All string function tests passed"
+}
+
+// Property-based testing concepts
+fn property_test_addition_commutative() {
+    seeAm "Running property_test_addition_commutative..."
+    
+    // Test that a + b == b + a for various values
+    mut test_cases = [
+        (1, 2),
+        (5, 10),
+        (0, 100),
+        (-5, 5),
+        (42, 17),
+    ]
+    
+    for test_case in test_cases {
+        mut a = test_case.0
+        mut b = test_case.1
+        mut result1 = a + b
+        mut result2 = b + a
+        
+        assert_equals(result1, result2, "Commutative property: " + a + " + " + b + " == " + b + " + " + a)
+    }
+    
+    seeAm "✓ Addition commutative property verified"
+}
+
+fn property_test_multiplication_associative() {
+    seeAm "Running property_test_multiplication_associative..."
+    
+    // Test that (a * b) * c == a * (b * c) for various values
+    mut test_cases = [
+        (2, 3, 4),
+        (1, 5, 7),
+        (10, 2, 3),
+        (6, 1, 8),
+    ]
+    
+    for test_case in test_cases {
+        mut a = test_case.0
+        mut b = test_case.1
+        mut c = test_case.2
+        
+        mut result1 = (a * b) * c
+        mut result2 = a * (b * c)
+        
+        assert_equals(result1, result2, "Associative property: (" + a + " * " + b + ") * " + c + " == " + a + " * (" + b + " * " + c + ")")
+    }
+    
+    seeAm "✓ Multiplication associative property verified"
+}
+
+fn property_test_reverse_string_involution() {
+    seeAm "Running property_test_reverse_string_involution..."
+    
+    // Test that reverse(reverse(s)) == s for various strings
+    mut test_strings = [
+        "hello",
+        "world",
+        "racecar",
+        "a",
+        "",
+        "12345",
+        "The quick brown fox",
+    ]
+    
+    for test_string in test_strings {
+        mut reversed_once = reverse_string(test_string)
+        mut reversed_twice = reverse_string(reversed_once)
+        
+        assert_equals(reversed_twice, test_string, "Reverse involution: reverse(reverse('" + test_string + "')) == '" + test_string + "'")
+    }
+    
+    seeAm "✓ String reverse involution property verified"
+}
+
+// Integration test example
+struct Calculator {
+    memory: mut f64,
+}
+
+fn create_calculator() -> Calculator {
+    return Calculator { memory: 0.0 }
+}
+
+fn add_to_memory(calc: mut Calculator, value: f64) {
+    calc.memory = calc.memory + value
+}
+
+fn subtract_from_memory(calc: mut Calculator, value: f64) {
+    calc.memory = calc.memory - value
+}
+
+fn multiply_memory(calc: mut Calculator, value: f64) {
+    calc.memory = calc.memory * value
+}
+
+fn clear_memory(calc: mut Calculator) {
+    calc.memory = 0.0
+}
+
+fn get_memory(calc: Calculator) -> f64 {
+    return calc.memory
+}
+
+fn test_calculator_integration() {
+    seeAm "Running test_calculator_integration..."
+    
+    mut calc = create_calculator()
+    
+    // Test initial state
+    assert_equals(get_memory(calc), 0.0, "Initial memory is zero")
+    
+    // Test addition
+    add_to_memory(calc, 10.0)
+    assert_equals(get_memory(calc), 10.0, "Add 10 to memory")
+    
+    // Test more addition
+    add_to_memory(calc, 5.0)
+    assert_equals(get_memory(calc), 15.0, "Add 5 more to memory")
+    
+    // Test subtraction
+    subtract_from_memory(calc, 3.0)
+    assert_equals(get_memory(calc), 12.0, "Subtract 3 from memory")
+    
+    // Test multiplication
+    multiply_memory(calc, 2.0)
+    assert_equals(get_memory(calc), 24.0, "Multiply memory by 2")
+    
+    // Test clear
+    clear_memory(calc)
+    assert_equals(get_memory(calc), 0.0, "Clear memory")
+    
+    seeAm "✓ All calculator integration tests passed"
+}
+
+// Edge case testing
+fn test_edge_cases() {
+    seeAm "Running test_edge_cases..."
+    
+    // Test division by zero handling (conceptual)
+    seeAm "Testing edge cases:"
+    
+    // Large numbers
+    mut large_result = calculate_factorial(10)
+    assert_equals(large_result, 3628800, "Factorial of 10")
+    
+    // Empty string handling
+    mut empty_reversed = reverse_string("")
+    assert_equals(empty_reversed, "", "Reverse empty string")
+    
+    // Single character
+    mut single_char = reverse_string("x")
+    assert_equals(single_char, "x", "Reverse single character")
+    
+    seeAm "✓ All edge case tests passed"
+}
+
+// Performance testing concepts
+fn test_performance_characteristics() {
+    seeAm "Running test_performance_characteristics..."
+    
+    // Test that certain operations complete within reasonable time
+    // (This is conceptual - real implementation would measure time)
+    
+    seeAm "Testing performance characteristics:"
+    
+    // Test small input
+    mut start_time = get_current_time()  // Conceptual
+    mut result = calculate_factorial(5)
+    mut end_time = get_current_time()    // Conceptual
+    
+    seeAm "Factorial(5) = " + result + " (completed quickly)"
+    
+    // Test string operations
+    mut test_string = "This is a test string for performance testing"
+    mut reversed = reverse_string(test_string)
+    seeAm "String reversal completed: " + reversed.length() + " characters processed"
+    
+    seeAm "✓ Performance characteristics verified"
+}
+
+// Mock function for time (conceptual)
+fn get_current_time() -> u64 {
+    return 1000  // Simplified mock
+}
+
+// Test runner
+fn run_all_tests() {
+    seeAm "=== Running All Tests ==="
+    seeAm ""
+    
+    // Unit tests
+    test_basic_arithmetic()
+    seeAm ""
+    
+    test_factorial()
+    seeAm ""
+    
+    test_string_functions()
+    seeAm ""
+    
+    // Property-based tests
+    property_test_addition_commutative()
+    seeAm ""
+    
+    property_test_multiplication_associative()
+    seeAm ""
+    
+    property_test_reverse_string_involution()
+    seeAm ""
+    
+    // Integration tests
+    test_calculator_integration()
+    seeAm ""
+    
+    // Edge case tests
+    test_edge_cases()
+    seeAm ""
+    
+    // Performance tests
+    test_performance_characteristics()
+    seeAm ""
+    
+    seeAm "=== All Tests Completed ==="
+}
+
+fn main() {
+    seeAm "=== Ovie Testing Framework Demo ==="
+    seeAm "Demonstrating unit tests and property-based testing"
+    seeAm ""
+    
+    run_all_tests()
+    
+    seeAm ""
+    seeAm "=== Testing Best Practices Demonstrated ==="
+    seeAm "✓ Unit tests for individual functions"
+    seeAm "✓ Property-based tests for universal properties"
+    seeAm "✓ Integration tests for component interaction"
+    seeAm "✓ Edge case testing for boundary conditions"
+    seeAm "✓ Performance characteristic verification"
+    seeAm "✓ Clear test organization and naming"
+    seeAm "✓ Descriptive assertion messages"
+    seeAm "✓ Test isolation and independence"
+    seeAm ""
+    seeAm "In a full Ovie testing framework:"
+    seeAm "- Tests would be automatically discovered"
+    seeAm "- Property tests would generate random inputs"
+    seeAm "- Test results would be collected and reported"
+    seeAm "- Coverage analysis would be provided"
+    seeAm "- Parallel test execution would be supported"
+    seeAm ""
+    seeAm "Testing demonstration complete!"
+}

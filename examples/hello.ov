@@ -1,0 +1,4 @@
+// Hello World in Ovie
+// This is the simplest Ovie program - our first milestone!
+
+seeAm "Hello, World!";

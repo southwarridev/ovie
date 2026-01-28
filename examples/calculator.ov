@@ -1,0 +1,361 @@
+// Simple Calculator in Ovie
+// Demonstrates functions, error handling, and user interaction
+
+enum Operation {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Power,
+    SquareRoot,
+}
+
+enum CalculatorError {
+    DivisionByZero,
+    NegativeSquareRoot,
+    InvalidOperation,
+    Overflow,
+}
+
+struct CalculationResult {
+    value: f64,
+    operation: string,
+    success: bool,
+    error_message: string,
+}
+
+struct Calculator {
+    history: mut [string],
+    memory: mut f64,
+    precision: u32,
+}
+
+fn create_calculator() -> Calculator {
+    return Calculator {
+        history: [],
+        memory: 0.0,
+        precision: 2,
+    }
+}
+
+fn add(a: f64, b: f64) -> CalculationResult {
+    mut result = a + b
+    
+    return CalculationResult {
+        value: result,
+        operation: a + " + " + b + " = " + result,
+        success: true,
+        error_message: "",
+    }
+}
+
+fn subtract(a: f64, b: f64) -> CalculationResult {
+    mut result = a - b
+    
+    return CalculationResult {
+        value: result,
+        operation: a + " - " + b + " = " + result,
+        success: true,
+        error_message: "",
+    }
+}
+
+fn multiply(a: f64, b: f64) -> CalculationResult {
+    mut result = a * b
+    
+    // Check for overflow (simplified)
+    if result > 1e308 {
+        return CalculationResult {
+            value: 0.0,
+            operation: a + " × " + b,
+            success: false,
+            error_message: "Result too large (overflow)",
+        }
+    }
+    
+    return CalculationResult {
+        value: result,
+        operation: a + " × " + b + " = " + result,
+        success: true,
+        error_message: "",
+    }
+}
+
+fn divide(a: f64, b: f64) -> CalculationResult {
+    if b == 0.0 {
+        return CalculationResult {
+            value: 0.0,
+            operation: a + " ÷ " + b,
+            success: false,
+            error_message: "Cannot divide by zero",
+        }
+    }
+    
+    mut result = a / b
+    
+    return CalculationResult {
+        value: result,
+        operation: a + " ÷ " + b + " = " + result,
+        success: true,
+        error_message: "",
+    }
+}
+
+fn power(base: f64, exponent: f64) -> CalculationResult {
+    // Simplified power function (would use proper implementation)
+    mut result = 1.0
+    mut exp = exponent
+    
+    if exp < 0.0 {
+        return CalculationResult {
+            value: 0.0,
+            operation: base + "^" + exponent,
+            success: false,
+            error_message: "Negative exponents not supported in this demo",
+        }
+    }
+    
+    // Simple integer exponent calculation
+    while exp > 0.0 {
+        result = result * base
+        exp = exp - 1.0
+    }
+    
+    return CalculationResult {
+        value: result,
+        operation: base + "^" + exponent + " = " + result,
+        success: true,
+        error_message: "",
+    }
+}
+
+fn square_root(value: f64) -> CalculationResult {
+    if value < 0.0 {
+        return CalculationResult {
+            value: 0.0,
+            operation: "√" + value,
+            success: false,
+            error_message: "Cannot take square root of negative number",
+        }
+    }
+    
+    // Simplified square root using Newton's method
+    mut result = value / 2.0
+    mut iterations = 0
+    
+    while iterations < 10 {
+        result = (result + value / result) / 2.0
+        iterations = iterations + 1
+    }
+    
+    return CalculationResult {
+        value: result,
+        operation: "√" + value + " = " + result,
+        success: true,
+        error_message: "",
+    }
+}
+
+fn perform_calculation(calc: mut Calculator, a: f64, b: f64, op: Operation) -> CalculationResult {
+    mut result: CalculationResult
+    
+    match op {
+        Operation.Add => result = add(a, b),
+        Operation.Subtract => result = subtract(a, b),
+        Operation.Multiply => result = multiply(a, b),
+        Operation.Divide => result = divide(a, b),
+        Operation.Power => result = power(a, b),
+        Operation.SquareRoot => result = square_root(a),  // Only uses 'a'
+    }
+    
+    // Add to history if successful
+    if result.success {
+        calc.history.push(result.operation)
+    } else {
+        calc.history.push(result.operation + " - ERROR: " + result.error_message)
+    }
+    
+    return result
+}
+
+fn store_in_memory(calc: mut Calculator, value: f64) {
+    calc.memory = value
+    seeAm "Stored " + value + " in memory"
+}
+
+fn recall_from_memory(calc: Calculator) -> f64 {
+    seeAm "Recalled " + calc.memory + " from memory"
+    return calc.memory
+}
+
+fn clear_memory(calc: mut Calculator) {
+    calc.memory = 0.0
+    seeAm "Memory cleared"
+}
+
+fn print_history(calc: Calculator) {
+    seeAm ""
+    seeAm "=== Calculator History ==="
+    
+    if calc.history.is_empty() {
+        seeAm "No calculations performed yet"
+        return
+    }
+    
+    mut count = 1
+    for entry in calc.history {
+        seeAm count + ". " + entry
+        count = count + 1
+    }
+}
+
+fn clear_history(calc: mut Calculator) {
+    calc.history.clear()
+    seeAm "History cleared"
+}
+
+fn format_number(value: f64, precision: u32) -> string {
+    // Simplified number formatting
+    return value  // In real implementation, would format to specified precision
+}
+
+fn main() {
+    seeAm "=== Ovie Calculator Demo ==="
+    seeAm "A comprehensive calculator with memory and history"
+    seeAm ""
+    
+    mut calc = create_calculator()
+    
+    // Basic arithmetic operations
+    seeAm "=== Basic Operations ==="
+    
+    mut operations = [
+        (10.0, 5.0, Operation.Add),
+        (15.0, 3.0, Operation.Subtract),
+        (7.0, 8.0, Operation.Multiply),
+        (20.0, 4.0, Operation.Divide),
+        (2.0, 8.0, Operation.Power),
+        (16.0, 0.0, Operation.SquareRoot),  // b is ignored for square root
+    ]
+    
+    for op_data in operations {
+        mut result = perform_calculation(calc, op_data.0, op_data.1, op_data.2)
+        
+        if result.success {
+            seeAm "✓ " + result.operation
+        } else {
+            seeAm "✗ " + result.operation + " - " + result.error_message
+        }
+    }
+    
+    // Error handling demonstrations
+    seeAm ""
+    seeAm "=== Error Handling ==="
+    
+    mut error_tests = [
+        (10.0, 0.0, Operation.Divide),      // Division by zero
+        (-9.0, 0.0, Operation.SquareRoot),  // Negative square root
+        (2.0, -3.0, Operation.Power),       // Negative exponent
+    ]
+    
+    for test in error_tests {
+        mut result = perform_calculation(calc, test.0, test.1, test.2)
+        
+        if result.success {
+            seeAm "✓ " + result.operation
+        } else {
+            seeAm "✗ Error: " + result.error_message
+        }
+    }
+    
+    // Memory operations
+    seeAm ""
+    seeAm "=== Memory Operations ==="
+    
+    store_in_memory(calc, 42.0)
+    mut memory_value = recall_from_memory(calc)
+    
+    mut memory_result = perform_calculation(calc, memory_value, 8.0, Operation.Add)
+    seeAm "Memory + 8 = " + memory_result.value
+    
+    store_in_memory(calc, memory_result.value)
+    clear_memory(calc)
+    
+    // Complex calculations
+    seeAm ""
+    seeAm "=== Complex Calculations ==="
+    
+    // Calculate compound interest: A = P(1 + r)^t
+    principal = 1000.0
+    rate = 0.05  // 5%
+    time = 10.0
+    
+    mut base_calc = perform_calculation(calc, 1.0, rate, Operation.Add)  // 1 + r
+    mut power_calc = perform_calculation(calc, base_calc.value, time, Operation.Power)  // (1 + r)^t
+    mut final_calc = perform_calculation(calc, principal, power_calc.value, Operation.Multiply)  // P * (1 + r)^t
+    
+    seeAm "Compound Interest Calculation:"
+    seeAm "Principal: $" + principal
+    seeAm "Rate: " + (rate * 100.0) + "%"
+    seeAm "Time: " + time + " years"
+    seeAm "Final Amount: $" + final_calc.value
+    
+    // Quadratic formula: x = (-b ± √(b² - 4ac)) / 2a
+    seeAm ""
+    seeAm "Quadratic Formula Example: x² - 5x + 6 = 0"
+    
+    a = 1.0
+    b = -5.0
+    c = 6.0
+    
+    mut b_squared = perform_calculation(calc, b, 2.0, Operation.Power)
+    mut four_ac = perform_calculation(calc, 4.0 * a, c, Operation.Multiply)
+    mut discriminant_calc = perform_calculation(calc, b_squared.value, four_ac.value, Operation.Subtract)
+    mut sqrt_discriminant = perform_calculation(calc, discriminant_calc.value, 0.0, Operation.SquareRoot)
+    
+    mut solution1_num = perform_calculation(calc, -b, sqrt_discriminant.value, Operation.Add)
+    mut solution1 = perform_calculation(calc, solution1_num.value, 2.0 * a, Operation.Divide)
+    
+    mut solution2_num = perform_calculation(calc, -b, sqrt_discriminant.value, Operation.Subtract)
+    mut solution2 = perform_calculation(calc, solution2_num.value, 2.0 * a, Operation.Divide)
+    
+    seeAm "Solutions: x₁ = " + solution1.value + ", x₂ = " + solution2.value
+    
+    // Display calculator history
+    print_history(calc)
+    
+    // Statistics about usage
+    seeAm ""
+    seeAm "=== Calculator Statistics ==="
+    seeAm "Total calculations: " + calc.history.length()
+    seeAm "Memory value: " + calc.memory
+    seeAm "Precision: " + calc.precision + " decimal places"
+    
+    seeAm ""
+    seeAm "Calculator demo complete!"
+}
+
+// Helper function for testing
+fn run_calculator_tests() {
+    seeAm "=== Calculator Unit Tests ==="
+    
+    mut test_calc = create_calculator()
+    
+    // Test basic operations
+    mut add_result = add(5.0, 3.0)
+    assert(add_result.success && add_result.value == 8.0, "Addition test failed")
+    
+    mut div_result = divide(10.0, 0.0)
+    assert(!div_result.success, "Division by zero should fail")
+    
+    mut sqrt_result = square_root(-4.0)
+    assert(!sqrt_result.success, "Square root of negative should fail")
+    
+    seeAm "All tests passed!"
+}
+
+fn assert(condition: bool, message: string) {
+    if !condition {
+        seeAm "ASSERTION FAILED: " + message
+    }
+}

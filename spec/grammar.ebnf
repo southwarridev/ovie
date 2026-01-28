@@ -1,0 +1,221 @@
+(* Ovie Programming Language Grammar Specification *)
+(* EBNF Format - Extended Backus-Naur Form *)
+(* Version: 1.0.0 *)
+(* Last Updated: 2024-01-26 *)
+
+(* ===== PROGRAM STRUCTURE ===== *)
+
+program = statement* ;
+
+statement = assignment
+          | function_definition
+          | print_statement
+          | if_statement
+          | loop_statement
+          | struct_definition
+          | enum_definition
+          | expression_statement
+          | return_statement
+          ;
+
+(* ===== EXPRESSIONS ===== *)
+
+expression = logical_or ;
+
+logical_or = logical_and ( "||" logical_and )* ;
+
+logical_and = equality ( "&&" equality )* ;
+
+equality = comparison ( ( "==" | "!=" ) comparison )* ;
+
+comparison = term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+
+term = factor ( ( "+" | "-" ) factor )* ;
+
+factor = unary ( ( "*" | "/" | "%" ) unary )* ;
+
+unary = ( "!" | "-" ) unary
+      | primary
+      ;
+
+primary = literal
+        | identifier
+        | "(" expression ")"
+        | function_call
+        | field_access
+        | range_expression
+        ;
+
+range_expression = expression ".." expression ;
+
+(* ===== STATEMENTS ===== *)
+
+assignment = [ "mut" ] identifier "=" expression ";" ;
+
+function_definition = "fn" identifier "(" parameter_list? ")" block ;
+
+parameter_list = identifier ( "," identifier )* ;
+
+print_statement = "seeAm" expression ";" ;
+
+if_statement = "if" expression block ( "else" block )? ;
+
+loop_statement = for_loop | while_loop ;
+
+for_loop = "for" identifier "in" expression block ;
+
+while_loop = "while" expression block ;
+
+struct_definition = "struct" identifier "{" field_list? "}" ;
+
+field_list = field ( "," field )* ","? ;
+
+field = identifier ":" type_annotation ;
+
+enum_definition = "enum" identifier "{" variant_list? "}" ;
+
+variant_list = variant ( "," variant )* ","? ;
+
+variant = identifier ( "(" type_annotation ")" )? ;
+
+expression_statement = expression ";" ;
+
+return_statement = "return" expression? ";" ;
+
+unsafe_block = "unsafe" block ;
+
+(* ===== BLOCKS AND CONTROL FLOW ===== *)
+
+block = "{" statement* "}" ;
+
+(* ===== FUNCTION CALLS AND ACCESS ===== *)
+
+function_call = identifier "(" argument_list? ")" ;
+
+argument_list = expression ( "," expression )* ;
+
+field_access = primary "." identifier ;
+
+(* ===== LITERALS ===== *)
+
+literal = string_literal
+        | number_literal
+        | boolean_literal
+        ;
+
+string_literal = '"' string_char* '"' ;
+
+string_char = [^"\] | escape_sequence ;
+
+escape_sequence = "\" ( '"' | "\" | "n" | "r" | "t" | "0" ) ;
+
+number_literal = integer_literal | float_literal ;
+
+integer_literal = digit+ ;
+
+float_literal = digit+ "." digit+ ;
+
+boolean_literal = "true" | "false" ;
+
+(* ===== IDENTIFIERS AND TYPES ===== *)
+
+identifier = letter ( letter | digit | "_" )* ;
+
+type_annotation = identifier ;
+
+(* ===== LEXICAL ELEMENTS ===== *)
+
+letter = [a-zA-Z] ;
+
+digit = [0-9] ;
+
+whitespace = ( " " | "\t" | "\n" | "\r" )+ ;
+
+comment = "//" [^\n]* "\n" ;
+
+(* ===== KEYWORDS (LOCKED - EXACTLY 13) ===== *)
+
+keyword = "fn"
+        | "mut"
+        | "if"
+        | "else"
+        | "for"
+        | "while"
+        | "struct"
+        | "enum"
+        | "unsafe"
+        | "return"
+        | "true"
+        | "false"
+        | "seeAm"
+        ;
+
+(* ===== OPERATORS ===== *)
+
+operator = "+"  | "-"  | "*"  | "/"  | "%"
+         | "==" | "!=" | "<"  | "<=" | ">" | ">="
+         | "&&" | "||" | "!"
+         | "="
+         ;
+
+(* ===== DELIMITERS ===== *)
+
+delimiter = "(" | ")" | "{" | "}" | "[" | "]"
+          | "," | ";" | ":" | "." | ".."
+          ;
+
+(* ===== GRAMMAR NOTES ===== *)
+
+(*
+  1. Keywords are case-sensitive and reserved
+  2. Identifiers cannot be keywords
+  3. Whitespace and comments are ignored except for separation
+  4. String literals support basic escape sequences
+  5. Numbers support both integers and floating-point
+  6. The grammar is designed for LL(1) parsing
+  7. Precedence is encoded in the expression hierarchy
+  8. All statements except blocks require semicolons
+  9. Function parameters and struct fields are comma-separated
+  10. The "seeAm" keyword is pidgin English for "see/look at" (print)
+*)
+
+(* ===== EXAMPLE PROGRAMS ===== *)
+
+(*
+  Hello World:
+    seeAm "Hello, World!";
+
+  Variables:
+    name = "Ovie";
+    mut counter = 0;
+
+  Functions:
+    fn greet(person) {
+        seeAm "Hello, " + person + "!";
+    }
+
+  Control Flow:
+    if counter < 10 {
+        seeAm "Small";
+    } else {
+        seeAm "Big";
+    }
+
+  Loops:
+    for i in 0..10 {
+        seeAm i;
+    }
+
+  Structs:
+    struct Person {
+        name: String,
+        age: Number,
+    }
+
+  Enums:
+    enum Color {
+        Red,
+        Green,
+        Blue,
+    }
+*)

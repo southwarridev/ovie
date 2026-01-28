@@ -1,0 +1,292 @@
+// Ovie Standard Library Specification
+// Required functions for self-hosting lexer implementation
+
+// ===== STRING OPERATIONS =====
+
+// Extract a single character from a string at the given index
+// Returns empty string if index is out of bounds
+fn char_at(text: String, index: Number) -> String {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Extract a substring from start index to end index (exclusive)
+// Returns empty string if indices are invalid
+fn substring(text: String, start: Number, end: Number) -> String {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Get the length of a string in characters
+fn length(text: String) -> Number {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Convert a string to lowercase
+fn to_lowercase(text: String) -> String {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Convert a string to uppercase
+fn to_uppercase(text: String) -> String {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Check if a string contains another string
+fn contains(text: String, pattern: String) -> Boolean {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// ===== ARRAY OPERATIONS =====
+
+// Append an item to the end of an array
+fn append(mut array: [T], item: T) {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+    // T is a generic type parameter
+}
+
+// Get the length of an array
+fn array_length(array: [T]) -> Number {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Get an item from an array at the given index
+// Returns error if index is out of bounds
+fn array_get(array: [T], index: Number) -> T {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Set an item in an array at the given index
+// Returns error if index is out of bounds
+fn array_set(mut array: [T], index: Number, item: T) {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Create a new empty array
+fn array_new() -> [T] {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// ===== CHARACTER CLASSIFICATION =====
+
+// Check if a character is a digit (0-9)
+fn is_digit(c: String) -> Boolean {
+    if length(c) != 1 {
+        return false;
+    }
+    
+    return c >= "0" && c <= "9";
+}
+
+// Check if a character is alphabetic (a-z, A-Z) or underscore
+fn is_alpha(c: String) -> Boolean {
+    if length(c) != 1 {
+        return false;
+    }
+    
+    return (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c == "_";
+}
+
+// Check if a character is alphanumeric or underscore
+fn is_alpha_numeric(c: String) -> Boolean {
+    return is_alpha(c) || is_digit(c);
+}
+
+// Check if a character is whitespace
+fn is_whitespace(c: String) -> Boolean {
+    if length(c) != 1 {
+        return false;
+    }
+    
+    return c == " " || c == "\t" || c == "\r" || c == "\n";
+}
+
+// ===== NUMERIC OPERATIONS =====
+
+// Convert a string to a number
+// Returns 0 if conversion fails
+fn string_to_number(text: String) -> Number {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Convert a number to a string
+fn number_to_string(num: Number) -> String {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// ===== ERROR HANDLING =====
+
+// Result type for operations that can fail
+enum Result {
+    Ok(T),
+    Error(String),
+}
+
+// Create a successful result
+fn ok(value: T) -> Result {
+    return Result.Ok(value);
+}
+
+// Create an error result
+fn error(message: String) -> Result {
+    return Result.Error(message);
+}
+
+// Check if a result is successful
+fn is_ok(result: Result) -> Boolean {
+    if result == Result.Ok(_) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// Check if a result is an error
+fn is_error(result: Result) -> Boolean {
+    return !is_ok(result);
+}
+
+// Unwrap a successful result (panics on error)
+fn unwrap(result: Result) -> T {
+    if result == Result.Ok(value) {
+        return value;
+    } else {
+        // This would panic in the runtime
+        seeAm "Attempted to unwrap an error result";
+        return; // This would terminate execution
+    }
+}
+
+// ===== I/O OPERATIONS =====
+
+// Print a value to standard output
+fn print(value: T) {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Print a value to standard output with newline
+fn println(value: T) {
+    print(value);
+    print("\n");
+}
+
+// Print an error message to standard error
+fn eprint(message: String) {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Print an error message to standard error with newline
+fn eprintln(message: String) {
+    eprint(message);
+    eprint("\n");
+}
+
+// ===== HASH OPERATIONS =====
+
+// Compute SHA-256 hash of a string
+fn sha256(text: String) -> String {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Compute hash of any value (for debugging and verification)
+fn hash(value: T) -> String {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// ===== TESTING UTILITIES =====
+
+// Assert that a condition is true (for testing)
+fn assert(condition: Boolean, message: String) {
+    if !condition {
+        eprintln("Assertion failed: " + message);
+        // This would terminate execution in test mode
+    }
+}
+
+// Assert that two values are equal (for testing)
+fn assert_eq(left: T, right: T, message: String) {
+    if left != right {
+        eprintln("Assertion failed: " + message);
+        eprintln("  Left:  " + left);
+        eprintln("  Right: " + right);
+        // This would terminate execution in test mode
+    }
+}
+
+// ===== MEMORY MANAGEMENT =====
+
+// Clone a value (deep copy)
+fn clone(value: T) -> T {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Move a value (transfer ownership)
+fn move(value: T) -> T {
+    // This is handled by the compiler's ownership system
+    // No runtime implementation needed
+    return value;
+}
+
+// ===== SERIALIZATION =====
+
+// Convert a value to JSON string
+fn to_json(value: T) -> String {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// Parse a JSON string to a value
+fn from_json(json: String) -> Result {
+    // Implementation will be provided by the runtime
+    // This is a built-in function for Stage 1
+}
+
+// ===== STANDARD LIBRARY IMPLEMENTATION NOTES =====
+
+/*
+These functions represent the minimum standard library required for the
+Ovie-in-Ovie lexer implementation. They are divided into categories:
+
+1. BUILT-IN FUNCTIONS: Implemented in the runtime (Rust code)
+   - String operations (char_at, substring, length)
+   - Array operations (append, array_length, etc.)
+   - Numeric conversions
+   - I/O operations
+   - Hash operations
+   - Serialization
+
+2. OVIE IMPLEMENTATIONS: Implemented in Ovie code
+   - Character classification (is_digit, is_alpha, etc.)
+   - Error handling utilities
+   - Testing utilities
+
+3. COMPILER INTRINSICS: Handled by the compiler
+   - Memory management (move, ownership)
+   - Type system operations
+
+The runtime will provide efficient implementations of the built-in functions
+using the existing Rust infrastructure, while the Ovie implementations will
+be compiled and executed within the Ovie runtime environment.
+
+This approach allows for:
+- Maximum performance for critical operations
+- Type safety and ownership guarantees
+- Gradual migration from Rust to Ovie implementations
+- Bootstrap verification and testing
+*/

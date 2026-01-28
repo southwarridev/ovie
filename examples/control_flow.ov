@@ -1,0 +1,232 @@
+// Control Flow in Ovie
+// Demonstrates conditionals, loops, and control structures
+
+fn main() {
+    seeAm "=== Control Flow Demo ==="
+    
+    // Basic if statement
+    seeAm ""
+    seeAm "=== Basic Conditionals ==="
+    
+    age = 25
+    
+    if age >= 18 {
+        seeAm "You are an adult (age: " + age + ")"
+    }
+    
+    if age < 13 {
+        seeAm "You are a child"
+    } else if age < 20 {
+        seeAm "You are a teenager"
+    } else if age < 65 {
+        seeAm "You are an adult"
+    } else {
+        seeAm "You are a senior"
+    }
+    
+    // Complex conditions
+    seeAm ""
+    seeAm "=== Complex Conditions ==="
+    
+    has_license = true
+    years_experience = 3
+    is_employed = true
+    
+    if age >= 16 && has_license {
+        seeAm "Can drive a car"
+    }
+    
+    if (years_experience >= 2 && is_employed) || age >= 30 {
+        seeAm "Eligible for senior position"
+    }
+    
+    if !(age < 18) {
+        seeAm "Not a minor"
+    }
+    
+    // While loops
+    seeAm ""
+    seeAm "=== While Loops ==="
+    
+    mut counter = 0
+    seeAm "Counting up to 5:"
+    
+    while counter < 5 {
+        seeAm "Count: " + counter
+        counter = counter + 1
+    }
+    
+    // Countdown example
+    mut countdown = 5
+    seeAm ""
+    seeAm "Countdown:"
+    
+    while countdown > 0 {
+        seeAm countdown + "..."
+        countdown = countdown - 1
+    }
+    seeAm "Blast off!"
+    
+    // For loops
+    seeAm ""
+    seeAm "=== For Loops ==="
+    
+    seeAm "Numbers 1 to 10:"
+    for i in 1..11 {
+        seeAm "Number: " + i
+    }
+    
+    seeAm ""
+    seeAm "Even numbers from 0 to 20:"
+    for i in 0..21 {
+        if i % 2 == 0 {
+            seeAm "Even: " + i
+        }
+    }
+    
+    // Nested loops
+    seeAm ""
+    seeAm "=== Nested Loops ==="
+    
+    seeAm "Multiplication table (3x3):"
+    for row in 1..4 {
+        mut line = ""
+        for col in 1..4 {
+            mut product = row * col
+            line = line + product + "\t"
+        }
+        seeAm "Row " + row + ": " + line
+    }
+    
+    // Loop control with break and continue
+    seeAm ""
+    seeAm "=== Loop Control ==="
+    
+    seeAm "Finding first number divisible by 7:"
+    for num in 1..100 {
+        if num % 7 == 0 {
+            seeAm "Found: " + num
+            break
+        }
+    }
+    
+    seeAm ""
+    seeAm "Numbers 1-20, skipping multiples of 3:"
+    for num in 1..21 {
+        if num % 3 == 0 {
+            continue
+        }
+        seeAm "Processing: " + num
+    }
+    
+    // Pattern matching with enums (conceptual)
+    seeAm ""
+    seeAm "=== Pattern Matching (Conceptual) ==="
+    
+    // This demonstrates how pattern matching might work in future versions
+    status = "active"
+    
+    if status == "active" {
+        seeAm "System is running"
+    } else if status == "inactive" {
+        seeAm "System is stopped"
+    } else if status == "maintenance" {
+        seeAm "System is under maintenance"
+    } else {
+        seeAm "Unknown status: " + status
+    }
+    
+    // Conditional expressions
+    seeAm ""
+    seeAm "=== Conditional Expressions ==="
+    
+    score = 85
+    grade = if score >= 90 {
+        "A"
+    } else if score >= 80 {
+        "B"
+    } else if score >= 70 {
+        "C"
+    } else if score >= 60 {
+        "D"
+    } else {
+        "F"
+    }
+    
+    seeAm "Score: " + score + ", Grade: " + grade
+    
+    // Early returns in functions
+    seeAm ""
+    seeAm "=== Early Returns ==="
+    
+    result1 = check_eligibility(25, true, 3)
+    result2 = check_eligibility(16, false, 0)
+    result3 = check_eligibility(30, true, 1)
+    
+    seeAm "Eligibility results:"
+    seeAm "Person 1: " + result1
+    seeAm "Person 2: " + result2
+    seeAm "Person 3: " + result3
+    
+    seeAm ""
+    seeAm "Control flow demo complete!"
+}
+
+fn check_eligibility(age: u32, has_license: bool, experience: u32) -> string {
+    // Early return for age requirement
+    if age < 18 {
+        return "Too young"
+    }
+    
+    // Early return for license requirement
+    if !has_license {
+        return "No license"
+    }
+    
+    // Early return for experience requirement
+    if experience < 2 {
+        return "Insufficient experience"
+    }
+    
+    // All requirements met
+    return "Eligible"
+}
+
+fn demonstrate_loops() {
+    seeAm "=== Advanced Loop Patterns ==="
+    
+    // Loop with accumulator
+    mut sum = 0
+    for i in 1..11 {
+        sum = sum + i
+    }
+    seeAm "Sum of 1-10: " + sum
+    
+    // Loop with condition checking
+    mut found = false
+    mut target = 7
+    
+    for i in 1..20 {
+        if i == target {
+            seeAm "Found target " + target + " at position " + i
+            found = true
+            break
+        }
+    }
+    
+    if !found {
+        seeAm "Target " + target + " not found"
+    }
+    
+    // Infinite loop with break condition (careful!)
+    mut attempts = 0
+    while true {
+        attempts = attempts + 1
+        seeAm "Attempt: " + attempts
+        
+        if attempts >= 3 {
+            seeAm "Maximum attempts reached"
+            break
+        }
+    }
+}

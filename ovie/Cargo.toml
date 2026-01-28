@@ -1,0 +1,36 @@
+[package]
+name = "ovie"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "The Ovie programming language toolchain CLI"
+keywords = ["cli", "toolchain", "ovie", "programming-language"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+# CLI argument parsing
+clap.workspace = true
+# Error handling
+thiserror.workspace = true
+miette.workspace = true
+# Serialization
+serde.workspace = true
+toml.workspace = true
+# Async runtime
+tokio.workspace = true
+
+# Internal dependencies
+oviec = { path = "../oviec" }
+aproko = { path = "../aproko" }
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile.workspace = true
+
+[features]
+default = []
+llvm = ["oviec/llvm"]

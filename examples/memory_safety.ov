@@ -1,0 +1,310 @@
+// Memory safety demonstrations in Ovie
+// Key concepts: ownership, borrowing, memory management, safety guarantees
+
+// Ownership example - values have single owners
+fn demonstrate_ownership() {
+    seeAm "=== Ownership Demonstration ==="
+    
+    // Create a value - 'data' owns the string
+    mut data = "Hello, Ovie!"
+    seeAm "Original data: " + data
+    
+    // Transfer ownership to another variable
+    mut moved_data = data
+    seeAm "Moved data: " + moved_data
+    
+    // Note: 'data' is no longer valid here in a real ownership system
+    // In Ovie Stage 0, this is conceptual - full ownership will be in later stages
+    
+    seeAm "Ownership transferred successfully"
+}
+
+// Borrowing example - temporary access without ownership transfer
+fn demonstrate_borrowing() {
+    seeAm "=== Borrowing Demonstration ==="
+    
+    mut original_message = "Important data"
+    seeAm "Original: " + original_message
+    
+    // In a full ownership system, this would be borrowing
+    print_message_length(original_message)
+    
+    // Original is still valid after borrowing
+    seeAm "Original still valid: " + original_message
+}
+
+fn print_message_length(message: string) {
+    // This function borrows the message without taking ownership
+    seeAm "Message length: " + message.length()
+    seeAm "Message content: " + message
+    // message goes out of scope here, but doesn't affect the original
+}
+
+// Scope and lifetime demonstration
+fn demonstrate_scopes() {
+    seeAm "=== Scope and Lifetime Demonstration ==="
+    
+    mut outer_variable = "Outer scope"
+    seeAm "Outer variable: " + outer_variable
+    
+    // Inner scope
+    {
+        mut inner_variable = "Inner scope"
+        seeAm "Inner variable: " + inner_variable
+        seeAm "Outer still accessible: " + outer_variable
+        
+        // Nested scope
+        {
+            mut nested_variable = "Nested scope"
+            seeAm "Nested variable: " + nested_variable
+            seeAm "Inner still accessible: " + inner_variable
+            seeAm "Outer still accessible: " + outer_variable
+        }
+        // nested_variable is no longer accessible here
+        
+        seeAm "Back in inner scope"
+    }
+    // inner_variable is no longer accessible here
+    
+    seeAm "Back in outer scope: " + outer_variable
+}
+
+// Safe resource management
+struct FileHandle {
+    filename: string,
+    is_open: mut bool,
+    content: mut string,
+}
+
+fn open_file(filename: string) -> Result<FileHandle, string> {
+    // Simulate file opening
+    if filename.is_empty() {
+        return Result.Error("Filename cannot be empty")
+    }
+    
+    if !filename.ends_with(".txt") {
+        return Result.Error("Only .txt files are supported")
+    }
+    
+    mut handle = FileHandle {
+        filename: filename,
+        is_open: true,
+        content: "Sample file content for " + filename,
+    }
+    
+    seeAm "Opened file: " + filename
+    return Result.Ok(handle)
+}
+
+fn read_file(file: mut FileHandle) -> Result<string, string> {
+    if !file.is_open {
+        return Result.Error("File is not open")
+    }
+    
+    seeAm "Reading from file: " + file.filename
+    return Result.Ok(file.content)
+}
+
+fn close_file(file: mut FileHandle) -> Result<(), string> {
+    if !file.is_open {
+        return Result.Error("File is already closed")
+    }
+    
+    file.is_open = false
+    file.content = ""  // Clear content to simulate resource cleanup
+    seeAm "Closed file: " + file.filename
+    return Result.Ok(())
+}
+
+fn demonstrate_resource_management() {
+    seeAm "=== Resource Management Demonstration ==="
+    
+    mut file_result = open_file("example.txt")
+    match file_result {
+        Result.Error(message) => {
+            seeAm "Failed to open file: " + message
+            return
+        },
+        Result.Ok(file_handle) => {
+            // Use the file
+            mut read_result = read_file(file_handle)
+            match read_result {
+                Result.Ok(content) => seeAm "File content: " + content,
+                Result.Error(message) => seeAm "Failed to read file: " + message,
+            }
+            
+            // Always close the file
+            mut close_result = close_file(file_handle)
+            match close_result {
+                Result.Ok(_) => seeAm "File closed successfully",
+                Result.Error(message) => seeAm "Failed to close file: " + message,
+            }
+        },
+    }
+}
+
+// Safe array access
+fn demonstrate_safe_array_access() {
+    seeAm "=== Safe Array Access Demonstration ==="
+    
+    mut numbers = [10, 20, 30, 40, 50]
+    mut array_length = numbers.length()
+    
+    seeAm "Array: [10, 20, 30, 40, 50]"
+    seeAm "Array length: " + array_length
+    
+    // Safe access within bounds
+    for i in 0..array_length {
+        seeAm "numbers[" + i + "] = " + numbers[i]
+    }
+    
+    // Demonstrate bounds checking (conceptual)
+    mut test_indices = [0, 2, 4, 5, 10]  // 5 and 10 are out of bounds
+    
+    for index in test_indices {
+        if index < array_length {
+            seeAm "Safe access - numbers[" + index + "] = " + numbers[index]
+        } else {
+            seeAm "Bounds check failed - index " + index + " is out of bounds (max: " + (array_length - 1) + ")"
+        }
+    }
+}
+
+// Memory leak prevention
+struct DataBuffer {
+    name: string,
+    size: u32,
+    data: mut [u8],
+    is_allocated: mut bool,
+}
+
+fn allocate_buffer(name: string, size: u32) -> DataBuffer {
+    mut buffer = DataBuffer {
+        name: name,
+        size: size,
+        data: [],  // Simplified - would allocate actual memory
+        is_allocated: true,
+    }
+    
+    // Simulate memory allocation
+    for i in 0..size {
+        buffer.data.push(0)
+    }
+    
+    seeAm "Allocated buffer '" + name + "' with " + size + " bytes"
+    return buffer
+}
+
+fn deallocate_buffer(buffer: mut DataBuffer) {
+    if !buffer.is_allocated {
+        seeAm "Warning: Buffer '" + buffer.name + "' is already deallocated"
+        return
+    }
+    
+    buffer.data.clear()
+    buffer.is_allocated = false
+    seeAm "Deallocated buffer '" + buffer.name + "'"
+}
+
+fn demonstrate_memory_management() {
+    seeAm "=== Memory Management Demonstration ==="
+    
+    // Allocate buffers
+    mut buffer1 = allocate_buffer("Buffer1", 1024)
+    mut buffer2 = allocate_buffer("Buffer2", 2048)
+    
+    // Use buffers
+    seeAm "Using buffer1 (size: " + buffer1.size + ")"
+    seeAm "Using buffer2 (size: " + buffer2.size + ")"
+    
+    // Properly deallocate
+    deallocate_buffer(buffer1)
+    deallocate_buffer(buffer2)
+    
+    // Attempt to deallocate again (should warn)
+    deallocate_buffer(buffer1)
+}
+
+// Unsafe operations demonstration
+fn demonstrate_unsafe_operations() {
+    seeAm "=== Unsafe Operations Demonstration ==="
+    
+    // In Ovie, unsafe operations must be explicitly marked
+    unsafe {
+        seeAm "This is an unsafe block"
+        seeAm "Unsafe operations would go here:"
+        seeAm "- Raw pointer manipulation"
+        seeAm "- Direct memory access"
+        seeAm "- Foreign function calls"
+        seeAm "- Bypassing safety checks"
+    }
+    
+    seeAm "Back to safe code"
+    seeAm "Unsafe blocks are auditable and clearly marked"
+}
+
+// Thread safety concepts (conceptual for future implementation)
+fn demonstrate_thread_safety_concepts() {
+    seeAm "=== Thread Safety Concepts ==="
+    
+    // Shared data that would need protection
+    mut shared_counter = 0
+    
+    seeAm "Shared counter: " + shared_counter
+    seeAm "In a multi-threaded environment, this would need:"
+    seeAm "- Synchronization primitives (mutexes, channels)"
+    seeAm "- Ownership rules to prevent data races"
+    seeAm "- Send/Sync traits for thread-safe types"
+    
+    // Simulate safe increment
+    shared_counter = shared_counter + 1
+    seeAm "Safely incremented counter: " + shared_counter
+}
+
+fn main() {
+    seeAm "=== Memory Safety in Ovie ==="
+    seeAm "Demonstrating safe memory management patterns"
+    seeAm ""
+    
+    demonstrate_ownership()
+    seeAm ""
+    
+    demonstrate_borrowing()
+    seeAm ""
+    
+    demonstrate_scopes()
+    seeAm ""
+    
+    demonstrate_resource_management()
+    seeAm ""
+    
+    demonstrate_safe_array_access()
+    seeAm ""
+    
+    demonstrate_memory_management()
+    seeAm ""
+    
+    demonstrate_unsafe_operations()
+    seeAm ""
+    
+    demonstrate_thread_safety_concepts()
+    seeAm ""
+    
+    seeAm "=== Memory Safety Summary ==="
+    seeAm "Ovie provides memory safety through:"
+    seeAm "✓ Ownership system (prevents use-after-free)"
+    seeAm "✓ Borrowing rules (prevents data races)"
+    seeAm "✓ Bounds checking (prevents buffer overflows)"
+    seeAm "✓ Resource management (prevents memory leaks)"
+    seeAm "✓ Explicit unsafe blocks (auditable unsafe code)"
+    seeAm "✓ Compile-time safety checks"
+    seeAm ""
+    seeAm "These features eliminate entire classes of bugs:"
+    seeAm "- Null pointer dereferences"
+    seeAm "- Buffer overflows"
+    seeAm "- Use-after-free errors"
+    seeAm "- Memory leaks"
+    seeAm "- Data races"
+    seeAm ""
+    seeAm "Memory safety demonstration complete!"
+}

@@ -1,0 +1,515 @@
+// Data analysis pipeline example
+// Key concepts: data processing, analysis, aggregation, reporting
+
+// Data structures for sales analysis
+struct SalesRecord {
+    id: string,
+    date: string,
+    customer_name: string,
+    product_name: string,
+    category: string,
+    quantity: u32,
+    unit_price: f64,
+    total_amount: f64,
+    sales_rep: string,
+    region: string,
+}
+
+struct SalesSummary {
+    total_sales: f64,
+    total_transactions: u32,
+    average_transaction: f64,
+    top_product: string,
+    top_customer: string,
+    best_sales_rep: string,
+}
+
+struct CategoryAnalysis {
+    category: string,
+    total_sales: f64,
+    transaction_count: u32,
+    average_sale: f64,
+    percentage_of_total: f64,
+}
+
+struct RegionalAnalysis {
+    region: string,
+    total_sales: f64,
+    transaction_count: u32,
+    top_product: string,
+    best_sales_rep: string,
+}
+
+// Data generation for demonstration
+fn generate_sample_data() -> [SalesRecord] {
+    mut records = []
+    
+    // Sample data representing a month of sales
+    mut sample_records = [
+        SalesRecord {
+            id: "TXN001",
+            date: "2026-01-01",
+            customer_name: "Alice Johnson",
+            product_name: "Laptop Pro",
+            category: "Electronics",
+            quantity: 1,
+            unit_price: 1299.99,
+            total_amount: 1299.99,
+            sales_rep: "John Smith",
+            region: "North",
+        },
+        SalesRecord {
+            id: "TXN002",
+            date: "2026-01-02",
+            customer_name: "Bob Wilson",
+            product_name: "Office Chair",
+            category: "Furniture",
+            quantity: 2,
+            unit_price: 249.99,
+            total_amount: 499.98,
+            sales_rep: "Sarah Davis",
+            region: "South",
+        },
+        SalesRecord {
+            id: "TXN003",
+            date: "2026-01-03",
+            customer_name: "Charlie Brown",
+            product_name: "Smartphone",
+            category: "Electronics",
+            quantity: 1,
+            unit_price: 799.99,
+            total_amount: 799.99,
+            sales_rep: "John Smith",
+            region: "North",
+        },
+        SalesRecord {
+            id: "TXN004",
+            date: "2026-01-04",
+            customer_name: "Diana Prince",
+            product_name: "Desk Lamp",
+            category: "Furniture",
+            quantity: 3,
+            unit_price: 89.99,
+            total_amount: 269.97,
+            sales_rep: "Mike Johnson",
+            region: "East",
+        },
+        SalesRecord {
+            id: "TXN005",
+            date: "2026-01-05",
+            customer_name: "Alice Johnson",
+            product_name: "Tablet",
+            category: "Electronics",
+            quantity: 1,
+            unit_price: 499.99,
+            total_amount: 499.99,
+            sales_rep: "Sarah Davis",
+            region: "South",
+        },
+        SalesRecord {
+            id: "TXN006",
+            date: "2026-01-06",
+            customer_name: "Frank Miller",
+            product_name: "Bookshelf",
+            category: "Furniture",
+            quantity: 1,
+            unit_price: 199.99,
+            total_amount: 199.99,
+            sales_rep: "Mike Johnson",
+            region: "East",
+        },
+        SalesRecord {
+            id: "TXN007",
+            date: "2026-01-07",
+            customer_name: "Grace Lee",
+            product_name: "Laptop Pro",
+            category: "Electronics",
+            quantity: 2,
+            unit_price: 1299.99,
+            total_amount: 2599.98,
+            sales_rep: "John Smith",
+            region: "North",
+        },
+        SalesRecord {
+            id: "TXN008",
+            date: "2026-01-08",
+            customer_name: "Henry Ford",
+            product_name: "Monitor",
+            category: "Electronics",
+            quantity: 1,
+            unit_price: 329.99,
+            total_amount: 329.99,
+            sales_rep: "Sarah Davis",
+            region: "West",
+        },
+    ]
+    
+    return sample_records
+}
+
+// Data processing functions
+fn calculate_sales_summary(records: [SalesRecord]) -> SalesSummary {
+    mut total_sales = 0.0
+    mut total_transactions = records.length()
+    
+    // Calculate total sales
+    for record in records {
+        total_sales = total_sales + record.total_amount
+    }
+    
+    mut average_transaction = if total_transactions > 0 {
+        total_sales / total_transactions
+    } else {
+        0.0
+    }
+    
+    // Find top product by total sales
+    mut product_sales = {}  // Map of product -> total sales
+    for record in records {
+        if product_sales.contains_key(record.product_name) {
+            product_sales[record.product_name] = product_sales[record.product_name] + record.total_amount
+        } else {
+            product_sales[record.product_name] = record.total_amount
+        }
+    }
+    
+    mut top_product = ""
+    mut top_product_sales = 0.0
+    for product, sales in product_sales {
+        if sales > top_product_sales {
+            top_product_sales = sales
+            top_product = product
+        }
+    }
+    
+    // Find top customer by total purchases
+    mut customer_sales = {}
+    for record in records {
+        if customer_sales.contains_key(record.customer_name) {
+            customer_sales[record.customer_name] = customer_sales[record.customer_name] + record.total_amount
+        } else {
+            customer_sales[record.customer_name] = record.total_amount
+        }
+    }
+    
+    mut top_customer = ""
+    mut top_customer_sales = 0.0
+    for customer, sales in customer_sales {
+        if sales > top_customer_sales {
+            top_customer_sales = sales
+            top_customer = customer
+        }
+    }
+    
+    // Find best sales rep by total sales
+    mut rep_sales = {}
+    for record in records {
+        if rep_sales.contains_key(record.sales_rep) {
+            rep_sales[record.sales_rep] = rep_sales[record.sales_rep] + record.total_amount
+        } else {
+            rep_sales[record.sales_rep] = record.total_amount
+        }
+    }
+    
+    mut best_sales_rep = ""
+    mut best_rep_sales = 0.0
+    for rep, sales in rep_sales {
+        if sales > best_rep_sales {
+            best_rep_sales = sales
+            best_sales_rep = rep
+        }
+    }
+    
+    return SalesSummary {
+        total_sales: total_sales,
+        total_transactions: total_transactions,
+        average_transaction: average_transaction,
+        top_product: top_product,
+        top_customer: top_customer,
+        best_sales_rep: best_sales_rep,
+    }
+}
+
+fn analyze_by_category(records: [SalesRecord]) -> [CategoryAnalysis] {
+    mut category_data = {}  // Map of category -> (total_sales, count)
+    mut total_sales = 0.0
+    
+    // Aggregate by category
+    for record in records {
+        total_sales = total_sales + record.total_amount
+        
+        if category_data.contains_key(record.category) {
+            mut existing = category_data[record.category]
+            category_data[record.category] = (existing.0 + record.total_amount, existing.1 + 1)
+        } else {
+            category_data[record.category] = (record.total_amount, 1)
+        }
+    }
+    
+    // Create analysis results
+    mut analyses = []
+    for category, data in category_data {
+        mut category_sales = data.0
+        mut category_count = data.1
+        mut average_sale = category_sales / category_count
+        mut percentage = (category_sales / total_sales) * 100.0
+        
+        mut analysis = CategoryAnalysis {
+            category: category,
+            total_sales: category_sales,
+            transaction_count: category_count,
+            average_sale: average_sale,
+            percentage_of_total: percentage,
+        }
+        
+        analyses.push(analysis)
+    }
+    
+    // Sort by total sales (descending)
+    analyses.sort_by(|a, b| b.total_sales.compare(a.total_sales))
+    
+    return analyses
+}
+
+fn analyze_by_region(records: [SalesRecord]) -> [RegionalAnalysis] {
+    mut region_data = {}  // Map of region -> records
+    
+    // Group by region
+    for record in records {
+        if region_data.contains_key(record.region) {
+            region_data[record.region].push(record)
+        } else {
+            region_data[record.region] = [record]
+        }
+    }
+    
+    mut analyses = []
+    
+    for region, region_records in region_data {
+        mut total_sales = 0.0
+        mut transaction_count = region_records.length()
+        
+        // Calculate total sales for region
+        for record in region_records {
+            total_sales = total_sales + record.total_amount
+        }
+        
+        // Find top product in region
+        mut product_sales = {}
+        for record in region_records {
+            if product_sales.contains_key(record.product_name) {
+                product_sales[record.product_name] = product_sales[record.product_name] + record.total_amount
+            } else {
+                product_sales[record.product_name] = record.total_amount
+            }
+        }
+        
+        mut top_product = ""
+        mut top_product_sales = 0.0
+        for product, sales in product_sales {
+            if sales > top_product_sales {
+                top_product_sales = sales
+                top_product = product
+            }
+        }
+        
+        // Find best sales rep in region
+        mut rep_sales = {}
+        for record in region_records {
+            if rep_sales.contains_key(record.sales_rep) {
+                rep_sales[record.sales_rep] = rep_sales[record.sales_rep] + record.total_amount
+            } else {
+                rep_sales[record.sales_rep] = record.total_amount
+            }
+        }
+        
+        mut best_sales_rep = ""
+        mut best_rep_sales = 0.0
+        for rep, sales in rep_sales {
+            if sales > best_rep_sales {
+                best_rep_sales = sales
+                best_sales_rep = rep
+            }
+        }
+        
+        mut analysis = RegionalAnalysis {
+            region: region,
+            total_sales: total_sales,
+            transaction_count: transaction_count,
+            top_product: top_product,
+            best_sales_rep: best_sales_rep,
+        }
+        
+        analyses.push(analysis)
+    }
+    
+    // Sort by total sales (descending)
+    analyses.sort_by(|a, b| b.total_sales.compare(a.total_sales))
+    
+    return analyses
+}
+
+// Data filtering and transformation
+fn filter_by_date_range(records: [SalesRecord], start_date: string, end_date: string) -> [SalesRecord] {
+    mut filtered = []
+    
+    for record in records {
+        if record.date >= start_date && record.date <= end_date {
+            filtered.push(record)
+        }
+    }
+    
+    return filtered
+}
+
+fn filter_by_category(records: [SalesRecord], category: string) -> [SalesRecord] {
+    mut filtered = []
+    
+    for record in records {
+        if record.category == category {
+            filtered.push(record)
+        }
+    }
+    
+    return filtered
+}
+
+fn filter_high_value_transactions(records: [SalesRecord], minimum_amount: f64) -> [SalesRecord] {
+    mut filtered = []
+    
+    for record in records {
+        if record.total_amount >= minimum_amount {
+            filtered.push(record)
+        }
+    }
+    
+    return filtered
+}
+
+// Reporting functions
+fn print_sales_summary(summary: SalesSummary) {
+    seeAm "=== Sales Summary Report ==="
+    seeAm "Total Sales: $" + summary.total_sales
+    seeAm "Total Transactions: " + summary.total_transactions
+    seeAm "Average Transaction: $" + summary.average_transaction
+    seeAm "Top Product: " + summary.top_product
+    seeAm "Top Customer: " + summary.top_customer
+    seeAm "Best Sales Rep: " + summary.best_sales_rep
+    seeAm ""
+}
+
+fn print_category_analysis(analyses: [CategoryAnalysis]) {
+    seeAm "=== Category Analysis Report ==="
+    seeAm "Category".pad_right(15) + "Sales".pad_right(12) + "Count".pad_right(8) + "Avg Sale".pad_right(12) + "% of Total"
+    seeAm "-" * 60
+    
+    for analysis in analyses {
+        seeAm analysis.category.pad_right(15) + 
+              ("$" + analysis.total_sales).pad_right(12) + 
+              analysis.transaction_count.pad_right(8) + 
+              ("$" + analysis.average_sale).pad_right(12) + 
+              (analysis.percentage_of_total + "%")
+    }
+    seeAm ""
+}
+
+fn print_regional_analysis(analyses: [RegionalAnalysis]) {
+    seeAm "=== Regional Analysis Report ==="
+    
+    for analysis in analyses {
+        seeAm "Region: " + analysis.region
+        seeAm "  Total Sales: $" + analysis.total_sales
+        seeAm "  Transactions: " + analysis.transaction_count
+        seeAm "  Top Product: " + analysis.top_product
+        seeAm "  Best Sales Rep: " + analysis.best_sales_rep
+        seeAm ""
+    }
+}
+
+fn print_raw_data(records: [SalesRecord], title: string) {
+    seeAm "=== " + title + " ==="
+    seeAm "ID".pad_right(8) + "Date".pad_right(12) + "Customer".pad_right(15) + "Product".pad_right(15) + "Amount".pad_right(10) + "Rep"
+    seeAm "-" * 80
+    
+    for record in records {
+        seeAm record.id.pad_right(8) + 
+              record.date.pad_right(12) + 
+              record.customer_name.pad_right(15) + 
+              record.product_name.pad_right(15) + 
+              ("$" + record.total_amount).pad_right(10) + 
+              record.sales_rep
+    }
+    seeAm ""
+}
+
+// Main data processing pipeline
+fn run_data_analysis_pipeline() {
+    seeAm "=== Data Processing Pipeline ==="
+    seeAm "Loading and analyzing sales data..."
+    seeAm ""
+    
+    // Step 1: Load data
+    mut all_records = generate_sample_data()
+    seeAm "Loaded " + all_records.length() + " sales records"
+    seeAm ""
+    
+    // Step 2: Overall analysis
+    mut summary = calculate_sales_summary(all_records)
+    print_sales_summary(summary)
+    
+    // Step 3: Category analysis
+    mut category_analyses = analyze_by_category(all_records)
+    print_category_analysis(category_analyses)
+    
+    // Step 4: Regional analysis
+    mut regional_analyses = analyze_by_region(all_records)
+    print_regional_analysis(regional_analyses)
+    
+    // Step 5: Filtered analysis - Electronics only
+    mut electronics_records = filter_by_category(all_records, "Electronics")
+    seeAm "=== Electronics Category Deep Dive ==="
+    seeAm "Found " + electronics_records.length() + " electronics transactions"
+    mut electronics_summary = calculate_sales_summary(electronics_records)
+    seeAm "Electronics Total Sales: $" + electronics_summary.total_sales
+    seeAm "Electronics Average Transaction: $" + electronics_summary.average_transaction
+    seeAm ""
+    
+    // Step 6: High-value transactions
+    mut high_value_records = filter_high_value_transactions(all_records, 500.0)
+    print_raw_data(high_value_records, "High-Value Transactions (>$500)")
+    
+    // Step 7: Date range analysis (conceptual)
+    mut recent_records = filter_by_date_range(all_records, "2026-01-05", "2026-01-08")
+    seeAm "=== Recent Sales Analysis (Jan 5-8) ==="
+    mut recent_summary = calculate_sales_summary(recent_records)
+    seeAm "Recent Sales Total: $" + recent_summary.total_sales
+    seeAm "Recent Transactions: " + recent_summary.total_transactions
+    seeAm ""
+}
+
+fn main() {
+    seeAm "=== Data Processing Example ==="
+    seeAm "Demonstrating data analysis and reporting capabilities in Ovie"
+    seeAm ""
+    
+    run_data_analysis_pipeline()
+    
+    seeAm "=== Data Processing Features Demonstrated ==="
+    seeAm "✓ Data structure design for business entities"
+    seeAm "✓ Data aggregation and summarization"
+    seeAm "✓ Grouping and categorization"
+    seeAm "✓ Filtering and transformation"
+    seeAm "✓ Statistical calculations"
+    seeAm "✓ Sorting and ranking"
+    seeAm "✓ Report generation and formatting"
+    seeAm "✓ Pipeline-based data processing"
+    seeAm ""
+    seeAm "This example shows how Ovie can be used for:"
+    seeAm "- Business intelligence and analytics"
+    seeAm "- Data ETL (Extract, Transform, Load) processes"
+    seeAm "- Report generation systems"
+    seeAm "- Data validation and quality checks"
+    seeAm "- Performance monitoring and KPI tracking"
+    seeAm ""
+    seeAm "Data processing demonstration complete!"
+}

@@ -1,0 +1,22 @@
+[package]
+name = "aproko"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+description = "Aproko - The Ovie programming language assistant engine"
+keywords = ["assistant", "code-analysis", "ovie"]
+categories = ["development-tools", "compilers"]
+
+[dependencies]
+# Error handling
+thiserror.workspace = true
+# Serialization
+serde.workspace = true
+# TOML parsing for configuration
+toml = "0.8"
+# Reference to oviec for AST types
+oviec = { path = "../oviec" }

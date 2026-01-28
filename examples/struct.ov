@@ -1,0 +1,75 @@
+// Structs and data structures in Ovie
+
+// Define a Person struct
+struct Person {
+    name: String,
+    age: Number,
+    email: String,
+}
+
+// Define a Point struct for geometry
+struct Point {
+    x: Number,
+    y: Number,
+}
+
+// Define a Rectangle struct
+struct Rectangle {
+    top_left: Point,
+    width: Number,
+    height: Number,
+}
+
+// Create instances
+person1 = Person {
+    name: "Alice Johnson",
+    age: 28,
+    email: "alice@example.com",
+};
+
+person2 = Person {
+    name: "Bob Smith", 
+    age: 35,
+    email: "bob@example.com",
+};
+
+// Access struct fields
+seeAm "Person 1: " + person1.name + ", Age: " + person1.age;
+seeAm "Person 2: " + person2.name + ", Age: " + person2.age;
+
+// Create geometric shapes
+origin = Point { x: 0, y: 0 };
+corner = Point { x: 10, y: 15 };
+
+rect = Rectangle {
+    top_left: origin,
+    width: 20,
+    height: 10,
+};
+
+seeAm "Rectangle at (" + rect.top_left.x + ", " + rect.top_left.y + ")";
+seeAm "Size: " + rect.width + " x " + rect.height;
+
+// Function that works with structs
+fn greet_person(p) {
+    seeAm "Hello, " + p.name + "! You are " + p.age + " years old.";
+}
+
+fn calculate_area(r) {
+    return r.width * r.height;
+}
+
+fn distance_from_origin(p) {
+    // Simple distance calculation (not using sqrt for now)
+    return p.x + p.y;
+}
+
+// Use functions with structs
+greet_person(person1);
+greet_person(person2);
+
+area = calculate_area(rect);
+seeAm "Rectangle area: " + area;
+
+dist = distance_from_origin(corner);
+seeAm "Distance from origin: " + dist;

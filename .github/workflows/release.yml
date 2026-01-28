@@ -1,0 +1,259 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        default: '0.1.0'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            os: windows-latest
+            name: windows-x64
+            ext: .exe
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: windows-x64-msvc
+            ext: .exe
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-x64
+            ext: ''
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: macos-x64
+            ext: ''
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: macos-arm64
+            ext: ''
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo build
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+
+    - name: Build release
+      run: cargo build --release --target ${{ matrix.target }} --workspace
+
+    - name: Create release directory
+      shell: bash
+      run: |
+        mkdir -p release/${{ matrix.name }}
+        cp target/${{ matrix.target }}/release/ovie${{ matrix.ext }} release/${{ matrix.name }}/
+        cp target/${{ matrix.target }}/release/oviec${{ matrix.ext }} release/${{ matrix.name }}/
+        cp README.md LICENSE release/${{ matrix.name }}/
+        cp -r docs examples release/${{ matrix.name }}/
+
+    - name: Create install script (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        cat > release/${{ matrix.name }}/install.bat << 'EOF'
+        @echo off
+        echo Installing Ovie Programming Language...
+        if not exist "%USERPROFILE%\.local\bin" mkdir "%USERPROFILE%\.local\bin"
+        copy ovie.exe "%USERPROFILE%\.local\bin\" >nul 2>&1
+        copy oviec.exe "%USERPROFILE%\.local\bin\" >nul 2>&1
+        echo Ovie installed successfully!
+        echo Add %USERPROFILE%\.local\bin to your PATH if not already added.
+        echo Run 'ovie --help' to get started.
+        pause
+        EOF
+
+    - name: Create install script (Unix)
+      if: matrix.os != 'windows-latest'
+      shell: bash
+      run: |
+        cat > release/${{ matrix.name }}/install.sh << 'EOF'
+        #!/bin/bash
+        echo "Installing Ovie Programming Language..."
+        mkdir -p ~/.local/bin
+        cp ovie ~/.local/bin/
+        cp oviec ~/.local/bin/
+        chmod +x ~/.local/bin/ovie ~/.local/bin/oviec
+        echo "Ovie installed successfully!"
+        echo "Make sure ~/.local/bin is in your PATH"
+        echo "Run 'ovie --help' to get started."
+        EOF
+        chmod +x release/${{ matrix.name }}/install.sh
+
+    - name: Create archive (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: bash
+      run: |
+        cd release
+        7z a -tzip ../ovie-${{ github.ref_name || github.event.inputs.version }}-${{ matrix.name }}.zip ${{ matrix.name }}/*
+
+    - name: Create archive (Unix)
+      if: matrix.os != 'windows-latest'
+      shell: bash
+      run: |
+        cd release
+        tar -czf ../ovie-${{ github.ref_name || github.event.inputs.version }}-${{ matrix.name }}.tar.gz ${{ matrix.name }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ovie-${{ matrix.name }}
+        path: |
+          ovie-*.zip
+          ovie-*.tar.gz
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Move artifacts to release directory
+      run: |
+        mkdir -p release-assets
+        find . -name "ovie-*.zip" -o -name "ovie-*.tar.gz" | xargs -I {} mv {} release-assets/
+
+    - name: Generate checksums
+      run: |
+        cd release-assets
+        sha256sum * > checksums.txt
+
+    - name: Create release notes
+      run: |
+        cat > release-notes.md << EOF
+        # Ovie Programming Language ${{ github.ref_name || github.event.inputs.version }}
+        
+        ## Installation
+        
+        ### Quick Install (Recommended)
+        
+        **Linux/macOS:**
+        \`\`\`bash
+        curl -sSL https://raw.githubusercontent.com/ovie-lang/ovie/main/install.sh | bash
+        \`\`\`
+        
+        **Windows (PowerShell):**
+        \`\`\`powershell
+        iwr -useb https://raw.githubusercontent.com/ovie-lang/ovie/main/install.ps1 | iex
+        \`\`\`
+        
+        ### Manual Installation
+        
+        1. Download the appropriate archive for your platform below
+        2. Extract the archive
+        3. Run the included install script, or manually copy binaries to your PATH
+        
+        ## Platform Downloads
+        
+        - **Windows x64**: \`ovie-${{ github.ref_name || github.event.inputs.version }}-windows-x64.zip\`
+        - **Windows x64 (MSVC)**: \`ovie-${{ github.ref_name || github.event.inputs.version }}-windows-x64-msvc.zip\`
+        - **Linux x64**: \`ovie-${{ github.ref_name || github.event.inputs.version }}-linux-x64.tar.gz\`
+        - **macOS x64 (Intel)**: \`ovie-${{ github.ref_name || github.event.inputs.version }}-macos-x64.tar.gz\`
+        - **macOS ARM64 (Apple Silicon)**: \`ovie-${{ github.ref_name || github.event.inputs.version }}-macos-arm64.tar.gz\`
+        
+        ## Quick Start
+        
+        \`\`\`bash
+        # Create a new project
+        ovie new my-project
+        cd my-project
+        
+        # Run your project
+        ovie run
+        
+        # Compile to different backends
+        oviec src/main.ov --backend wasm
+        oviec src/main.ov --backend ir
+        \`\`\`
+        
+        ## What's Included
+        
+        - \`ovie\` - The Ovie CLI toolchain
+        - \`oviec\` - The Ovie compiler
+        - Complete documentation in \`docs/\`
+        - Example programs in \`examples/\`
+        - Installation scripts
+        
+        ## Features
+        
+        ✅ Complete lexer, parser, and AST generation  
+        ✅ Normalizer with safe auto-correction  
+        ✅ Multiple compilation backends (IR, WASM)  
+        ✅ Aproko assistant engine for code analysis  
+        ✅ Package management system  
+        ✅ CLI toolchain with project scaffolding  
+        ✅ Comprehensive documentation and examples  
+        ✅ Cross-platform support  
+        ✅ Security and safety features  
+        
+        ## Verification
+        
+        Verify your download with SHA256 checksums in \`checksums.txt\`.
+        
+        ## System Requirements
+        
+        - **Windows**: Windows 10 or later (x64)
+        - **macOS**: macOS 10.15 or later (Intel or Apple Silicon)
+        - **Linux**: Any modern Linux distribution (x64)
+        EOF
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name || github.event.inputs.version }}
+        name: Ovie Programming Language ${{ github.ref_name || github.event.inputs.version }}
+        body_path: release-notes.md
+        files: |
+          release-assets/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

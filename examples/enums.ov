@@ -1,0 +1,170 @@
+// Enumerations and pattern matching demonstration
+// Key concepts: enums, pattern matching, data variants, state management
+
+enum Color {
+    Red,
+    Green,
+    Blue,
+    Custom(u8, u8, u8),  // RGB values
+}
+
+enum OrderStatus {
+    Pending,
+    Processing,
+    Shipped(string),     // Tracking number
+    Delivered,
+    Cancelled(string),   // Cancellation reason
+}
+
+enum Result<T, E> {
+    Ok(T),
+    Error(E),
+}
+
+enum PaymentMethod {
+    Cash,
+    CreditCard(string, string),  // Card number, expiry
+    BankTransfer(string),        // Account number
+    DigitalWallet(string),       // Wallet ID
+}
+
+fn describe_color(color: Color) -> string {
+    match color {
+        Color.Red => return "A vibrant red color",
+        Color.Green => return "A natural green color",
+        Color.Blue => return "A calming blue color",
+        Color.Custom(r, g, b) => return "Custom RGB(" + r + ", " + g + ", " + b + ")",
+    }
+}
+
+fn process_order(status: OrderStatus) {
+    match status {
+        OrderStatus.Pending => {
+            seeAm "Order is pending - waiting for payment confirmation"
+        },
+        OrderStatus.Processing => {
+            seeAm "Order is being processed - preparing items"
+        },
+        OrderStatus.Shipped(tracking) => {
+            seeAm "Order has been shipped!"
+            seeAm "Tracking number: " + tracking
+            seeAm "Expected delivery: 3-5 business days"
+        },
+        OrderStatus.Delivered => {
+            seeAm "Order has been delivered successfully"
+        },
+        OrderStatus.Cancelled(reason) => {
+            seeAm "Order was cancelled"
+            seeAm "Reason: " + reason
+        },
+    }
+}
+
+fn safe_divide(a: f64, b: f64) -> Result<f64, string> {
+    if b == 0.0 {
+        return Result.Error("Cannot divide by zero")
+    }
+    return Result.Ok(a / b)
+}
+
+fn process_payment(method: PaymentMethod, amount: f64) -> Result<string, string> {
+    match method {
+        PaymentMethod.Cash => {
+            if amount <= 1000.0 {
+                return Result.Ok("Cash payment of $" + amount + " accepted")
+            } else {
+                return Result.Error("Cash payments over $1000 not accepted")
+            }
+        },
+        PaymentMethod.CreditCard(number, expiry) => {
+            // Simplified validation
+            if number.length() == 16 && expiry.length() == 5 {
+                return Result.Ok("Credit card payment of $" + amount + " processed")
+            } else {
+                return Result.Error("Invalid credit card information")
+            }
+        },
+        PaymentMethod.BankTransfer(account) => {
+            if account.length() >= 8 {
+                return Result.Ok("Bank transfer of $" + amount + " initiated to " + account)
+            } else {
+                return Result.Error("Invalid bank account number")
+            }
+        },
+        PaymentMethod.DigitalWallet(wallet_id) => {
+            return Result.Ok("Digital wallet payment of $" + amount + " sent to " + wallet_id)
+        },
+    }
+}
+
+fn main() {
+    seeAm "=== Enum Examples ==="
+    seeAm ""
+    
+    // Color examples
+    seeAm "Color Examples:"
+    mut primary_colors = [Color.Red, Color.Green, Color.Blue]
+    mut custom_color = Color.Custom(255, 128, 64)  // Orange
+    
+    for color in primary_colors {
+        seeAm describe_color(color)
+    }
+    seeAm describe_color(custom_color)
+    seeAm ""
+    
+    // Order status examples
+    seeAm "Order Status Examples:"
+    mut order_statuses = [
+        OrderStatus.Pending,
+        OrderStatus.Processing,
+        OrderStatus.Shipped("1Z999AA1234567890"),
+        OrderStatus.Delivered,
+        OrderStatus.Cancelled("Customer requested refund"),
+    ]
+    
+    for status in order_statuses {
+        process_order(status)
+        seeAm "---"
+    }
+    seeAm ""
+    
+    // Result type examples
+    seeAm "Result Type Examples:"
+    mut division_tests = [
+        (10.0, 2.0),
+        (15.0, 3.0),
+        (7.0, 0.0),    // This will cause an error
+        (100.0, 4.0),
+    ]
+    
+    for test in division_tests {
+        mut result = safe_divide(test.0, test.1)
+        match result {
+            Result.Ok(value) => seeAm test.0 + " ÷ " + test.1 + " = " + value,
+            Result.Error(message) => seeAm "Error: " + message + " (" + test.0 + " ÷ " + test.1 + ")",
+        }
+    }
+    seeAm ""
+    
+    // Payment method examples
+    seeAm "Payment Method Examples:"
+    mut payment_tests = [
+        (PaymentMethod.Cash, 50.0),
+        (PaymentMethod.Cash, 1500.0),  // This will fail
+        (PaymentMethod.CreditCard("1234567890123456", "12/25"), 299.99),
+        (PaymentMethod.CreditCard("invalid", "bad"), 100.0),  // This will fail
+        (PaymentMethod.BankTransfer("12345678901"), 750.0),
+        (PaymentMethod.DigitalWallet("user@wallet.com"), 25.0),
+    ]
+    
+    for test in payment_tests {
+        mut result = process_payment(test.0, test.1)
+        match result {
+            Result.Ok(message) => seeAm "✓ " + message,
+            Result.Error(error) => seeAm "✗ " + error,
+        }
+    }
+    
+    seeAm ""
+    seeAm "Enum demonstration complete!"
+}

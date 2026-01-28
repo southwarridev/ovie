@@ -1,0 +1,145 @@
+# Ovie Programming Language - Offline-First .gitignore
+# This file ensures no sensitive data or build artifacts go online
+
+# Rust build artifacts
+/target/
+**/target/
+Cargo.lock
+*.rlib
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Release builds and distributions
+/releases/
+/dist/
+*.zip
+*.tar.gz
+*.deb
+*.rpm
+*.msi
+*.dmg
+
+# Temporary and cache files
+*.tmp
+*.temp
+*.cache
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+*.sublime-*
+.atom/
+.brackets.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and debugging
+*.log
+*.out
+*.err
+debug/
+logs/
+
+# Package management (keep offline)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python artifacts (if any)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Network and security sensitive files
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets/
+.env
+.env.local
+.env.production
+.env.staging
+
+# Ovie-specific offline-first exclusions
+# Prevent any network configuration from being committed
+network-config/
+remote-repos/
+.git-credentials
+.netrc
+
+# Vendor directory (dependencies should be local)
+vendor/
+.ovie/registry/
+.ovie/cache/
+
+# Test artifacts and temporary projects
+test-*/
+demo-*/
+benchmark-results/
+coverage/
+
+# Documentation build artifacts
+docs/_build/
+docs/.doctrees/
+site/
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Lock files (keep local)
+*.lock
+!Cargo.lock
+
+# CI/CD artifacts (prevent accidental commits of CI secrets)
+.github/secrets/
+.gitlab/secrets/
+ci-secrets/
+
+# Local development overrides
+local-config/
+dev-overrides/
+.local/
+
+# Performance and profiling data
+*.prof
+perf.data*
+flamegraph.svg
+
+# Ovie compiler artifacts
+*.ov.ir
+*.ov.wasm
+*.ov.ll
+output.*
+
+# Keep the project truly offline-first
+# Block any files that might contain URLs or network references
+*-urls.txt
+*-endpoints.txt
+*-remotes.txt
+network-*.json
+remote-*.toml

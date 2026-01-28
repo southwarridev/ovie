@@ -1,0 +1,391 @@
+// Banking system simulation - Enterprise use case
+// Key concepts: structs, enums, error handling, business logic, state management
+
+enum TransactionType {
+    Deposit,
+    Withdrawal,
+    Transfer,
+    Fee,
+}
+
+enum AccountType {
+    Checking,
+    Savings,
+    Business,
+}
+
+enum TransactionResult {
+    Success(string),
+    InsufficientFunds,
+    AccountClosed,
+    InvalidAmount,
+    DailyLimitExceeded,
+}
+
+struct Transaction {
+    id: string,
+    transaction_type: TransactionType,
+    amount: f64,
+    timestamp: string,
+    description: string,
+    balance_after: f64,
+}
+
+struct BankAccount {
+    account_number: string,
+    account_type: AccountType,
+    owner_name: string,
+    balance: mut f64,
+    is_active: mut bool,
+    daily_withdrawal_limit: f64,
+    daily_withdrawn: mut f64,
+    transactions: mut [Transaction],
+}
+
+struct Bank {
+    name: string,
+    accounts: mut [BankAccount],
+    next_account_number: mut u32,
+    next_transaction_id: mut u32,
+}
+
+// Bank operations
+fn create_bank(name: string) -> Bank {
+    return Bank {
+        name: name,
+        accounts: [],
+        next_account_number: 1000,
+        next_transaction_id: 1,
+    }
+}
+
+fn create_account(bank: mut Bank, owner_name: string, account_type: AccountType) -> string {
+    mut account_number = "ACC" + bank.next_account_number
+    bank.next_account_number = bank.next_account_number + 1
+    
+    mut daily_limit = match account_type {
+        AccountType.Checking => 1000.0,
+        AccountType.Savings => 500.0,
+        AccountType.Business => 5000.0,
+    }
+    
+    mut account = BankAccount {
+        account_number: account_number,
+        account_type: account_type,
+        owner_name: owner_name,
+        balance: 0.0,
+        is_active: true,
+        daily_withdrawal_limit: daily_limit,
+        daily_withdrawn: 0.0,
+        transactions: [],
+    }
+    
+    bank.accounts.push(account)
+    
+    seeAm "Created account " + account_number + " for " + owner_name
+    return account_number
+}
+
+fn find_account(bank: mut Bank, account_number: string) -> Option<mut BankAccount> {
+    for account in bank.accounts {
+        if account.account_number == account_number {
+            return Option.Some(account)
+        }
+    }
+    return Option.None
+}
+
+fn generate_transaction_id(bank: mut Bank) -> string {
+    mut id = "TXN" + bank.next_transaction_id
+    bank.next_transaction_id = bank.next_transaction_id + 1
+    return id
+}
+
+fn get_current_timestamp() -> string {
+    // Simplified timestamp - in real implementation would use system time
+    return "2026-01-28 10:30:00"
+}
+
+// Account operations
+fn deposit(bank: mut Bank, account_number: string, amount: f64, description: string) -> TransactionResult {
+    if amount <= 0.0 {
+        return TransactionResult.InvalidAmount
+    }
+    
+    mut account_opt = find_account(bank, account_number)
+    match account_opt {
+        Option.None => return TransactionResult.InvalidAmount,  // Account not found
+        Option.Some(account) => {
+            if !account.is_active {
+                return TransactionResult.AccountClosed
+            }
+            
+            account.balance = account.balance + amount
+            
+            mut transaction = Transaction {
+                id: generate_transaction_id(bank),
+                transaction_type: TransactionType.Deposit,
+                amount: amount,
+                timestamp: get_current_timestamp(),
+                description: description,
+                balance_after: account.balance,
+            }
+            
+            account.transactions.push(transaction)
+            
+            mut message = "Deposited $" + amount + " to account " + account_number + ". New balance: $" + account.balance
+            return TransactionResult.Success(message)
+        },
+    }
+}
+
+fn withdraw(bank: mut Bank, account_number: string, amount: f64, description: string) -> TransactionResult {
+    if amount <= 0.0 {
+        return TransactionResult.InvalidAmount
+    }
+    
+    mut account_opt = find_account(bank, account_number)
+    match account_opt {
+        Option.None => return TransactionResult.InvalidAmount,  // Account not found
+        Option.Some(account) => {
+            if !account.is_active {
+                return TransactionResult.AccountClosed
+            }
+            
+            if account.balance < amount {
+                return TransactionResult.InsufficientFunds
+            }
+            
+            if account.daily_withdrawn + amount > account.daily_withdrawal_limit {
+                return TransactionResult.DailyLimitExceeded
+            }
+            
+            account.balance = account.balance - amount
+            account.daily_withdrawn = account.daily_withdrawn + amount
+            
+            mut transaction = Transaction {
+                id: generate_transaction_id(bank),
+                transaction_type: TransactionType.Withdrawal,
+                amount: amount,
+                timestamp: get_current_timestamp(),
+                description: description,
+                balance_after: account.balance,
+            }
+            
+            account.transactions.push(transaction)
+            
+            mut message = "Withdrew $" + amount + " from account " + account_number + ". New balance: $" + account.balance
+            return TransactionResult.Success(message)
+        },
+    }
+}
+
+fn transfer(bank: mut Bank, from_account: string, to_account: string, amount: f64) -> TransactionResult {
+    // First withdraw from source account
+    mut withdraw_result = withdraw(bank, from_account, amount, "Transfer to " + to_account)
+    
+    match withdraw_result {
+        TransactionResult.Success(_) => {
+            // Then deposit to destination account
+            mut deposit_result = deposit(bank, to_account, amount, "Transfer from " + from_account)
+            
+            match deposit_result {
+                TransactionResult.Success(_) => {
+                    mut message = "Transferred $" + amount + " from " + from_account + " to " + to_account
+                    return TransactionResult.Success(message)
+                },
+                _ => {
+                    // If deposit fails, we need to reverse the withdrawal (simplified)
+                    deposit(bank, from_account, amount, "Reversal - failed transfer")
+                    return deposit_result
+                },
+            }
+        },
+        _ => return withdraw_result,
+    }
+}
+
+fn charge_monthly_fee(bank: mut Bank, account_number: string) -> TransactionResult {
+    mut fee_amount = 5.0  // $5 monthly fee
+    
+    mut account_opt = find_account(bank, account_number)
+    match account_opt {
+        Option.None => return TransactionResult.InvalidAmount,
+        Option.Some(account) => {
+            if !account.is_active {
+                return TransactionResult.AccountClosed
+            }
+            
+            account.balance = account.balance - fee_amount
+            
+            mut transaction = Transaction {
+                id: generate_transaction_id(bank),
+                transaction_type: TransactionType.Fee,
+                amount: fee_amount,
+                timestamp: get_current_timestamp(),
+                description: "Monthly maintenance fee",
+                balance_after: account.balance,
+            }
+            
+            account.transactions.push(transaction)
+            
+            mut message = "Charged monthly fee of $" + fee_amount + ". New balance: $" + account.balance
+            return TransactionResult.Success(message)
+        },
+    }
+}
+
+// Reporting functions
+fn print_account_summary(bank: Bank, account_number: string) {
+    mut account_opt = find_account(bank, account_number)
+    match account_opt {
+        Option.None => {
+            seeAm "Account " + account_number + " not found"
+            return
+        },
+        Option.Some(account) => {
+            seeAm "=== Account Summary ==="
+            seeAm "Account Number: " + account.account_number
+            seeAm "Owner: " + account.owner_name
+            seeAm "Type: " + match account.account_type {
+                AccountType.Checking => "Checking",
+                AccountType.Savings => "Savings", 
+                AccountType.Business => "Business",
+            }
+            seeAm "Balance: $" + account.balance
+            seeAm "Status: " + (if account.is_active { "Active" } else { "Closed" })
+            seeAm "Daily Limit: $" + account.daily_withdrawal_limit
+            seeAm "Daily Withdrawn: $" + account.daily_withdrawn
+            seeAm "Total Transactions: " + account.transactions.length()
+        },
+    }
+}
+
+fn print_transaction_history(bank: Bank, account_number: string, limit: u32) {
+    mut account_opt = find_account(bank, account_number)
+    match account_opt {
+        Option.None => {
+            seeAm "Account " + account_number + " not found"
+            return
+        },
+        Option.Some(account) => {
+            seeAm "=== Transaction History (Last " + limit + " transactions) ==="
+            
+            if account.transactions.is_empty() {
+                seeAm "No transactions found"
+                return
+            }
+            
+            mut count = 0
+            mut total_transactions = account.transactions.length()
+            mut start_index = if total_transactions > limit { total_transactions - limit } else { 0 }
+            
+            for i in start_index..total_transactions {
+                mut transaction = account.transactions[i]
+                mut type_str = match transaction.transaction_type {
+                    TransactionType.Deposit => "DEPOSIT",
+                    TransactionType.Withdrawal => "WITHDRAWAL",
+                    TransactionType.Transfer => "TRANSFER",
+                    TransactionType.Fee => "FEE",
+                }
+                
+                seeAm transaction.timestamp + " | " + type_str + " | $" + transaction.amount + " | " + transaction.description + " | Balance: $" + transaction.balance_after
+            }
+        },
+    }
+}
+
+fn main() {
+    seeAm "=== Banking System Simulation ==="
+    seeAm ""
+    
+    // Create bank
+    mut bank = create_bank("Ovie National Bank")
+    seeAm "Created bank: " + bank.name
+    seeAm ""
+    
+    // Create accounts
+    mut alice_account = create_account(bank, "Alice Johnson", AccountType.Checking)
+    mut bob_account = create_account(bank, "Bob Smith", AccountType.Savings)
+    mut company_account = create_account(bank, "Tech Corp Inc", AccountType.Business)
+    seeAm ""
+    
+    // Perform transactions
+    seeAm "=== Performing Transactions ==="
+    
+    // Deposits
+    mut result1 = deposit(bank, alice_account, 1500.0, "Initial deposit")
+    match result1 {
+        TransactionResult.Success(message) => seeAm "✓ " + message,
+        _ => seeAm "✗ Deposit failed",
+    }
+    
+    mut result2 = deposit(bank, bob_account, 2000.0, "Salary deposit")
+    match result2 {
+        TransactionResult.Success(message) => seeAm "✓ " + message,
+        _ => seeAm "✗ Deposit failed",
+    }
+    
+    mut result3 = deposit(bank, company_account, 50000.0, "Business capital")
+    match result3 {
+        TransactionResult.Success(message) => seeAm "✓ " + message,
+        _ => seeAm "✗ Deposit failed",
+    }
+    
+    seeAm ""
+    
+    // Withdrawals
+    mut result4 = withdraw(bank, alice_account, 200.0, "ATM withdrawal")
+    match result4 {
+        TransactionResult.Success(message) => seeAm "✓ " + message,
+        TransactionResult.InsufficientFunds => seeAm "✗ Insufficient funds",
+        TransactionResult.DailyLimitExceeded => seeAm "✗ Daily limit exceeded",
+        _ => seeAm "✗ Withdrawal failed",
+    }
+    
+    // Try to withdraw more than daily limit
+    mut result5 = withdraw(bank, alice_account, 1200.0, "Large withdrawal")
+    match result5 {
+        TransactionResult.Success(message) => seeAm "✓ " + message,
+        TransactionResult.InsufficientFunds => seeAm "✗ Insufficient funds",
+        TransactionResult.DailyLimitExceeded => seeAm "✗ Daily limit exceeded",
+        _ => seeAm "✗ Withdrawal failed",
+    }
+    
+    seeAm ""
+    
+    // Transfer
+    mut result6 = transfer(bank, bob_account, alice_account, 300.0)
+    match result6 {
+        TransactionResult.Success(message) => seeAm "✓ " + message,
+        TransactionResult.InsufficientFunds => seeAm "✗ Insufficient funds for transfer",
+        _ => seeAm "✗ Transfer failed",
+    }
+    
+    seeAm ""
+    
+    // Monthly fees
+    mut result7 = charge_monthly_fee(bank, alice_account)
+    match result7 {
+        TransactionResult.Success(message) => seeAm "✓ " + message,
+        _ => seeAm "✗ Fee charge failed",
+    }
+    
+    seeAm ""
+    
+    // Account summaries
+    print_account_summary(bank, alice_account)
+    seeAm ""
+    print_account_summary(bank, bob_account)
+    seeAm ""
+    print_account_summary(bank, company_account)
+    seeAm ""
+    
+    // Transaction histories
+    print_transaction_history(bank, alice_account, 10)
+    seeAm ""
+    print_transaction_history(bank, bob_account, 10)
+    
+    seeAm ""
+    seeAm "Banking system simulation complete!"
+}

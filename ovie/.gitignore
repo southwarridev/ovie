@@ -1,0 +1,14 @@
+# Ovie CLI - Build artifacts
+/target/
+*.exe
+*.dll
+
+# Test projects
+test-project/
+demo-*/
+verify-*/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

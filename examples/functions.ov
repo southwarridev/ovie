@@ -1,0 +1,250 @@
+// Function definitions, calls, and advanced patterns
+// Key concepts: functions, parameters, return values, recursion, higher-order functions
+
+// Simple function with no parameters
+fn greet() {
+    seeAm "Hello from Ovie!"
+}
+
+// Function with parameters
+fn greet_person(name: string) {
+    seeAm "Hello, " + name + "! Welcome to Ovie."
+}
+
+// Function with return value
+fn add(a: u32, b: u32) -> u32 {
+    return a + b
+}
+
+// Function with multiple parameters and return
+fn calculate_rectangle_area(width: f64, height: f64) -> f64 {
+    mut area = width * height
+    seeAm "Calculating area: " + width + " × " + height + " = " + area
+    return area
+}
+
+// Function with early return
+fn categorize_age(age: u32) -> string {
+    if age < 13 {
+        return "Child"
+    }
+    
+    if age < 20 {
+        return "Teenager"
+    }
+    
+    if age < 65 {
+        return "Adult"
+    }
+    
+    return "Senior"
+}
+
+// Recursive function - factorial
+fn factorial(n: u32) -> u32 {
+    if n <= 1 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+// Recursive function - Fibonacci
+fn fibonacci(n: u32) -> u32 {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+// Function that validates input
+fn validate_password(password: string) -> Result<bool, string> {
+    if password.length() < 8 {
+        return Result.Error("Password must be at least 8 characters long")
+    }
+    
+    if !password.contains_digit() {
+        return Result.Error("Password must contain at least one digit")
+    }
+    
+    if !password.contains_uppercase() {
+        return Result.Error("Password must contain at least one uppercase letter")
+    }
+    
+    if !password.contains_lowercase() {
+        return Result.Error("Password must contain at least one lowercase letter")
+    }
+    
+    return Result.Ok(true)
+}
+
+// Function with complex logic
+fn calculate_tax(income: f64, filing_status: string) -> f64 {
+    mut tax_rate: f64
+    
+    // Simplified tax calculation
+    if filing_status == "single" {
+        if income <= 10000.0 {
+            tax_rate = 0.10
+        } else if income <= 40000.0 {
+            tax_rate = 0.12
+        } else if income <= 85000.0 {
+            tax_rate = 0.22
+        } else {
+            tax_rate = 0.24
+        }
+    } else if filing_status == "married" {
+        if income <= 20000.0 {
+            tax_rate = 0.10
+        } else if income <= 80000.0 {
+            tax_rate = 0.12
+        } else if income <= 170000.0 {
+            tax_rate = 0.22
+        } else {
+            tax_rate = 0.24
+        }
+    } else {
+        tax_rate = 0.25  // Default rate for unknown status
+    }
+    
+    mut tax_owed = income * tax_rate
+    seeAm "Income: $" + income + ", Status: " + filing_status + ", Tax Rate: " + (tax_rate * 100.0) + "%"
+    return tax_owed
+}
+
+// Function that calls other functions
+fn process_employee_data(name: string, age: u32, salary: f64) {
+    seeAm "=== Processing Employee: " + name + " ==="
+    
+    mut category = categorize_age(age)
+    seeAm "Age Category: " + category
+    
+    mut tax_owed = calculate_tax(salary, "single")
+    seeAm "Annual Tax Owed: $" + tax_owed
+    
+    mut net_salary = salary - tax_owed
+    seeAm "Net Annual Salary: $" + net_salary
+    
+    mut monthly_net = net_salary / 12.0
+    seeAm "Monthly Net Salary: $" + monthly_net
+    
+    seeAm "Processing complete for " + name
+    seeAm ""
+}
+
+// Higher-order function concept (simplified)
+fn apply_operation(a: u32, b: u32, operation: string) -> u32 {
+    if operation == "add" {
+        return add(a, b)
+    } else if operation == "multiply" {
+        return a * b
+    } else if operation == "subtract" {
+        return a - b
+    } else {
+        seeAm "Unknown operation: " + operation
+        return 0
+    }
+}
+
+// Function with default behavior
+fn format_currency(amount: f64, currency: string) -> string {
+    if currency == "USD" {
+        return "$" + amount
+    } else if currency == "EUR" {
+        return "€" + amount
+    } else if currency == "GBP" {
+        return "£" + amount
+    } else {
+        return amount + " " + currency
+    }
+}
+
+fn main() {
+    seeAm "=== Function Examples ==="
+    seeAm ""
+    
+    // Basic function calls
+    seeAm "Basic Function Calls:"
+    greet()
+    greet_person("Fejiro")
+    greet_person("kewve")
+    seeAm ""
+    
+    // Functions with return values
+    seeAm "Functions with Return Values:"
+    mut sum = add(15, 27)
+    mut area = calculate_rectangle_area(5.5, 8.2)
+    seeAm "Sum: 15 + 27 = " + sum
+    seeAm "Rectangle area: " + area
+    seeAm ""
+    
+    // Age categorization
+    seeAm "Age Categorization:"
+    mut ages = [5, 16, 25, 45, 70]
+    for age in ages {
+        mut category = categorize_age(age)
+        seeAm "Age " + age + " is categorized as: " + category
+    }
+    seeAm ""
+    
+    // Recursive functions
+    seeAm "Recursive Functions:"
+    seeAm "Factorials:"
+    for i in 1..6 {
+        mut fact = factorial(i)
+        seeAm "Factorial of " + i + " = " + fact
+    }
+    
+    seeAm "Fibonacci sequence:"
+    for i in 0..10 {
+        mut fib = fibonacci(i)
+        seeAm "Fibonacci(" + i + ") = " + fib
+    }
+    seeAm ""
+    
+    // Password validation
+    seeAm "Password Validation:"
+    mut test_passwords = [
+        "short",
+        "nouppercase123",
+        "NOLOWERCASE123",
+        "NoDigitsHere",
+        "ValidPass123",
+        "AnotherGood1",
+    ]
+    
+    for password in test_passwords {
+        mut result = validate_password(password)
+        match result {
+            Result.Ok(_) => seeAm "✓ '" + password + "' is valid",
+            Result.Error(message) => seeAm "✗ '" + password + "' is invalid: " + message,
+        }
+    }
+    seeAm ""
+    
+    // Employee data processing
+    seeAm "Employee Data Processing:"
+    process_employee_data("Alice Johnson", 28, 75000.0)
+    process_employee_data("Bob Smith", 45, 95000.0)
+    process_employee_data("Charlie Brown", 22, 45000.0)
+    
+    // Higher-order function usage
+    seeAm "Higher-Order Function Usage:"
+    mut operations = ["add", "multiply", "subtract"]
+    for op in operations {
+        mut result = apply_operation(12, 8, op)
+        seeAm "12 " + op + " 8 = " + result
+    }
+    seeAm ""
+    
+    // Currency formatting
+    seeAm "Currency Formatting:"
+    mut amount = 1234.56
+    mut currencies = ["USD", "EUR", "GBP", "JPY"]
+    for currency in currencies {
+        mut formatted = format_currency(amount, currency)
+        seeAm "Amount in " + currency + ": " + formatted
+    }
+    
+    seeAm ""
+    seeAm "Function demonstration complete!"
+}

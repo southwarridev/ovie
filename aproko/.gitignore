@@ -1,0 +1,18 @@
+# Aproko Assistant Engine - Build artifacts
+/target/
+*.rlib
+*.so
+*.dylib
+*.dll
+
+# Analysis outputs
+analysis-reports/
+*.analysis
+
+# Test artifacts
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

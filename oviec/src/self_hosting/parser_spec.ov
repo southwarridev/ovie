@@ -1,0 +1,973 @@
+// Ovie-in-Ovie Parser Specification
+// Stage 1 Self-Hosting Foundation
+// This file defines the parser implementation in Ovie syntax
+
+// Import token types from lexer
+// (In a real implementation, this would be a proper import)
+
+// AST Node types matching the Rust implementation
+enum AstNodeType {
+    Program,
+    Statement,
+    Expression,
+    Literal,
+}
+
+// Statement types
+enum StatementType {
+    Assignment,
+    Function,
+    Print,
+    If,
+    While,
+    For,
+    Return,
+    Expression,
+    Struct,
+    Enum,
+}
+
+// Expression types
+enum ExpressionType {
+    Literal,
+    Identifier,
+    Binary,
+    Unary,
+    Call,
+    FieldAccess,
+    StructInstantiation,
+    Range,
+}
+
+// Binary operators
+enum BinaryOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    And,
+    Or,
+}
+
+// Unary operators
+enum UnaryOperator {
+    Not,
+    Negate,
+}
+
+// Literal types
+enum LiteralType {
+    String,
+    Number,
+    Boolean,
+}
+
+// AST Node structure
+struct AstNode {
+    node_type: AstNodeType,
+    statements: [Statement],
+}
+
+// Statement structure
+struct Statement {
+    statement_type: StatementType,
+    // Assignment fields
+    mutable: Boolean,
+    identifier: String,
+    value: Expression,
+    // Function fields
+    name: String,
+    parameters: [String],
+    body: [Statement],
+    // Print fields
+    expression: Expression,
+    // If fields
+    condition: Expression,
+    then_block: [Statement],
+    else_block: [Statement],
+    // Loop fields
+    iterable: Expression,
+    // Return fields
+    return_value: Expression,
+}
+
+// Expression structure
+struct Expression {
+    expression_type: ExpressionType,
+    // Literal fields
+    literal_type: LiteralType,
+    string_value: String,
+    number_value: Number,
+    boolean_value: Boolean,
+    // Identifier fields
+    identifier_name: String,
+    // Binary fields
+    left: Expression,
+    operator: BinaryOperator,
+    right: Expression,
+    // Unary fields
+    unary_operator: UnaryOperator,
+    operand: Expression,
+    // Call fields
+    function_name: String,
+    arguments: [Expression],
+    // Field access fields
+    object: Expression,
+    field: String,
+    // Struct instantiation fields
+    struct_name: String,
+    field_initializers: [FieldInitializer],
+    // Range fields
+    start: Expression,
+    end: Expression,
+}
+
+// Field initializer for struct instantiation
+struct FieldInitializer {
+    name: String,
+    value: Expression,
+}
+
+// Parser state
+struct Parser {
+    tokens: [Token],
+    current: Number,
+    errors: [String],
+}
+
+// Parser implementation functions
+fn create_parser(tokens: [Token]) -> Parser {
+    Parser {
+        tokens: tokens,
+        current: 0,
+        errors: [],
+    }
+}
+
+fn parse(mut parser: Parser) -> AstNode {
+    mut statements = [];
+    
+    while !is_at_end(parser) {
+        if peek(parser).token_type == TokenType.Eof {
+            break;
+        }
+        
+        mut stmt = parse_statement(parser);
+        append(statements, stmt);
+    }
+    
+    AstNode {
+        node_type: AstNodeType.Program,
+        statements: statements,
+    }
+}
+
+fn parse_statement(mut parser: Parser) -> Statement {
+    // Check for different statement types
+    if match_token(parser, TokenType.Fn) {
+        return parse_function(parser);
+    }
+    
+    if match_token(parser, TokenType.SeeAm) {
+        return parse_print_statement(parser);
+    }
+    
+    if match_token(parser, TokenType.If) {
+        return parse_if_statement(parser);
+    }
+    
+    if match_token(parser, TokenType.While) {
+        return parse_while_statement(parser);
+    }
+    
+    if match_token(parser, TokenType.For) {
+        return parse_for_statement(parser);
+    }
+    
+    if match_token(parser, TokenType.Return) {
+        return parse_return_statement(parser);
+    }
+    
+    if match_token(parser, TokenType.Struct) {
+        return parse_struct_definition(parser);
+    }
+    
+    if match_token(parser, TokenType.Enum) {
+        return parse_enum_definition(parser);
+    }
+    
+    // Check for assignment (identifier = expression)
+    if check_assignment(parser) {
+        return parse_assignment(parser);
+    }
+    
+    // Default to expression statement
+    return parse_expression_statement(parser);
+}
+
+fn parse_function(mut parser: Parser) -> Statement {
+    mut name = consume(parser, TokenType.Identifier, "Expected function name").lexeme;
+    
+    consume(parser, TokenType.LeftParen, "Expected '(' after function name");
+    
+    mut parameters = [];
+    if !check(parser, TokenType.RightParen) {
+        parameters = parse_parameter_list(parser);
+    }
+    
+    consume(parser, TokenType.RightParen, "Expected ')' after parameters");
+    consume(parser, TokenType.LeftBrace, "Expected '{' before function body");
+    
+    mut body = [];
+    while !check(parser, TokenType.RightBrace) && !is_at_end(parser) {
+        mut stmt = parse_statement(parser);
+        append(body, stmt);
+    }
+    
+    consume(parser, TokenType.RightBrace, "Expected '}' after function body");
+    
+    Statement {
+        statement_type: StatementType.Function,
+        name: name,
+        parameters: parameters,
+        body: body,
+        mutable: false,
+        identifier: "",
+        value: create_empty_expression(),
+        expression: create_empty_expression(),
+        condition: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        iterable: create_empty_expression(),
+        return_value: create_empty_expression(),
+    }
+}
+
+fn parse_parameter_list(mut parser: Parser) -> [String] {
+    mut parameters = [];
+    
+    mut param = consume(parser, TokenType.Identifier, "Expected parameter name").lexeme;
+    append(parameters, param);
+    
+    while match_token(parser, TokenType.Comma) {
+        param = consume(parser, TokenType.Identifier, "Expected parameter name").lexeme;
+        append(parameters, param);
+    }
+    
+    return parameters;
+}
+
+fn parse_print_statement(mut parser: Parser) -> Statement {
+    mut expr = parse_expression(parser);
+    consume(parser, TokenType.Semicolon, "Expected ';' after print statement");
+    
+    Statement {
+        statement_type: StatementType.Print,
+        expression: expr,
+        mutable: false,
+        identifier: "",
+        value: create_empty_expression(),
+        name: "",
+        parameters: [],
+        body: [],
+        condition: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        iterable: create_empty_expression(),
+        return_value: create_empty_expression(),
+    }
+}
+
+fn parse_if_statement(mut parser: Parser) -> Statement {
+    mut condition = parse_expression(parser);
+    consume(parser, TokenType.LeftBrace, "Expected '{' after if condition");
+    
+    mut then_block = [];
+    while !check(parser, TokenType.RightBrace) && !is_at_end(parser) {
+        mut stmt = parse_statement(parser);
+        append(then_block, stmt);
+    }
+    
+    consume(parser, TokenType.RightBrace, "Expected '}' after if body");
+    
+    mut else_block = [];
+    if match_token(parser, TokenType.Else) {
+        consume(parser, TokenType.LeftBrace, "Expected '{' after else");
+        
+        while !check(parser, TokenType.RightBrace) && !is_at_end(parser) {
+            mut stmt = parse_statement(parser);
+            append(else_block, stmt);
+        }
+        
+        consume(parser, TokenType.RightBrace, "Expected '}' after else body");
+    }
+    
+    Statement {
+        statement_type: StatementType.If,
+        condition: condition,
+        then_block: then_block,
+        else_block: else_block,
+        mutable: false,
+        identifier: "",
+        value: create_empty_expression(),
+        name: "",
+        parameters: [],
+        body: [],
+        expression: create_empty_expression(),
+        iterable: create_empty_expression(),
+        return_value: create_empty_expression(),
+    }
+}
+
+fn parse_while_statement(mut parser: Parser) -> Statement {
+    mut condition = parse_expression(parser);
+    consume(parser, TokenType.LeftBrace, "Expected '{' after while condition");
+    
+    mut body = [];
+    while !check(parser, TokenType.RightBrace) && !is_at_end(parser) {
+        mut stmt = parse_statement(parser);
+        append(body, stmt);
+    }
+    
+    consume(parser, TokenType.RightBrace, "Expected '}' after while body");
+    
+    Statement {
+        statement_type: StatementType.While,
+        condition: condition,
+        body: body,
+        mutable: false,
+        identifier: "",
+        value: create_empty_expression(),
+        name: "",
+        parameters: [],
+        expression: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        iterable: create_empty_expression(),
+        return_value: create_empty_expression(),
+    }
+}
+
+fn parse_for_statement(mut parser: Parser) -> Statement {
+    mut identifier = consume(parser, TokenType.Identifier, "Expected variable name in for loop").lexeme;
+    consume(parser, TokenType.In, "Expected 'in' after for loop variable");
+    mut iterable = parse_expression(parser);
+    consume(parser, TokenType.LeftBrace, "Expected '{' after for loop iterable");
+    
+    mut body = [];
+    while !check(parser, TokenType.RightBrace) && !is_at_end(parser) {
+        mut stmt = parse_statement(parser);
+        append(body, stmt);
+    }
+    
+    consume(parser, TokenType.RightBrace, "Expected '}' after for loop body");
+    
+    Statement {
+        statement_type: StatementType.For,
+        identifier: identifier,
+        iterable: iterable,
+        body: body,
+        mutable: false,
+        value: create_empty_expression(),
+        name: "",
+        parameters: [],
+        expression: create_empty_expression(),
+        condition: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        return_value: create_empty_expression(),
+    }
+}
+
+fn parse_return_statement(mut parser: Parser) -> Statement {
+    mut value = create_empty_expression();
+    
+    if !check(parser, TokenType.Semicolon) {
+        value = parse_expression(parser);
+    }
+    
+    consume(parser, TokenType.Semicolon, "Expected ';' after return statement");
+    
+    Statement {
+        statement_type: StatementType.Return,
+        return_value: value,
+        mutable: false,
+        identifier: "",
+        value: create_empty_expression(),
+        name: "",
+        parameters: [],
+        body: [],
+        expression: create_empty_expression(),
+        condition: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        iterable: create_empty_expression(),
+    }
+}
+
+fn parse_struct_definition(mut parser: Parser) -> Statement {
+    mut name = consume(parser, TokenType.Identifier, "Expected struct name").lexeme;
+    consume(parser, TokenType.LeftBrace, "Expected '{' after struct name");
+    
+    // TODO: Parse struct fields
+    
+    consume(parser, TokenType.RightBrace, "Expected '}' after struct body");
+    
+    Statement {
+        statement_type: StatementType.Struct,
+        name: name,
+        mutable: false,
+        identifier: "",
+        value: create_empty_expression(),
+        parameters: [],
+        body: [],
+        expression: create_empty_expression(),
+        condition: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        iterable: create_empty_expression(),
+        return_value: create_empty_expression(),
+    }
+}
+
+fn parse_enum_definition(mut parser: Parser) -> Statement {
+    mut name = consume(parser, TokenType.Identifier, "Expected enum name").lexeme;
+    consume(parser, TokenType.LeftBrace, "Expected '{' after enum name");
+    
+    // TODO: Parse enum variants
+    
+    consume(parser, TokenType.RightBrace, "Expected '}' after enum body");
+    
+    Statement {
+        statement_type: StatementType.Enum,
+        name: name,
+        mutable: false,
+        identifier: "",
+        value: create_empty_expression(),
+        parameters: [],
+        body: [],
+        expression: create_empty_expression(),
+        condition: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        iterable: create_empty_expression(),
+        return_value: create_empty_expression(),
+    }
+}
+
+fn check_assignment(parser: Parser) -> Boolean {
+    if check(parser, TokenType.Mut) {
+        return true;
+    }
+    
+    if check(parser, TokenType.Identifier) {
+        // Look ahead to see if next token is '='
+        if parser.current + 1 < array_length(parser.tokens) {
+            mut next_token = array_get(parser.tokens, parser.current + 1);
+            return next_token.token_type == TokenType.Equal;
+        }
+    }
+    
+    return false;
+}
+
+fn parse_assignment(mut parser: Parser) -> Statement {
+    mut mutable = false;
+    if match_token(parser, TokenType.Mut) {
+        mutable = true;
+    }
+    
+    mut identifier = consume(parser, TokenType.Identifier, "Expected variable name").lexeme;
+    consume(parser, TokenType.Equal, "Expected '=' in assignment");
+    mut value = parse_expression(parser);
+    consume(parser, TokenType.Semicolon, "Expected ';' after assignment");
+    
+    Statement {
+        statement_type: StatementType.Assignment,
+        mutable: mutable,
+        identifier: identifier,
+        value: value,
+        name: "",
+        parameters: [],
+        body: [],
+        expression: create_empty_expression(),
+        condition: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        iterable: create_empty_expression(),
+        return_value: create_empty_expression(),
+    }
+}
+
+fn parse_expression_statement(mut parser: Parser) -> Statement {
+    mut expr = parse_expression(parser);
+    consume(parser, TokenType.Semicolon, "Expected ';' after expression");
+    
+    Statement {
+        statement_type: StatementType.Expression,
+        expression: expr,
+        mutable: false,
+        identifier: "",
+        value: create_empty_expression(),
+        name: "",
+        parameters: [],
+        body: [],
+        condition: create_empty_expression(),
+        then_block: [],
+        else_block: [],
+        iterable: create_empty_expression(),
+        return_value: create_empty_expression(),
+    }
+}
+
+// Expression parsing with precedence climbing
+fn parse_expression(mut parser: Parser) -> Expression {
+    return parse_logical_or(parser);
+}
+
+fn parse_logical_or(mut parser: Parser) -> Expression {
+    mut expr = parse_logical_and(parser);
+    
+    while match_token(parser, TokenType.OrOr) {
+        mut operator = BinaryOperator.Or;
+        mut right = parse_logical_and(parser);
+        expr = create_binary_expression(expr, operator, right);
+    }
+    
+    return expr;
+}
+
+fn parse_logical_and(mut parser: Parser) -> Expression {
+    mut expr = parse_equality(parser);
+    
+    while match_token(parser, TokenType.AndAnd) {
+        mut operator = BinaryOperator.And;
+        mut right = parse_equality(parser);
+        expr = create_binary_expression(expr, operator, right);
+    }
+    
+    return expr;
+}
+
+fn parse_equality(mut parser: Parser) -> Expression {
+    mut expr = parse_comparison(parser);
+    
+    while match_token(parser, TokenType.EqualEqual) || match_token(parser, TokenType.NotEqual) {
+        mut operator = if previous(parser).token_type == TokenType.EqualEqual {
+            BinaryOperator.Equal
+        } else {
+            BinaryOperator.NotEqual
+        };
+        mut right = parse_comparison(parser);
+        expr = create_binary_expression(expr, operator, right);
+    }
+    
+    return expr;
+}
+
+fn parse_comparison(mut parser: Parser) -> Expression {
+    mut expr = parse_term(parser);
+    
+    while match_token(parser, TokenType.Greater) || match_token(parser, TokenType.GreaterEqual) ||
+          match_token(parser, TokenType.Less) || match_token(parser, TokenType.LessEqual) {
+        mut operator = get_comparison_operator(previous(parser).token_type);
+        mut right = parse_term(parser);
+        expr = create_binary_expression(expr, operator, right);
+    }
+    
+    return expr;
+}
+
+fn parse_term(mut parser: Parser) -> Expression {
+    mut expr = parse_factor(parser);
+    
+    while match_token(parser, TokenType.Plus) || match_token(parser, TokenType.Minus) {
+        mut operator = if previous(parser).token_type == TokenType.Plus {
+            BinaryOperator.Add
+        } else {
+            BinaryOperator.Subtract
+        };
+        mut right = parse_factor(parser);
+        expr = create_binary_expression(expr, operator, right);
+    }
+    
+    return expr;
+}
+
+fn parse_factor(mut parser: Parser) -> Expression {
+    mut expr = parse_unary(parser);
+    
+    while match_token(parser, TokenType.Star) || match_token(parser, TokenType.Slash) || match_token(parser, TokenType.Percent) {
+        mut operator = get_factor_operator(previous(parser).token_type);
+        mut right = parse_unary(parser);
+        expr = create_binary_expression(expr, operator, right);
+    }
+    
+    return expr;
+}
+
+fn parse_unary(mut parser: Parser) -> Expression {
+    if match_token(parser, TokenType.Bang) || match_token(parser, TokenType.Minus) {
+        mut operator = if previous(parser).token_type == TokenType.Bang {
+            UnaryOperator.Not
+        } else {
+            UnaryOperator.Negate
+        };
+        mut operand = parse_unary(parser);
+        return create_unary_expression(operator, operand);
+    }
+    
+    return parse_primary(parser);
+}
+
+fn parse_primary(mut parser: Parser) -> Expression {
+    if match_token(parser, TokenType.True) {
+        return create_boolean_literal(true);
+    }
+    
+    if match_token(parser, TokenType.False) {
+        return create_boolean_literal(false);
+    }
+    
+    if match_token(parser, TokenType.IntegerLiteral) {
+        mut value = string_to_number(previous(parser).lexeme);
+        return create_number_literal(value);
+    }
+    
+    if match_token(parser, TokenType.FloatLiteral) {
+        mut value = string_to_number(previous(parser).lexeme);
+        return create_number_literal(value);
+    }
+    
+    if match_token(parser, TokenType.StringLiteral) {
+        mut value = previous(parser).lexeme;
+        // Remove quotes
+        value = substring(value, 1, length(value) - 1);
+        return create_string_literal(value);
+    }
+    
+    if match_token(parser, TokenType.Identifier) {
+        mut name = previous(parser).lexeme;
+        
+        // Check for function call
+        if match_token(parser, TokenType.LeftParen) {
+            mut arguments = [];
+            
+            if !check(parser, TokenType.RightParen) {
+                arguments = parse_argument_list(parser);
+            }
+            
+            consume(parser, TokenType.RightParen, "Expected ')' after function arguments");
+            return create_call_expression(name, arguments);
+        }
+        
+        return create_identifier_expression(name);
+    }
+    
+    if match_token(parser, TokenType.LeftParen) {
+        mut expr = parse_expression(parser);
+        consume(parser, TokenType.RightParen, "Expected ')' after expression");
+        return expr;
+    }
+    
+    error(parser, "Expected expression");
+    return create_empty_expression();
+}
+
+fn parse_argument_list(mut parser: Parser) -> [Expression] {
+    mut arguments = [];
+    
+    mut arg = parse_expression(parser);
+    append(arguments, arg);
+    
+    while match_token(parser, TokenType.Comma) {
+        arg = parse_expression(parser);
+        append(arguments, arg);
+    }
+    
+    return arguments;
+}
+
+// Helper functions for creating expressions
+fn create_empty_expression() -> Expression {
+    Expression {
+        expression_type: ExpressionType.Literal,
+        literal_type: LiteralType.String,
+        string_value: "",
+        number_value: 0,
+        boolean_value: false,
+        identifier_name: "",
+        left: create_empty_expression(),
+        operator: BinaryOperator.Add,
+        right: create_empty_expression(),
+        unary_operator: UnaryOperator.Not,
+        operand: create_empty_expression(),
+        function_name: "",
+        arguments: [],
+        object: create_empty_expression(),
+        field: "",
+        struct_name: "",
+        field_initializers: [],
+        start: create_empty_expression(),
+        end: create_empty_expression(),
+    }
+}
+
+fn create_binary_expression(left: Expression, operator: BinaryOperator, right: Expression) -> Expression {
+    Expression {
+        expression_type: ExpressionType.Binary,
+        left: left,
+        operator: operator,
+        right: right,
+        literal_type: LiteralType.String,
+        string_value: "",
+        number_value: 0,
+        boolean_value: false,
+        identifier_name: "",
+        unary_operator: UnaryOperator.Not,
+        operand: create_empty_expression(),
+        function_name: "",
+        arguments: [],
+        object: create_empty_expression(),
+        field: "",
+        struct_name: "",
+        field_initializers: [],
+        start: create_empty_expression(),
+        end: create_empty_expression(),
+    }
+}
+
+fn create_unary_expression(operator: UnaryOperator, operand: Expression) -> Expression {
+    Expression {
+        expression_type: ExpressionType.Unary,
+        unary_operator: operator,
+        operand: operand,
+        literal_type: LiteralType.String,
+        string_value: "",
+        number_value: 0,
+        boolean_value: false,
+        identifier_name: "",
+        left: create_empty_expression(),
+        operator: BinaryOperator.Add,
+        right: create_empty_expression(),
+        function_name: "",
+        arguments: [],
+        object: create_empty_expression(),
+        field: "",
+        struct_name: "",
+        field_initializers: [],
+        start: create_empty_expression(),
+        end: create_empty_expression(),
+    }
+}
+
+fn create_string_literal(value: String) -> Expression {
+    Expression {
+        expression_type: ExpressionType.Literal,
+        literal_type: LiteralType.String,
+        string_value: value,
+        number_value: 0,
+        boolean_value: false,
+        identifier_name: "",
+        left: create_empty_expression(),
+        operator: BinaryOperator.Add,
+        right: create_empty_expression(),
+        unary_operator: UnaryOperator.Not,
+        operand: create_empty_expression(),
+        function_name: "",
+        arguments: [],
+        object: create_empty_expression(),
+        field: "",
+        struct_name: "",
+        field_initializers: [],
+        start: create_empty_expression(),
+        end: create_empty_expression(),
+    }
+}
+
+fn create_number_literal(value: Number) -> Expression {
+    Expression {
+        expression_type: ExpressionType.Literal,
+        literal_type: LiteralType.Number,
+        string_value: "",
+        number_value: value,
+        boolean_value: false,
+        identifier_name: "",
+        left: create_empty_expression(),
+        operator: BinaryOperator.Add,
+        right: create_empty_expression(),
+        unary_operator: UnaryOperator.Not,
+        operand: create_empty_expression(),
+        function_name: "",
+        arguments: [],
+        object: create_empty_expression(),
+        field: "",
+        struct_name: "",
+        field_initializers: [],
+        start: create_empty_expression(),
+        end: create_empty_expression(),
+    }
+}
+
+fn create_boolean_literal(value: Boolean) -> Expression {
+    Expression {
+        expression_type: ExpressionType.Literal,
+        literal_type: LiteralType.Boolean,
+        string_value: "",
+        number_value: 0,
+        boolean_value: value,
+        identifier_name: "",
+        left: create_empty_expression(),
+        operator: BinaryOperator.Add,
+        right: create_empty_expression(),
+        unary_operator: UnaryOperator.Not,
+        operand: create_empty_expression(),
+        function_name: "",
+        arguments: [],
+        object: create_empty_expression(),
+        field: "",
+        struct_name: "",
+        field_initializers: [],
+        start: create_empty_expression(),
+        end: create_empty_expression(),
+    }
+}
+
+fn create_identifier_expression(name: String) -> Expression {
+    Expression {
+        expression_type: ExpressionType.Identifier,
+        identifier_name: name,
+        literal_type: LiteralType.String,
+        string_value: "",
+        number_value: 0,
+        boolean_value: false,
+        left: create_empty_expression(),
+        operator: BinaryOperator.Add,
+        right: create_empty_expression(),
+        unary_operator: UnaryOperator.Not,
+        operand: create_empty_expression(),
+        function_name: "",
+        arguments: [],
+        object: create_empty_expression(),
+        field: "",
+        struct_name: "",
+        field_initializers: [],
+        start: create_empty_expression(),
+        end: create_empty_expression(),
+    }
+}
+
+fn create_call_expression(function_name: String, arguments: [Expression]) -> Expression {
+    Expression {
+        expression_type: ExpressionType.Call,
+        function_name: function_name,
+        arguments: arguments,
+        literal_type: LiteralType.String,
+        string_value: "",
+        number_value: 0,
+        boolean_value: false,
+        identifier_name: "",
+        left: create_empty_expression(),
+        operator: BinaryOperator.Add,
+        right: create_empty_expression(),
+        unary_operator: UnaryOperator.Not,
+        operand: create_empty_expression(),
+        object: create_empty_expression(),
+        field: "",
+        struct_name: "",
+        field_initializers: [],
+        start: create_empty_expression(),
+        end: create_empty_expression(),
+    }
+}
+
+// Parser utility functions
+fn is_at_end(parser: Parser) -> Boolean {
+    return parser.current >= array_length(parser.tokens);
+}
+
+fn peek(parser: Parser) -> Token {
+    if is_at_end(parser) {
+        return array_get(parser.tokens, array_length(parser.tokens) - 1);
+    }
+    return array_get(parser.tokens, parser.current);
+}
+
+fn previous(parser: Parser) -> Token {
+    return array_get(parser.tokens, parser.current - 1);
+}
+
+fn advance(mut parser: Parser) -> Token {
+    if !is_at_end(parser) {
+        parser.current = parser.current + 1;
+    }
+    return previous(parser);
+}
+
+fn check(parser: Parser, token_type: TokenType) -> Boolean {
+    if is_at_end(parser) {
+        return false;
+    }
+    return peek(parser).token_type == token_type;
+}
+
+fn match_token(mut parser: Parser, token_type: TokenType) -> Boolean {
+    if check(parser, token_type) {
+        advance(parser);
+        return true;
+    }
+    return false;
+}
+
+fn consume(mut parser: Parser, token_type: TokenType, message: String) -> Token {
+    if check(parser, token_type) {
+        return advance(parser);
+    }
+    
+    error(parser, message);
+    return peek(parser);
+}
+
+fn error(mut parser: Parser, message: String) {
+    mut token = peek(parser);
+    mut error_msg = "Parse error at line " + token.location.line + ", column " + token.location.column + ": " + message;
+    append(parser.errors, error_msg);
+    seeAm error_msg;
+}
+
+// Helper functions for operators
+fn get_comparison_operator(token_type: TokenType) -> BinaryOperator {
+    if token_type == TokenType.Greater {
+        return BinaryOperator.Greater;
+    }
+    if token_type == TokenType.GreaterEqual {
+        return BinaryOperator.GreaterEqual;
+    }
+    if token_type == TokenType.Less {
+        return BinaryOperator.Less;
+    }
+    if token_type == TokenType.LessEqual {
+        return BinaryOperator.LessEqual;
+    }
+    return BinaryOperator.Equal;
+}
+
+fn get_factor_operator(token_type: TokenType) -> BinaryOperator {
+    if token_type == TokenType.Star {
+        return BinaryOperator.Multiply;
+    }
+    if token_type == TokenType.Slash {
+        return BinaryOperator.Divide;
+    }
+    if token_type == TokenType.Percent {
+        return BinaryOperator.Modulo;
+    }
+    return BinaryOperator.Multiply;
+}

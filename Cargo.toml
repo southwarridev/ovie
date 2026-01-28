@@ -1,0 +1,38 @@
+[workspace]
+members = [
+  "oviec",
+  "aproko", 
+  "ovie"
+]
+resolver = "2"
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+license = "MIT"
+authors = ["Ovie Language Team <team@ovie-lang.org>"]
+repository = "https://github.com/southwarridev/ovie"
+homepage = "https://ovie-lang.org"
+documentation = "https://docs.ovie-lang.org"
+description = "A modern, safe, and AI-friendly programming language designed for accessibility and offline-first development"
+keywords = ["programming-language", "compiler", "offline-first", "ai-friendly", "pidgin-english"]
+categories = ["development-tools", "compilers"]
+
+[workspace.dependencies]
+# Core dependencies for all projects
+logos = "0.14"
+thiserror = "1.0"
+miette = "7.0"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+clap = { version = "4.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+
+# Testing dependencies
+proptest = "1.0"
+tempfile = "3.0"
+
+# Package management dependencies
+sha2 = "0.10"
+dirs = "5.0"
+chrono = { version = "0.4", features = ["serde"] }
