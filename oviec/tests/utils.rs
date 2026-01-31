@@ -47,7 +47,7 @@ impl TestAssert {
     pub fn compilation_fails(source: &str) -> OvieResult<()> {
         let mut compiler = Compiler::new();
         match compiler.compile_to_ast(source) {
-            Ok(_) => Err(crate::OvieError::CompileError("Expected compilation to fail".to_string())),
+            Ok(_) => Err(crate::OvieError::compile_error("Expected compilation to fail")),
             Err(_) => Ok(()),
         }
     }
@@ -63,7 +63,7 @@ impl TestAssert {
     pub fn type_checking_fails(source: &str) -> OvieResult<()> {
         let mut compiler = Compiler::new();
         match compiler.compile_to_hir(source) {
-            Ok(_) => Err(crate::OvieError::CompileError("Expected type checking to fail".to_string())),
+            Ok(_) => Err(crate::OvieError::compile_error("Expected type checking to fail")),
             Err(_) => Ok(()),
         }
     }
@@ -78,7 +78,7 @@ impl TestAssert {
         if result1 == result2 {
             Ok(())
         } else {
-            Err(crate::OvieError::CompileError("Compilation is not deterministic".to_string()))
+            Err(crate::OvieError::compile_error("Compilation is not deterministic"))
         }
     }
 }

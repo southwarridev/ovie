@@ -20,7 +20,7 @@ edition = "2024"
 # some-library = "1.2.3"
 
 # Example: version range (use with caution)
-# flexible-lib = { min = "1.0.0", max = "2.0.0" }
+# flexible-lib = { min = "1.0.0", max = "2.1.0" }
 
 # Example: hash-based dependency (maximum security)
 # secure-lib = { hash = "abc123def456..." }

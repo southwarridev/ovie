@@ -6,7 +6,7 @@ echo.
 echo ╔══════════════════════════════════════════════════════════════╗
 echo ║                    Ovie Programming Language                 ║
 echo ║                    Windows Installation Helper               ║
-echo ║                        Version 2.0.0                        ║
+echo ║                        Version 2.1.0                        ║
 echo ╚══════════════════════════════════════════════════════════════╝
 echo.
 

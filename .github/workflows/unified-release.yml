@@ -454,7 +454,7 @@ jobs:
         
         ---
         
-        **Full Changelog**: https://github.com/southwarridev/ovie/compare/v2.0.0...v${{ env.OVIE_VERSION }}
+        **Full Changelog**: https://github.com/southwarridev/ovie/compare/v2.1.0...v${{ env.OVIE_VERSION }}
         
         **Website**: https://ovie-lang.org  
         **Documentation**: https://ovie-lang.org/docs  

@@ -1,5 +1,5 @@
 @echo off
-echo 🎉 Ovie Stage 2 - Self-Hosted Programming Language v2.0.0
+echo 🎉 Ovie Stage 2 - Self-Hosted Programming Language v2.1.0
 echo ✨ Platform: Windows x64
 echo 🏆 Self-hosted compiler achieved!
 echo.

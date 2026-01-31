@@ -111,17 +111,32 @@ mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$TEMP_DIR"
 
 # Download source code
 echo -e "${BLUE}[4/8]${NC} Downloading Ovie source code..."
-DOWNLOAD_URL="$GITHUB_REPO/archive/refs/tags/v$OVIE_VERSION.tar.gz"
 
-if curl -fsSL "$DOWNLOAD_URL" -o "$TEMP_DIR/ovie-source.tar.gz"; then
-    echo -e "${GREEN}✅ Source code downloaded${NC}"
+# Try pre-built binary first
+BINARY_URL="$GITHUB_REPO/releases/download/v$OVIE_VERSION/ovie-v$OVIE_VERSION-macos-$ARCH.tar.gz"
+SOURCE_URL="$GITHUB_REPO/archive/refs/heads/main.tar.gz"
+
+echo -e "${BLUE}[INFO]${NC} Attempting to download pre-built binary for $ARCH_NAME..."
+if curl -fsSL "$BINARY_URL" -o "$TEMP_DIR/ovie-binary.tar.gz" 2>/dev/null; then
+    echo -e "${GREEN}✅ Pre-built binary downloaded${NC}"
     cd "$TEMP_DIR"
-    tar -xzf ovie-source.tar.gz
-    cd "ovie-$OVIE_VERSION"
+    tar -xzf ovie-binary.tar.gz
+    DOWNLOADED_BINARY=1
+    cd "ovie-v$OVIE_VERSION-macos-$ARCH" 2>/dev/null || cd "ovie-"*
 else
-    echo -e "${YELLOW}[WARNING]${NC} Tagged release not found. Cloning latest..."
-    git clone "$GITHUB_REPO.git" "$TEMP_DIR/ovie-source"
-    cd "$TEMP_DIR/ovie-source"
+    echo -e "${YELLOW}[WARNING]${NC} Pre-built binary not available. Downloading source..."
+    if curl -fsSL "$SOURCE_URL" -o "$TEMP_DIR/ovie-source.tar.gz"; then
+        echo -e "${GREEN}✅ Source code downloaded${NC}"
+        cd "$TEMP_DIR"
+        tar -xzf ovie-source.tar.gz
+        DOWNLOADED_BINARY=0
+        cd "ovie-main"
+    else
+        echo -e "${YELLOW}[WARNING]${NC} Source download failed. Cloning latest..."
+        git clone "$GITHUB_REPO.git" "$TEMP_DIR/ovie-source"
+        cd "$TEMP_DIR/ovie-source"
+        DOWNLOADED_BINARY=0
+    fi
 fi
 
 # Install Rust if needed
@@ -142,40 +157,54 @@ fi
 
 # Build Ovie
 echo -e "${BLUE}[6/8]${NC} Building Ovie self-hosted compiler..."
-echo -e "${YELLOW}[INFO]${NC} Building for $ARCH_NAME - this may take a few minutes..."
 
-# Set macOS-specific build flags
-export MACOSX_DEPLOYMENT_TARGET="10.15"
-if [[ "$ARCH" == "arm64" ]]; then
-    export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="clang"
-else
-    export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER="clang"
-fi
-
-# Try self-hosted build first if oviec exists
-if [ -f "oviec" ]; then
-    echo -e "${BLUE}[INFO]${NC} Attempting self-hosted build..."
-    if ./oviec --build-all --output-dir="$BIN_DIR" --target="macos-$ARCH" 2>/dev/null; then
-        echo -e "${GREEN}✅ Self-hosted build successful!${NC}"
-        BUILT_WITH_SELF_HOSTED=1
-    else
-        echo -e "${YELLOW}[WARNING]${NC} Self-hosted build failed, using Rust bootstrap..."
-        BUILT_WITH_SELF_HOSTED=0
+if [ $DOWNLOADED_BINARY -eq 1 ]; then
+    echo -e "${GREEN}✅ Using pre-built binaries for $ARCH_NAME!${NC}"
+    # Copy pre-built binaries
+    if [ -f "ovie" ]; then
+        cp "ovie" "$BIN_DIR/"
+        chmod +x "$BIN_DIR/ovie"
+    fi
+    if [ -f "oviec" ]; then
+        cp "oviec" "$BIN_DIR/"
+        chmod +x "$BIN_DIR/oviec"
     fi
 else
-    BUILT_WITH_SELF_HOSTED=0
-fi
+    echo -e "${YELLOW}[INFO]${NC} Building for $ARCH_NAME - this may take a few minutes..."
 
-# Rust bootstrap build
-if [ $BUILT_WITH_SELF_HOSTED -eq 0 ]; then
-    echo -e "${BLUE}[INFO]${NC} Building with Rust (bootstrap)..."
-    cargo build --release --workspace
-    
-    # Copy binaries
-    cp target/release/ovie "$BIN_DIR/"
-    cp target/release/oviec "$BIN_DIR/"
-    chmod +x "$BIN_DIR/ovie" "$BIN_DIR/oviec"
-    echo -e "${GREEN}✅ Bootstrap build completed${NC}"
+    # Set macOS-specific build flags
+    export MACOSX_DEPLOYMENT_TARGET="10.15"
+    if [[ "$ARCH" == "arm64" ]]; then
+        export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="clang"
+    else
+        export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER="clang"
+    fi
+
+    # Try self-hosted build first if oviec exists
+    if [ -f "oviec" ]; then
+        echo -e "${BLUE}[INFO]${NC} Attempting self-hosted build..."
+        if ./oviec --build-all --output-dir="$BIN_DIR" --target="macos-$ARCH" 2>/dev/null; then
+            echo -e "${GREEN}✅ Self-hosted build successful!${NC}"
+            BUILT_WITH_SELF_HOSTED=1
+        else
+            echo -e "${YELLOW}[WARNING]${NC} Self-hosted build failed, using Rust bootstrap..."
+            BUILT_WITH_SELF_HOSTED=0
+        fi
+    else
+        BUILT_WITH_SELF_HOSTED=0
+    fi
+
+    # Rust bootstrap build
+    if [ $BUILT_WITH_SELF_HOSTED -eq 0 ]; then
+        echo -e "${BLUE}[INFO]${NC} Building with Rust (bootstrap)..."
+        cargo build --release --workspace
+        
+        # Copy binaries
+        cp target/release/ovie "$BIN_DIR/"
+        cp target/release/oviec "$BIN_DIR/"
+        chmod +x "$BIN_DIR/ovie" "$BIN_DIR/oviec"
+        echo -e "${GREEN}✅ Bootstrap build completed${NC}"
+    fi
 fi
 
 # Install resources

@@ -1,6 +1,6 @@
 # Ovie Programming Language - Memory Model and Ownership Specification
 
-**Version:** 2.0.0  
+**Version:** 2.1.0  
 **Status:** FROZEN (Stage 2)  
 **Last Updated:** 2024-01-28  
 

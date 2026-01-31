@@ -53,13 +53,15 @@ if %errorlevel% neq 0 (
 
 REM Download from GitHub
 echo [3/6] Downloading Ovie from GitHub...
-set "DOWNLOAD_URL=https://github.com/southwarridev/ovie/archive/refs/tags/v2.1.0.zip"
+set "BINARY_URL=https://github.com/southwarridev/ovie/releases/download/v2.1.0/ovie-v2.1.0-windows-x64.zip"
+set "SOURCE_URL=https://github.com/southwarridev/ovie/archive/refs/heads/main.zip"
 set "ZIP_FILE=%TEMP%\ovie-v2.1.0.zip"
 
-powershell -Command "try { Write-Host 'Downloading...'; Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%ZIP_FILE%' -UseBasicParsing; Write-Host 'Download complete!' } catch { Write-Host 'Download failed'; exit 1 }"
+echo Attempting to download pre-built binary...
+powershell -Command "try { Invoke-WebRequest -Uri '%BINARY_URL%' -OutFile '%ZIP_FILE%' -UseBasicParsing; Write-Host 'Pre-built binary downloaded!' } catch { Write-Host 'Pre-built binary not available, trying source...'; try { Invoke-WebRequest -Uri '%SOURCE_URL%' -OutFile '%ZIP_FILE%' -UseBasicParsing; Write-Host 'Source code downloaded!' } catch { Write-Host 'Download failed'; exit 1 } }"
 if %errorlevel% neq 0 (
     echo ❌ Download failed. Please check your internet connection.
-    echo 🌐 You can also download manually from: https://github.com/southwarridev/ovie/releases
+    echo 🌐 You can also download manually from: https://github.com/southwarridev/ovie
     pause
     exit /b 1
 )
@@ -75,7 +77,16 @@ if %errorlevel% neq 0 (
 
 REM Copy files to installation directory
 echo [5/6] Installing Ovie files...
-xcopy "%TEMP%\ovie-extract\ovie-2.1.0\*" "%INSTALL_DIR%\" /E /Y /Q >nul 2>&1
+REM Try to detect if we downloaded binary or source
+if exist "%TEMP%\ovie-extract\ovie-v2.1.0-windows-x64" (
+    echo Installing pre-built binaries...
+    xcopy "%TEMP%\ovie-extract\ovie-v2.1.0-windows-x64\*" "%INSTALL_DIR%\" /E /Y /Q >nul 2>&1
+    if exist "%INSTALL_DIR%\ovie.exe" copy "%INSTALL_DIR%\ovie.exe" "%BIN_DIR%\" >nul 2>&1
+    if exist "%INSTALL_DIR%\oviec.exe" copy "%INSTALL_DIR%\oviec.exe" "%BIN_DIR%\" >nul 2>&1
+) else (
+    echo Installing source files...
+    xcopy "%TEMP%\ovie-extract\ovie-main\*" "%INSTALL_DIR%\" /E /Y /Q >nul 2>&1
+)
 
 REM Create simple executable wrappers (since we don't have pre-built binaries yet)
 echo [6/6] Setting up Ovie commands...
@@ -83,7 +94,7 @@ echo [6/6] Setting up Ovie commands...
 REM Create ovie.bat wrapper
 echo @echo off > "%BIN_DIR%\ovie.bat"
 echo REM Ovie CLI Tool - Stage 2 Self-Hosted >> "%BIN_DIR%\ovie.bat"
-echo echo Ovie Programming Language v2.0.0 - Stage 2 Self-Hosted >> "%BIN_DIR%\ovie.bat"
+echo echo Ovie Programming Language v2.1.0 - Stage 2 Self-Hosted >> "%BIN_DIR%\ovie.bat"
 echo echo. >> "%BIN_DIR%\ovie.bat"
 echo if "%%1"=="--version" ( >> "%BIN_DIR%\ovie.bat"
 echo     echo ovie 2.1.0 - Self-Hosted Programming Language >> "%BIN_DIR%\ovie.bat"

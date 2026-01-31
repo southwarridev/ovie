@@ -1,5 +1,5 @@
 @echo off
-echo 🔧 Ovie Compiler (oviec) - Stage 2 Self-Hosted v2.0.0
+echo 🔧 Ovie Compiler (oviec) - Stage 2 Self-Hosted v2.1.0
 echo 🎯 Target: Windows x64
 echo.
 echo Usage: oviec [file.ov] [options]

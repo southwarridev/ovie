@@ -248,7 +248,7 @@ pub enum PerformanceTrend {
 }
 
 /// Regression severity classification
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RegressionSeverity {
     Minor,    // < 5% regression
     Major,    // 5-15% regression

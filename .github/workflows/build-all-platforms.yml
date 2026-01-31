@@ -15,7 +15,7 @@ on:
         default: false
 
 env:
-  OVIE_VERSION: "2.0.0"
+  OVIE_VERSION: "2.1.0"
 
 jobs:
   # Build matrix for all supported platforms
@@ -147,7 +147,7 @@ jobs:
         echo ╔══════════════════════════════════════════════════════════════╗
         echo ║                    Ovie Programming Language                 ║
         echo ║                        Stage 2 - Self-Hosted                ║
-        echo ║                           Version 2.0.0                     ║
+        echo ║                           Version 2.1.0                     ║
         echo ╚══════════════════════════════════════════════════════════════╝
         echo.
         echo Installing Ovie Programming Language for Windows...
@@ -169,7 +169,7 @@ jobs:
         echo "╔══════════════════════════════════════════════════════════════╗"
         echo "║                    Ovie Programming Language                 ║"
         echo "║                        Stage 2 - Self-Hosted                ║"
-        echo "║                           Version 2.0.0                     ║"
+        echo "║                           Version 2.1.0                     ║"
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo ""
         echo "Installing Ovie Programming Language for ${{ matrix.platform }}..."
@@ -300,8 +300,8 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name || 'v2.0.0' }}
-        name: "🎉 Ovie v${{ github.ref_name || '2.0.0' }} - Stage 2 Self-Hosted Multi-Platform!"
+        tag_name: ${{ github.ref_name || 'v2.1.0' }}
+        name: "🎉 Ovie v${{ github.ref_name || '2.1.0' }} - Stage 2 Self-Hosted Multi-Platform!"
         body: |
           # 🚀 Ovie Programming Language - Stage 2 Self-Hosted Multi-Platform Release!
           

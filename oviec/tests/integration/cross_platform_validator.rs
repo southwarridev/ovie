@@ -729,7 +729,7 @@ impl CrossPlatformValidator {
         platform_config: &PlatformConfig
     ) -> OvieResult<PlatformValidationResult> {
         let compiler = self.platform_compilers.get_mut(&platform_config.platform_id)
-            .ok_or_else(|| OvieError::CompileError(format!("No compiler for platform {}", platform_config.platform_id)))?;
+            .ok_or_else(|| OvieError::compile_error(format!("No compiler for platform {}", platform_config.platform_id)))?;
         
         let start_time = Instant::now();
         

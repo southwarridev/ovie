@@ -13,9 +13,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., 2.0.0)'
+        description: 'Release version (e.g., 2.1.0)'
         required: true
-        default: '2.0.0'
+        default: '2.1.0'
       create_release:
         description: 'Create GitHub release'
         type: boolean
@@ -27,7 +27,7 @@ permissions:
   actions: read
 
 env:
-  OVIE_VERSION: "2.0.0"
+  OVIE_VERSION: "2.1.0"
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
@@ -192,7 +192,7 @@ jobs:
         echo ╔══════════════════════════════════════════════════════════════╗
         echo ║                    Ovie Programming Language                 ║
         echo ║                        Stage 2 - Self-Hosted                ║
-        echo ║                           Version 2.0.0                     ║
+        echo ║                           Version 2.1.0                     ║
         echo ╚══════════════════════════════════════════════════════════════╝
         echo.
         echo Installing Ovie Programming Language...
@@ -218,7 +218,7 @@ jobs:
         echo "╔══════════════════════════════════════════════════════════════╗"
         echo "║                    Ovie Programming Language                 ║"
         echo "║                        Stage 2 - Self-Hosted                ║"
-        echo "║                           Version 2.0.0                     ║"
+        echo "║                           Version 2.1.0                     ║"
         echo "╚══════════════════════════════════════════════════════════════╝"
         echo ""
         echo "Installing Ovie Programming Language..."

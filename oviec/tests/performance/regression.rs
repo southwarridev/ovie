@@ -157,10 +157,10 @@ pub fn run_all_performance_regression_tests() -> OvieResult<Vec<String>> {
     
     println!("Running performance regression tests...");
     
-    let tests = vec![
-        ("performance_regression_detection", test_performance_regression_detection),
-        ("memory_usage_regression", test_memory_usage_regression),
-        ("large_file_compilation_regression", test_large_file_compilation_regression),
+    let tests: Vec<(&str, fn() -> OvieResult<()>)> = vec![
+        ("performance_regression_detection", test_performance_regression_detection as fn() -> OvieResult<()>),
+        ("memory_usage_regression", test_memory_usage_regression as fn() -> OvieResult<()>),
+        ("large_file_compilation_regression", test_large_file_compilation_regression as fn() -> OvieResult<()>),
     ];
     
     for (test_name, test_fn) in tests {

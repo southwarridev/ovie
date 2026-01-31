@@ -20,6 +20,7 @@ Write-Host "====================================================================
 
 $InstallDir = "$env:USERPROFILE\ovie"
 $BinDir = "$env:USERPROFILE\ovie\bin"
+$OvieVersion = "2.1.0"
 
 Write-Host "🎯 Welcome to Ovie Easy Installer!" -ForegroundColor Green
 Write-Host ""
@@ -44,12 +45,27 @@ try {
 
     # Download from GitHub
     Write-Host "[2/6] Downloading Ovie from GitHub..." -ForegroundColor Cyan
-    $DownloadUrl = "https://github.com/southwarridev/ovie/archive/refs/tags/v2.1.0.zip"
-    $ZipFile = "$env:TEMP\ovie-v2.1.0.zip"
     
-    Write-Host "Downloading from: $DownloadUrl" -ForegroundColor Gray
-    Invoke-WebRequest -Uri $DownloadUrl -OutFile $ZipFile -UseBasicParsing
-    Write-Host "✅ Download complete!" -ForegroundColor Green
+    # Try pre-built binary first
+    $BinaryUrl = "https://github.com/southwarridev/ovie/releases/download/v$OvieVersion/ovie-v$OvieVersion-windows-x64.zip"
+    $SourceUrl = "https://github.com/southwarridev/ovie/archive/refs/heads/main.zip"
+    $ZipFile = "$env:TEMP\ovie-v$OvieVersion.zip"
+    
+    Write-Host "Attempting to download pre-built binary..." -ForegroundColor Gray
+    try {
+        Invoke-WebRequest -Uri $BinaryUrl -OutFile $ZipFile -UseBasicParsing
+        Write-Host "✅ Pre-built binary downloaded!" -ForegroundColor Green
+        $DownloadedBinary = $true
+    } catch {
+        Write-Host "⚠️  Pre-built binary not available, downloading source..." -ForegroundColor Yellow
+        try {
+            Invoke-WebRequest -Uri $SourceUrl -OutFile $ZipFile -UseBasicParsing
+            Write-Host "✅ Source code downloaded!" -ForegroundColor Green
+            $DownloadedBinary = $false
+        } catch {
+            throw "Failed to download Ovie. Please check your internet connection."
+        }
+    }
 
     # Extract files
     Write-Host "[3/6] Extracting files..." -ForegroundColor Cyan
@@ -59,8 +75,22 @@ try {
 
     # Copy files to installation directory
     Write-Host "[4/6] Installing Ovie files..." -ForegroundColor Cyan
-    Copy-Item -Path "$ExtractPath\ovie-2.1.0\*" -Destination $InstallDir -Recurse -Force
-    Write-Host "✅ Files installed!" -ForegroundColor Green
+    if ($DownloadedBinary) {
+        # Pre-built binary structure
+        Copy-Item -Path "$ExtractPath\ovie-v2.1.0-windows-x64\*" -Destination $InstallDir -Recurse -Force
+        # Copy pre-built binaries if they exist
+        if (Test-Path "$InstallDir\ovie.exe") {
+            Copy-Item "$InstallDir\ovie.exe" "$BinDir\"
+        }
+        if (Test-Path "$InstallDir\oviec.exe") {
+            Copy-Item "$InstallDir\oviec.exe" "$BinDir\"
+        }
+        Write-Host "✅ Pre-built binaries installed!" -ForegroundColor Green
+    } else {
+        # Source code structure
+        Copy-Item -Path "$ExtractPath\ovie-main\*" -Destination $InstallDir -Recurse -Force
+        Write-Host "✅ Source files installed!" -ForegroundColor Green
+    }
 
     # Create command wrappers
     Write-Host "[5/6] Setting up Ovie commands..." -ForegroundColor Cyan

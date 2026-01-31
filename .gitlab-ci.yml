@@ -10,7 +10,7 @@ stages:
   - deploy
 
 variables:
-  OVIE_VERSION: "2.0.0"
+  OVIE_VERSION: "2.1.0"
   DEBIAN_FRONTEND: noninteractive
 
 # Cache configuration for self-hosted builds
@@ -81,7 +81,7 @@ build:linux-x64:
       echo "╔══════════════════════════════════════════════════════════════╗"
       echo "║                    Ovie Programming Language                 ║"
       echo "║                        Stage 2 - Self-Hosted                ║"
-      echo "║                           Version 2.0.0                     ║"
+      echo "║                           Version 2.1.0                     ║"
       echo "╚══════════════════════════════════════════════════════════════╝"
       echo ""
       echo "Installing Ovie Programming Language for Linux x64..."

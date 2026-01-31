@@ -174,6 +174,11 @@ pub enum OvieError {
 
     #[error("Hardware error: {message}")]
     HardwareError(String),
+
+    #[error("Compilation error: {message}")]
+    CompileError {
+        message: String,
+    },
 }
 
 impl OvieError {
@@ -351,6 +356,12 @@ impl OvieError {
         }
     }
 
+    pub fn compile_error(message: impl Into<String>) -> Self {
+        Self::CompileError {
+            message: message.into(),
+        }
+    }
+
     /// Get the diagnostic information if available
     pub fn get_diagnostic(&self) -> Option<&Diagnostic> {
         match self {
@@ -490,6 +501,38 @@ impl OvieError {
                 suggestions: Vec::new(),
                 context: HashMap::new(),
                 help_url: Some("https://ovie-lang.org/docs/errors/E0010".to_string()),
+            },
+            Self::HardwareError(message) => Diagnostic {
+                code: "E0011".to_string(),
+                severity: ErrorSeverity::Error,
+                category: ErrorCategory::Runtime,
+                message: message.clone(),
+                location: SourcePosition {
+                    file: None,
+                    line: 1,
+                    column: 1,
+                    offset: 0,
+                },
+                related_locations: Vec::new(),
+                suggestions: Vec::new(),
+                context: HashMap::new(),
+                help_url: Some("https://ovie-lang.org/docs/errors/E0011".to_string()),
+            },
+            Self::CompileError { message } => Diagnostic {
+                code: "E0012".to_string(),
+                severity: ErrorSeverity::Error,
+                category: ErrorCategory::Codegen,
+                message: message.clone(),
+                location: SourcePosition {
+                    file: None,
+                    line: 1,
+                    column: 1,
+                    offset: 0,
+                },
+                related_locations: Vec::new(),
+                suggestions: Vec::new(),
+                context: HashMap::new(),
+                help_url: Some("https://ovie-lang.org/docs/errors/E0012".to_string()),
             },
         }
     }

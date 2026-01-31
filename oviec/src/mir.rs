@@ -1161,7 +1161,7 @@ impl MirProgram {
 
         // Check that all globals are properly defined
         for (name, global) in &self.globals {
-            if matches!(global.global_type, MirType::Error) {
+            if matches!(global.ty, MirType::Error) {
                 return Err(crate::ast::InvariantError {
                     message: format!("Global '{}' has error type", name),
                     location: Some(format!("global:{}", name)),
@@ -1200,7 +1200,7 @@ impl MirProgram {
 
         // Check that all locals have valid types
         for (local_id, local) in function.locals.iter().enumerate() {
-            if matches!(local.local_type, MirType::Error) {
+            if matches!(local.ty, MirType::Error) {
                 return Err(crate::ast::InvariantError {
                     message: format!("Local {} has error type", local_id),
                     location: Some(format!("local:{}", local_id)),
@@ -1253,30 +1253,36 @@ impl MirProgram {
     }
 
     fn validate_place_invariants(&self, place: &MirPlace) -> Result<(), crate::ast::InvariantError> {
-        // Place must have a valid type
-        if matches!(place.place_type, MirType::Error) {
+        // Validate the local ID exists (this would need function context in a real implementation)
+        // For now, just check that the local ID is reasonable
+        if place.local == u32::MAX {
             return Err(crate::ast::InvariantError {
-                message: "Place has error type".to_string(),
+                message: "Place has invalid local ID".to_string(),
                 location: None,
             });
         }
 
-        match &place.kind {
-            MirPlaceKind::Local(_) => {
-                // Local places are valid if they reference valid locals
-            }
-            MirPlaceKind::Field { base, .. } => {
-                // Field access must have valid base
-                self.validate_place_invariants(base)?;
-            }
-            MirPlaceKind::Index { base, index } => {
-                // Index access must have valid base and index
-                self.validate_place_invariants(base)?;
-                self.validate_operand_invariants(index)?;
-            }
-            MirPlaceKind::Deref(base) => {
-                // Dereference must have valid base
-                self.validate_place_invariants(base)?;
+        // Validate projection elements
+        for projection_elem in &place.projection {
+            match projection_elem {
+                MirProjectionElem::Deref => {
+                    // Dereference is valid if the base type supports it
+                }
+                MirProjectionElem::Field(_field_idx) => {
+                    // Field access is valid if the base type has fields
+                }
+                MirProjectionElem::Index(_index_local) => {
+                    // Index access is valid if the base type supports indexing
+                }
+                MirProjectionElem::Subslice { from, to } => {
+                    // Subslice is valid if from <= to
+                    if from > to {
+                        return Err(crate::ast::InvariantError {
+                            message: "Invalid subslice range: from > to".to_string(),
+                            location: None,
+                        });
+                    }
+                }
             }
         }
         Ok(())
@@ -1287,6 +1293,24 @@ impl MirProgram {
             MirRvalue::Use(operand) => {
                 self.validate_operand_invariants(operand)?;
             }
+            MirRvalue::Repeat { operand, .. } => {
+                self.validate_operand_invariants(operand)?;
+            }
+            MirRvalue::Ref { place, .. } => {
+                self.validate_place_invariants(place)?;
+            }
+            MirRvalue::Len(place) => {
+                self.validate_place_invariants(place)?;
+            }
+            MirRvalue::Cast { operand, ty, .. } => {
+                self.validate_operand_invariants(operand)?;
+                if matches!(ty, MirType::Error) {
+                    return Err(crate::ast::InvariantError {
+                        message: "Cast target type is error type".to_string(),
+                        location: None,
+                    });
+                }
+            }
             MirRvalue::BinaryOp { left, right, .. } => {
                 self.validate_operand_invariants(left)?;
                 self.validate_operand_invariants(right)?;
@@ -1294,16 +1318,7 @@ impl MirProgram {
             MirRvalue::UnaryOp { operand, .. } => {
                 self.validate_operand_invariants(operand)?;
             }
-            MirRvalue::Cast { operand, target_type } => {
-                self.validate_operand_invariants(operand)?;
-                if matches!(target_type, MirType::Error) {
-                    return Err(crate::ast::InvariantError {
-                        message: "Cast target type is error type".to_string(),
-                        location: None,
-                    });
-                }
-            }
-            MirRvalue::Ref { place, .. } => {
+            MirRvalue::Discriminant(place) => {
                 self.validate_place_invariants(place)?;
             }
             MirRvalue::Aggregate { operands, .. } => {
@@ -1321,7 +1336,7 @@ impl MirProgram {
                 self.validate_place_invariants(place)?;
             }
             MirOperand::Constant(constant) => {
-                if matches!(constant.const_type, MirType::Error) {
+                if matches!(constant.ty, MirType::Error) {
                     return Err(crate::ast::InvariantError {
                         message: "Constant has error type".to_string(),
                         location: None,
@@ -1350,15 +1365,10 @@ impl MirProgram {
                 for arg in args {
                     self.validate_operand_invariants(arg)?;
                 }
-                if let Some((place, _)) = destination {
-                    self.validate_place_invariants(place)?;
-                }
+                self.validate_place_invariants(destination)?;
             }
             MirTerminator::Drop { place, .. } => {
                 self.validate_place_invariants(place)?;
-            }
-            MirTerminator::Assert { condition, .. } => {
-                self.validate_operand_invariants(condition)?;
             }
             MirTerminator::Unreachable => {
                 // Unreachable is always valid
@@ -1390,24 +1400,18 @@ impl MirProgram {
                         }
                         stack.push(*otherwise);
                     }
-                    MirTerminator::Call { destination, cleanup, .. } => {
-                        if let Some((_, target)) = destination {
-                            stack.push(*target);
+                    MirTerminator::Call { target, cleanup, .. } => {
+                        if let Some(t) = target {
+                            stack.push(*t);
                         }
-                        if let Some(cleanup_target) = cleanup {
-                            stack.push(*cleanup_target);
+                        if let Some(c) = cleanup {
+                            stack.push(*c);
                         }
                     }
                     MirTerminator::Drop { target, unwind } => {
                         stack.push(*target);
                         if let Some(unwind_target) = unwind {
                             stack.push(*unwind_target);
-                        }
-                    }
-                    MirTerminator::Assert { target, cleanup, .. } => {
-                        stack.push(*target);
-                        if let Some(cleanup_target) = cleanup {
-                            stack.push(*cleanup_target);
                         }
                     }
                     MirTerminator::Return { .. } | MirTerminator::Unreachable => {

@@ -81,26 +81,28 @@ mkdir -p "$BIN_DIR"
 
 # Download from GitHub
 echo -e "${BLUE}[3/8] Downloading Ovie from GitHub...${NC}"
-DOWNLOAD_URL="https://github.com/southwarridev/ovie/archive/refs/tags/v${OVIE_VERSION}.tar.gz"
+
+# Try to download pre-built binary first
+BINARY_URL="https://github.com/southwarridev/ovie/releases/download/v${OVIE_VERSION}/ovie-v${OVIE_VERSION}-linux-x64.tar.gz"
 TEMP_FILE="/tmp/ovie-v${OVIE_VERSION}.tar.gz"
 
-echo "Downloading from: $DOWNLOAD_URL"
-if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$DOWNLOAD_URL" -o "$TEMP_FILE"
-elif command -v wget >/dev/null 2>&1; then
-    wget -q "$DOWNLOAD_URL" -O "$TEMP_FILE"
+echo "Attempting to download pre-built binary..."
+if curl -fsSL "$BINARY_URL" -o "$TEMP_FILE" 2>/dev/null; then
+    echo -e "${GREEN}✅ Pre-built binary downloaded!${NC}"
+    DOWNLOADED_BINARY=1
 else
-    echo -e "${RED}❌ No download tool available${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠️  Pre-built binary not available, downloading source...${NC}"
+    # Fallback to source download
+    SOURCE_URL="https://github.com/southwarridev/ovie/archive/refs/heads/main.tar.gz"
+    if curl -fsSL "$SOURCE_URL" -o "$TEMP_FILE"; then
+        echo -e "${GREEN}✅ Source code downloaded!${NC}"
+        DOWNLOADED_BINARY=0
+    else
+        echo -e "${RED}❌ Download failed${NC}"
+        echo "You can also download manually from: https://github.com/southwarridev/ovie"
+        exit 1
+    fi
 fi
-
-if [ ! -f "$TEMP_FILE" ]; then
-    echo -e "${RED}❌ Download failed${NC}"
-    echo "You can also download manually from: https://github.com/southwarridev/ovie/releases"
-    exit 1
-fi
-
-echo -e "${GREEN}✅ Download complete!${NC}"
 
 # Extract files
 echo -e "${BLUE}[4/8] Extracting files...${NC}"
@@ -113,14 +115,32 @@ fi
 
 # Copy files to installation directory
 echo -e "${BLUE}[5/8] Installing Ovie files...${NC}"
-cp -r "ovie-${OVIE_VERSION}"/* "$INSTALL_DIR/"
-echo -e "${GREEN}✅ Files installed!${NC}"
+if [ $DOWNLOADED_BINARY -eq 1 ]; then
+    # Pre-built binary structure
+    cp -r ovie-v${OVIE_VERSION}-linux-x64/* "$INSTALL_DIR/"
+    # Copy pre-built binaries
+    if [ -f "$INSTALL_DIR/ovie" ]; then
+        cp "$INSTALL_DIR/ovie" "$BIN_DIR/"
+        chmod +x "$BIN_DIR/ovie"
+    fi
+    if [ -f "$INSTALL_DIR/oviec" ]; then
+        cp "$INSTALL_DIR/oviec" "$BIN_DIR/"
+        chmod +x "$BIN_DIR/oviec"
+    fi
+    echo -e "${GREEN}✅ Pre-built binaries installed!${NC}"
+else
+    # Source code structure
+    cp -r "ovie-main"/* "$INSTALL_DIR/"
+    echo -e "${GREEN}✅ Source files installed!${NC}"
+fi
 
 # Check for Rust and build if available
 echo -e "${BLUE}[6/8] Setting up Ovie compiler...${NC}"
 cd "$INSTALL_DIR"
 
-if command -v cargo >/dev/null 2>&1; then
+if [ $DOWNLOADED_BINARY -eq 1 ]; then
+    echo -e "${GREEN}✅ Using pre-built binaries!${NC}"
+elif command -v cargo >/dev/null 2>&1; then
     echo "Rust found! Building the full Ovie compiler..."
     cargo build --release --workspace
     if [ $? -eq 0 ]; then

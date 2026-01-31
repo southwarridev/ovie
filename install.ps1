@@ -4,7 +4,7 @@
 
 param(
     [string]$InstallDir = "$env:USERPROFILE\.local\bin",
-    [string]$Version = "2.0.0",
+    [string]$Version = "2.1.0",
     [switch]$AddToPath = $true,
     [switch]$Force = $false,
     [switch]$IncludeExtension = $true
@@ -286,7 +286,7 @@ USAGE:
 
 OPTIONS:
     -InstallDir <path>       Installation directory (default: $env:USERPROFILE\.local\bin)
-    -Version <version>       Version to install (default: 2.0.0)
+    -Version <version>       Version to install (default: 2.1.0)
     -AddToPath              Add install directory to user PATH (default: true)
     -IncludeExtension       Install VS Code extension (default: true)
     -Force                  Force installation even if already installed
