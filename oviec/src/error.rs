@@ -179,6 +179,9 @@ pub enum OvieError {
     CompileError {
         message: String,
     },
+
+    #[error("JSON serialization/deserialization error: {0}")]
+    SerdeJson(#[from] serde_json::Error),
 }
 
 impl OvieError {
@@ -533,6 +536,22 @@ impl OvieError {
                 suggestions: Vec::new(),
                 context: HashMap::new(),
                 help_url: Some("https://ovie-lang.org/docs/errors/E0012".to_string()),
+            },
+            Self::SerdeJson(error) => Diagnostic {
+                code: "E0013".to_string(),
+                severity: ErrorSeverity::Error,
+                category: ErrorCategory::Io,
+                message: format!("JSON serialization/deserialization error: {}", error),
+                location: SourcePosition {
+                    file: None,
+                    line: 1,
+                    column: 1,
+                    offset: 0,
+                },
+                related_locations: Vec::new(),
+                suggestions: Vec::new(),
+                context: HashMap::new(),
+                help_url: Some("https://ovie-lang.org/docs/errors/E0013".to_string()),
             },
         }
     }

@@ -251,6 +251,7 @@ impl BootstrapIntegration {
                     hash_match: true,
                     tokens_match: true,
                     performance_acceptable: true,
+                    reproducible: true,
                     rust_time_us: elapsed,
                     ovie_time_us: elapsed, // Same for Rust-only
                     performance_ratio: 1.0,
@@ -258,13 +259,17 @@ impl BootstrapIntegration {
                     source_hash: self.compute_source_hash(test_case),
                     rust_tokens_hash: "rust_baseline".to_string(),
                     ovie_tokens_hash: "rust_baseline".to_string(),
+                    reproducibility_hashes: Vec::new(),
                     errors: Vec::new(),
+                    timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                    environment_hash: String::new(),
                 },
                 Err(e) => BootstrapVerificationResult {
                     passed: false,
                     hash_match: false,
                     tokens_match: false,
                     performance_acceptable: false,
+                    reproducible: false,
                     rust_time_us: elapsed,
                     ovie_time_us: 0,
                     performance_ratio: 0.0,
@@ -272,7 +277,10 @@ impl BootstrapIntegration {
                     source_hash: self.compute_source_hash(test_case),
                     rust_tokens_hash: "error".to_string(),
                     ovie_tokens_hash: "error".to_string(),
+                    reproducibility_hashes: Vec::new(),
                     errors: vec![format!("Rust compilation failed: {}", e)],
+                    timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                    environment_hash: String::new(),
                 },
             };
 
@@ -303,6 +311,7 @@ impl BootstrapIntegration {
                 hash_match: false,
                 tokens_match: false,
                 performance_acceptable: false,
+                reproducible: false,
                 rust_time_us: 100,
                 ovie_time_us: 0,
                 performance_ratio: 0.0,
@@ -310,7 +319,10 @@ impl BootstrapIntegration {
                 source_hash: self.compute_source_hash(test_case),
                 rust_tokens_hash: "not_implemented".to_string(),
                 ovie_tokens_hash: "not_implemented".to_string(),
+                reproducibility_hashes: Vec::new(),
                 errors: vec!["Ovie parser integration not implemented yet".to_string()],
+                timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                environment_hash: String::new(),
             };
 
             results.push(result);
@@ -330,6 +342,7 @@ impl BootstrapIntegration {
                 hash_match: false,
                 tokens_match: false,
                 performance_acceptable: false,
+                reproducible: false,
                 rust_time_us: 100,
                 ovie_time_us: 0,
                 performance_ratio: 0.0,
@@ -337,7 +350,10 @@ impl BootstrapIntegration {
                 source_hash: self.compute_source_hash(test_case),
                 rust_tokens_hash: "not_implemented".to_string(),
                 ovie_tokens_hash: "not_implemented".to_string(),
+                reproducibility_hashes: Vec::new(),
                 errors: vec!["Complete Ovie integration not implemented yet".to_string()],
+                timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
+                environment_hash: String::new(),
             };
 
             results.push(result);

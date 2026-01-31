@@ -19,6 +19,7 @@ use super::regression::{RegressionDetector, RegressionConfig, RegressionDetectio
 use super::integration::{CrossPlatformValidator, CrossPlatformConfig, ComprehensiveValidationResults};
 use crate::{Compiler, Backend, OvieResult};
 use std::collections::HashMap;
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -349,17 +350,23 @@ impl TestRunner {
                         consistent_tests.push(validation_result.test_case_id.clone());
                     } else {
                         for inconsistency in &validation_result.inconsistencies {
+                            let mut platform_differences = HashMap::new();
+                            for platform in &inconsistency.platforms {
+                                platform_differences.insert(
+                                    platform.clone(),
+                                    format!("{}: {}", inconsistency.inconsistency_type, inconsistency.description)
+                                );
+                            }
+                            
                             inconsistent_tests.push(InconsistentTest {
                                 test_name: validation_result.test_case_id.clone(),
-                                platforms: inconsistency.platforms.clone(),
-                                inconsistency_type: format!("{:?}", inconsistency.inconsistency_type),
+                                platform_differences,
                                 severity: match inconsistency.severity {
                                     super::integration::InconsistencySeverity::Critical => InconsistencySeverity::Critical,
                                     super::integration::InconsistencySeverity::Major => InconsistencySeverity::Major,
                                     super::integration::InconsistencySeverity::Minor => InconsistencySeverity::Minor,
                                     super::integration::InconsistencySeverity::Informational => InconsistencySeverity::Minor,
                                 },
-                                description: inconsistency.description.clone(),
                             });
                         }
                     }

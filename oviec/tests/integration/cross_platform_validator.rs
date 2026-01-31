@@ -121,7 +121,7 @@ pub enum ExpectedResult {
 }
 
 /// Test case category
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TestCategory {
     Basic,
     Advanced,
@@ -132,7 +132,7 @@ pub enum TestCategory {
 }
 
 /// Test priority level
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TestPriority {
     Critical,
     High,

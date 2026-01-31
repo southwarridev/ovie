@@ -89,7 +89,7 @@ pub struct TestResult {
 }
 
 /// Test category classification
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TestCategory {
     Unit,
     Property,

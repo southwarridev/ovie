@@ -162,13 +162,13 @@ pub fn run_all_behavior_regression_tests() -> OvieResult<Vec<String>> {
     println!("Running compiler behavior regression tests...");
     
     // Run each test and collect results
-    let tests = vec![
-        ("lexer_behavior", test_lexer_behavior_regression),
-        ("parser_behavior", test_parser_behavior_regression),
-        ("type_checker_behavior", test_type_checker_behavior_regression),
-        ("codegen_behavior", test_codegen_behavior_regression),
-        ("deterministic_behavior", test_deterministic_behavior_regression),
-        ("error_message_consistency", test_error_message_regression),
+    let tests: Vec<(&str, fn() -> OvieResult<()>)> = vec![
+        ("lexer_behavior", test_lexer_behavior_regression as fn() -> OvieResult<()>),
+        ("parser_behavior", test_parser_behavior_regression as fn() -> OvieResult<()>),
+        ("type_checker_behavior", test_type_checker_behavior_regression as fn() -> OvieResult<()>),
+        ("codegen_behavior", test_codegen_behavior_regression as fn() -> OvieResult<()>),
+        ("deterministic_behavior", test_deterministic_behavior_regression as fn() -> OvieResult<()>),
+        ("error_message_consistency", test_error_message_regression as fn() -> OvieResult<()>),
     ];
     
     for (test_name, test_fn) in tests {
