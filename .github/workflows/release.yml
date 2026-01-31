@@ -291,7 +291,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         cache-dependency-path: extensions/ovie-vscode/package-lock.json
 
@@ -303,9 +303,9 @@ jobs:
     - name: Build extension
       run: |
         cd extensions/ovie-vscode
-        npm install -g vsce
+        npm install -g @vscode/vsce
         npm run compile
-        vsce package
+        npx @vscode/vsce package
 
     - name: Upload extension artifact
       uses: actions/upload-artifact@v4
@@ -530,7 +530,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
 
     - name: Deploy to Vercel
       run: |
