@@ -95,13 +95,6 @@ greet(name)
 make offline-dev
 ```
 
-### Build from Source (Completely Offline)
-```bash
-git clone https://github.com/southwarridev/ovie.git
-cd ovie
-make build  # or: cargo build --release --workspace
-make install  # or: cargo install --path ovie
-```
 
 ### Quick Install Scripts (Optional Online)
 > ⚠️ These scripts download from the internet. Use offline method above for air-gapped environments.
