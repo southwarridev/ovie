@@ -1,0 +1,262 @@
+// Ovie Grammar Showcase - Demonstrates all language constructs
+// This file validates the complete formal grammar specification
+
+// ===== BASIC LITERALS =====
+seeAm "String literal with \"escaped quotes\" and \n newlines";
+seeAm 42;
+seeAm 3.14159;
+seeAm true;
+seeAm false;
+
+// ===== VARIABLES =====
+name = "Ovie";
+mut counter = 0;
+pi = 3.14159;
+
+// ===== EXPRESSIONS WITH ALL OPERATORS =====
+
+// Arithmetic
+result = 10 + 5 * 2 - 8 / 4 % 3;
+seeAm result;
+
+// Comparison  
+seeAm 5 < 10;
+seeAm 10 <= 10;
+seeAm 15 > 10;
+seeAm 10 >= 10;
+
+// Equality
+seeAm 5 == 5;
+seeAm 5 != 10;
+
+// Logical
+seeAm true && false;
+seeAm true || false;
+seeAm !true;
+
+// Range
+numbers = 1..10;
+
+// Unary
+negative = -42;
+not_true = !false;
+
+// ===== FUNCTIONS =====
+fn add(a, b) {
+    return a + b;
+}
+
+fn greet(person) {
+    seeAm "Hello, " + person + "!";
+}
+
+fn fibonacci(n) {
+    if n <= 1 {
+        return n;
+    } else {
+        return fibonacci(n - 1) + fibonacci(n - 2);
+    }
+}
+
+// Function calls
+sum = add(10, 20);
+greet("World");
+fib_result = fibonacci(8);
+
+// ===== CONTROL FLOW =====
+
+// If statements
+if counter < 10 {
+    seeAm "Counter is small";
+} else {
+    seeAm "Counter is big";
+}
+
+// Nested if
+if sum > 0 {
+    if sum > 100 {
+        seeAm "Large positive number";
+    } else {
+        seeAm "Small positive number";
+    }
+} else {
+    seeAm "Non-positive number";
+}
+
+// While loops
+while counter < 5 {
+    seeAm "Counter: " + counter;
+    counter = counter + 1;
+}
+
+// For loops
+for i in 0..10 {
+    seeAm "Loop iteration: " + i;
+}
+
+for num in numbers {
+    seeAm "Number from range: " + num;
+}
+
+// ===== DATA STRUCTURES =====
+
+// Struct definition
+struct Person {
+    name: String,
+    age: Number,
+    active: Boolean,
+}
+
+// Struct instantiation
+alice = Person {
+    name: "Alice",
+    age: 30,
+    active: true,
+};
+
+bob = Person {
+    name: "Bob",
+    age: 25,
+    active: false,
+};
+
+// Field access
+seeAm alice.name;
+seeAm alice.age;
+seeAm bob.active;
+
+// Enum definition
+enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+enum Status {
+    Active,
+    Inactive,
+    Pending(String),
+}
+
+// ===== COMPLEX EXPRESSIONS =====
+
+// Operator precedence demonstration
+complex_expr = 2 + 3 * 4 == 14 && 5 < 10 || !false;
+seeAm complex_expr;
+
+// Parentheses for grouping
+grouped = (2 + 3) * (4 + 1);
+seeAm grouped;
+
+// Chained field access and function calls
+struct Calculator {
+    value: Number,
+}
+
+fn create_calculator(initial) {
+    return Calculator {
+        value: initial,
+    };
+}
+
+calc = create_calculator(0);
+seeAm calc.value;
+
+// ===== NESTED STRUCTURES =====
+struct Address {
+    street: String,
+    city: String,
+}
+
+struct Employee {
+    name: String,
+    address: Address,
+    salary: Number,
+}
+
+employee = Employee {
+    name: "John Doe",
+    address: Address {
+        street: "123 Main St",
+        city: "Anytown",
+    },
+    salary: 50000,
+};
+
+seeAm employee.name;
+seeAm employee.address.street;
+seeAm employee.address.city;
+
+// ===== EXPRESSION STATEMENTS =====
+add(1, 2); // Function call as statement
+employee.salary; // Field access as statement
+
+// ===== RETURN STATEMENTS =====
+fn get_pi() {
+    return 3.14159;
+}
+
+fn void_function() {
+    seeAm "This function returns nothing";
+    return;
+}
+
+fn early_return(x) {
+    if x < 0 {
+        return 0;
+    }
+    return x * 2;
+}
+
+// ===== UNSAFE BLOCKS =====
+unsafe {
+    // Placeholder for unsafe operations
+    // (Not implemented in current stage)
+    seeAm "This is an unsafe block";
+}
+
+// ===== COMMENTS =====
+// Single line comment
+
+// Multi-line concept (using multiple single-line comments)
+// This is line 1 of a multi-line comment
+// This is line 2 of a multi-line comment
+// This is line 3 of a multi-line comment
+
+// ===== WHITESPACE AND FORMATTING =====
+
+// Compact formatting
+x=1+2*3;y=x+1;
+
+// Spaced formatting
+z = 1 + 2 * 3;
+w = z + 1;
+
+// ===== EDGE CASES =====
+
+// Empty blocks
+if true {
+}
+
+// Trailing commas in structs
+struct TrailingCommaStruct {
+    field1: String,
+    field2: Number,  // Trailing comma allowed
+}
+
+// Trailing commas in enums
+enum TrailingCommaEnum {
+    Variant1,
+    Variant2,  // Trailing comma allowed
+}
+
+// Empty parameter lists
+fn no_params() {
+    seeAm "No parameters";
+}
+
+// Empty argument lists
+no_params();
+
+// ===== GRAMMAR VALIDATION COMPLETE =====
+seeAm "Grammar showcase complete - all constructs demonstrated!";

@@ -1,0 +1,364 @@
+// Natural Language Patterns in Ovie
+// Demonstrates how Ovie's syntax mirrors natural language for AI/LLM friendliness
+
+fn main() {
+    seeAm "=== Natural Language Programming Patterns ==="
+    seeAm "Ovie code that reads like English"
+    seeAm ""
+    
+    // Natural variable names that explain themselves
+    user_age = 25
+    user_name = "Alice Johnson"
+    account_balance = 1500.75
+    is_account_active = true
+    has_premium_membership = false
+    
+    // Natural language conditionals
+    if user_age >= 18 {
+        seeAm user_name + " is an adult"
+    }
+    
+    if account_balance > 1000.0 && is_account_active {
+        seeAm "Account has sufficient funds and is active"
+    }
+    
+    if has_premium_membership || account_balance > 5000.0 {
+        seeAm "User qualifies for premium features"
+    }
+    
+    // Natural function names that describe actions
+    send_welcome_email(user_name)
+    calculate_monthly_interest(account_balance)
+    check_account_eligibility(user_age, account_balance, is_account_active)
+    
+    // Natural data processing
+    seeAm ""
+    seeAm "=== Processing User Data ==="
+    
+    process_user_registration(user_name, user_age, account_balance)
+    validate_user_information(user_name, user_age)
+    update_account_status(is_account_active)
+    
+    // Natural language loops
+    seeAm ""
+    seeAm "=== Natural Language Iterations ==="
+    
+    // Process each day of the week
+    days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    
+    for day in days_of_week {
+        process_daily_tasks(day)
+    }
+    
+    // Process each user in the system
+    user_ids = [101, 102, 103, 104, 105]
+    
+    for user_id in user_ids {
+        load_user_profile(user_id)
+        update_user_activity(user_id)
+        send_daily_summary(user_id)
+    }
+    
+    // Natural error handling
+    seeAm ""
+    seeAm "=== Natural Error Handling ==="
+    
+    email_result = send_notification_email(user_name, "Welcome to our service!")
+    
+    if email_result.was_successful {
+        seeAm "Email sent successfully to " + user_name
+    } else {
+        seeAm "Failed to send email: " + email_result.error_message
+        handle_email_failure(user_name, email_result.error_message)
+    }
+    
+    // Natural business logic
+    seeAm ""
+    seeAm "=== Business Logic in Natural Language ==="
+    
+    order_total = 150.00
+    customer_tier = "gold"
+    is_first_purchase = false
+    
+    final_price = calculate_final_price_with_discounts(order_total, customer_tier, is_first_purchase)
+    
+    seeAm "Order total: $" + order_total
+    seeAm "Customer tier: " + customer_tier
+    seeAm "Final price after discounts: $" + final_price
+    
+    // Natural data validation
+    seeAm ""
+    seeAm "=== Data Validation ==="
+    
+    email_address = "alice@example.com"
+    phone_number = "+1-555-123-4567"
+    postal_code = "12345"
+    
+    if is_valid_email_address(email_address) {
+        seeAm "Email address is valid: " + email_address
+    } else {
+        seeAm "Invalid email address: " + email_address
+    }
+    
+    if is_valid_phone_number(phone_number) {
+        seeAm "Phone number is valid: " + phone_number
+    } else {
+        seeAm "Invalid phone number: " + phone_number
+    }
+    
+    if is_valid_postal_code(postal_code) {
+        seeAm "Postal code is valid: " + postal_code
+    } else {
+        seeAm "Invalid postal code: " + postal_code
+    }
+}
+
+// Natural function definitions that read like instructions
+
+fn send_welcome_email(recipient_name: string) {
+    seeAm "Sending welcome email to " + recipient_name
+    // In a real implementation, this would send an actual email
+}
+
+fn calculate_monthly_interest(current_balance: f64) -> f64 {
+    interest_rate = 0.02  // 2% monthly interest
+    monthly_interest = current_balance * interest_rate
+    
+    seeAm "Calculating monthly interest for balance $" + current_balance
+    seeAm "Interest rate: " + (interest_rate * 100.0) + "%"
+    seeAm "Monthly interest: $" + monthly_interest
+    
+    return monthly_interest
+}
+
+fn check_account_eligibility(age: u32, balance: f64, is_active: bool) -> bool {
+    seeAm "Checking account eligibility..."
+    
+    if age < 18 {
+        seeAm "Account holder must be 18 or older"
+        return false
+    }
+    
+    if balance < 100.0 {
+        seeAm "Minimum balance of $100 required"
+        return false
+    }
+    
+    if !is_active {
+        seeAm "Account must be active"
+        return false
+    }
+    
+    seeAm "Account meets all eligibility requirements"
+    return true
+}
+
+fn process_user_registration(name: string, age: u32, initial_deposit: f64) {
+    seeAm "Processing registration for " + name
+    seeAm "Age: " + age + " years"
+    seeAm "Initial deposit: $" + initial_deposit
+    
+    if age >= 18 && initial_deposit >= 100.0 {
+        seeAm "Registration approved for " + name
+        create_user_account(name, age, initial_deposit)
+    } else {
+        seeAm "Registration denied for " + name
+        explain_registration_requirements()
+    }
+}
+
+fn validate_user_information(name: string, age: u32) -> bool {
+    seeAm "Validating user information..."
+    
+    if name.is_empty() {
+        seeAm "Name cannot be empty"
+        return false
+    }
+    
+    if name.length() < 2 {
+        seeAm "Name must be at least 2 characters long"
+        return false
+    }
+    
+    if age < 13 || age > 120 {
+        seeAm "Age must be between 13 and 120"
+        return false
+    }
+    
+    seeAm "User information is valid"
+    return true
+}
+
+fn update_account_status(is_active: bool) {
+    if is_active {
+        seeAm "Account status: Active"
+        enable_account_features()
+    } else {
+        seeAm "Account status: Inactive"
+        disable_account_features()
+    }
+}
+
+fn process_daily_tasks(day_name: string) {
+    seeAm "Processing tasks for " + day_name
+    
+    if day_name == "Monday" {
+        seeAm "  - Generate weekly reports"
+        seeAm "  - Send team meeting reminders"
+    } else if day_name == "Friday" {
+        seeAm "  - Backup system data"
+        seeAm "  - Send weekly summary emails"
+    } else {
+        seeAm "  - Process daily transactions"
+        seeAm "  - Update user activity logs"
+    }
+}
+
+fn load_user_profile(user_id: u32) {
+    seeAm "Loading profile for user ID: " + user_id
+    // In real implementation, would load from database
+}
+
+fn update_user_activity(user_id: u32) {
+    seeAm "Updating activity for user ID: " + user_id
+    // In real implementation, would update activity timestamp
+}
+
+fn send_daily_summary(user_id: u32) {
+    seeAm "Sending daily summary to user ID: " + user_id
+    // In real implementation, would send actual summary
+}
+
+struct EmailResult {
+    was_successful: bool,
+    error_message: string,
+    timestamp: string,
+}
+
+fn send_notification_email(recipient: string, message: string) -> EmailResult {
+    seeAm "Attempting to send email to " + recipient
+    seeAm "Message: " + message
+    
+    // Simulate email sending (simplified)
+    if recipient.contains("@") && !message.is_empty() {
+        return EmailResult {
+            was_successful: true,
+            error_message: "",
+            timestamp: "2026-01-28 10:30:00",
+        }
+    } else {
+        return EmailResult {
+            was_successful: false,
+            error_message: "Invalid recipient or empty message",
+            timestamp: "2026-01-28 10:30:00",
+        }
+    }
+}
+
+fn handle_email_failure(recipient: string, error: string) {
+    seeAm "Handling email failure for " + recipient
+    seeAm "Error: " + error
+    seeAm "Adding to retry queue..."
+}
+
+fn calculate_final_price_with_discounts(base_price: f64, customer_tier: string, is_first_purchase: bool) -> f64 {
+    mut final_price = base_price
+    mut total_discount = 0.0
+    
+    seeAm "Calculating discounts for $" + base_price + " order"
+    
+    // Customer tier discount
+    if customer_tier == "gold" {
+        tier_discount = base_price * 0.15  // 15% discount
+        final_price = final_price - tier_discount
+        total_discount = total_discount + tier_discount
+        seeAm "Gold tier discount: $" + tier_discount
+    } else if customer_tier == "silver" {
+        tier_discount = base_price * 0.10  // 10% discount
+        final_price = final_price - tier_discount
+        total_discount = total_discount + tier_discount
+        seeAm "Silver tier discount: $" + tier_discount
+    }
+    
+    // First purchase discount
+    if is_first_purchase {
+        first_purchase_discount = base_price * 0.05  // 5% discount
+        final_price = final_price - first_purchase_discount
+        total_discount = total_discount + first_purchase_discount
+        seeAm "First purchase discount: $" + first_purchase_discount
+    }
+    
+    seeAm "Total discount applied: $" + total_discount
+    return final_price
+}
+
+fn is_valid_email_address(email: string) -> bool {
+    // Simplified email validation
+    return email.contains("@") && email.contains(".") && email.length() > 5
+}
+
+fn is_valid_phone_number(phone: string) -> bool {
+    // Simplified phone validation
+    return phone.length() >= 10 && (phone.contains("-") || phone.contains(" "))
+}
+
+fn is_valid_postal_code(postal_code: string) -> bool {
+    // Simplified postal code validation
+    return postal_code.length() == 5 && postal_code.is_numeric()
+}
+
+// Helper functions with natural names
+
+fn create_user_account(name: string, age: u32, deposit: f64) {
+    seeAm "Creating account for " + name
+    seeAm "Initial setup complete"
+}
+
+fn explain_registration_requirements() {
+    seeAm "Registration requirements:"
+    seeAm "  - Must be 18 years or older"
+    seeAm "  - Minimum initial deposit: $100"
+    seeAm "  - Valid identification required"
+}
+
+fn enable_account_features() {
+    seeAm "Enabling all account features"
+}
+
+fn disable_account_features() {
+    seeAm "Disabling account features due to inactive status"
+}
+
+// Natural language data structures
+
+struct CustomerProfile {
+    full_name: string,
+    date_of_birth: string,
+    email_address: string,
+    phone_number: string,
+    mailing_address: string,
+    account_creation_date: string,
+    last_login_date: string,
+    is_email_verified: bool,
+    is_phone_verified: bool,
+    preferred_communication_method: string,
+}
+
+struct OrderInformation {
+    order_number: string,
+    customer_id: u32,
+    order_date: string,
+    items_ordered: [string],
+    subtotal_amount: f64,
+    tax_amount: f64,
+    shipping_cost: f64,
+    total_amount: f64,
+    payment_method: string,
+    shipping_address: string,
+    estimated_delivery_date: string,
+    order_status: string,
+}
+
+// This example demonstrates how Ovie code reads naturally,
+// making it easy for both humans and AI systems to understand
+// the intent and functionality of the program.

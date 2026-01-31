@@ -1,0 +1,122 @@
+// Variables and Mutability in Ovie
+// Demonstrates variable declaration, mutability, and type inference
+
+fn main() {
+    seeAm "=== Variables and Mutability Demo ==="
+    
+    // Immutable variables (default)
+    name = "Alice"
+    age = 25
+    pi = 3.14159
+    is_student = true
+    
+    seeAm "Immutable variables:"
+    seeAm "Name: " + name
+    seeAm "Age: " + age
+    seeAm "Pi: " + pi
+    seeAm "Is student: " + is_student
+    
+    // Mutable variables
+    mut counter = 0
+    mut balance = 1000.50
+    mut status = "active"
+    mut items_processed = 0
+    
+    seeAm ""
+    seeAm "Mutable variables (initial values):"
+    seeAm "Counter: " + counter
+    seeAm "Balance: $" + balance
+    seeAm "Status: " + status
+    seeAm "Items processed: " + items_processed
+    
+    // Modify mutable variables
+    counter = counter + 1
+    balance = balance - 50.25
+    status = "processing"
+    items_processed = items_processed + 5
+    
+    seeAm ""
+    seeAm "After modifications:"
+    seeAm "Counter: " + counter
+    seeAm "Balance: $" + balance
+    seeAm "Status: " + status
+    seeAm "Items processed: " + items_processed
+    
+    // Variable shadowing
+    seeAm ""
+    seeAm "=== Variable Shadowing ==="
+    mut value = "original string"
+    seeAm "Value as string: " + value
+    
+    mut value = 42
+    seeAm "Value as number: " + value
+    
+    mut value = true
+    seeAm "Value as boolean: " + value
+    
+    // Type inference examples
+    seeAm ""
+    seeAm "=== Type Inference ==="
+    
+    // Numbers
+    small_int = 100u8        // 8-bit unsigned integer
+    medium_int = 50000u16    // 16-bit unsigned integer
+    large_int = 2000000000u32 // 32-bit unsigned integer
+    huge_int = 9223372036854775807u64 // 64-bit unsigned integer
+    
+    signed_int = -42i32      // 32-bit signed integer
+    float_val = 3.14f32      // 32-bit float
+    double_val = 2.718281828 // 64-bit float (default)
+    
+    seeAm "Small int (u8): " + small_int
+    seeAm "Medium int (u16): " + medium_int
+    seeAm "Large int (u32): " + large_int
+    seeAm "Huge int (u64): " + huge_int
+    seeAm "Signed int (i32): " + signed_int
+    seeAm "Float (f32): " + float_val
+    seeAm "Double (f64): " + double_val
+    
+    // String operations
+    seeAm ""
+    seeAm "=== String Operations ==="
+    
+    first_name = "John"
+    last_name = "Doe"
+    full_name = first_name + " " + last_name
+    
+    greeting = "Hello, " + full_name + "!"
+    
+    seeAm "First name: " + first_name
+    seeAm "Last name: " + last_name
+    seeAm "Full name: " + full_name
+    seeAm "Greeting: " + greeting
+    
+    // Constants (immutable by design)
+    seeAm ""
+    seeAm "=== Constants ==="
+    
+    MAX_USERS = 1000
+    APP_VERSION = "1.0.0"
+    DEBUG_MODE = false
+    
+    seeAm "Max users: " + MAX_USERS
+    seeAm "App version: " + APP_VERSION
+    seeAm "Debug mode: " + DEBUG_MODE
+    
+    // Demonstrating immutability
+    seeAm ""
+    seeAm "=== Immutability Demonstration ==="
+    
+    original_value = 100
+    seeAm "Original value: " + original_value
+    
+    // This would cause a compile error:
+    // original_value = 200  // Error: cannot assign to immutable variable
+    
+    // But we can create a new variable with the same name (shadowing)
+    original_value = 200
+    seeAm "Shadowed value: " + original_value
+    
+    seeAm ""
+    seeAm "Variables demo complete!"
+}

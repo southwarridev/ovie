@@ -1,0 +1,6 @@
+// Hello World in Ovie - Self-Hosted Programming Language!
+// This is the simplest Ovie program - compiled by Ovie itself!
+// 🎉 Status: This code is compiled by a compiler written in Ovie!
+
+seeAm "Hello, World!"
+seeAm "Welcome to Ovie - the self-hosted programming language!";

@@ -285,10 +285,10 @@ greet(name)</code></pre>
                                 <button class="tab-btn" data-tab="windows">Windows</button>
                             </div>
                             <div class="tab-content active" id="unix">
-                                <pre><code>curl -sSL https://install.ovie-lang.org | sh</code></pre>
+                                <pre><code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/install.sh | bash</code></pre>
                             </div>
                             <div class="tab-content" id="windows">
-                                <pre><code>iwr -useb https://install.ovie-lang.org/install.ps1 | iex</code></pre>
+                                <pre><code>iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/install.ps1 | iex</code></pre>
                             </div>
                         </div>
                     </div>
@@ -296,22 +296,26 @@ greet(name)</code></pre>
                 <div class="download-card">
                     <div class="download-header">
                         <h3>Direct Downloads</h3>
-                        <p>Pre-built executables (no domain secured yet)</p>
+                        <p>Pre-built binaries from GitHub Releases</p>
                     </div>
                     <div class="download-content">
                         <div class="download-links">
-                            <a href="ovie_final_test.exe" class="btn btn-outline" download>
-                                <span class="btn-icon">⬇️</span> Ovie Final Test
+                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-v2.0.0-linux-x64.tar.gz" class="btn btn-outline">
+                                <span class="btn-icon">🐧</span> Linux x64
                             </a>
-                            <a href="test_simple.exe" class="btn btn-outline" download>
-                                <span class="btn-icon">⬇️</span> Simple Test Build
+                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-v2.0.0-windows-x64.zip" class="btn btn-outline">
+                                <span class="btn-icon">🪟</span> Windows x64
                             </a>
-                            <a href="test_enhanced_cli.exe" class="btn btn-outline" download>
-                                <span class="btn-icon">⬇️</span> Enhanced CLI
+                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-v2.0.0-macos-x64.tar.gz" class="btn btn-outline">
+                                <span class="btn-icon">🍎</span> macOS Intel
                             </a>
-                            <a href="test_comprehensive_system_integration.exe" class="btn btn-outline" download>
-                                <span class="btn-icon">⬇️</span> Full System
+                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-v2.0.0-macos-arm64.tar.gz" class="btn btn-outline">
+                                <span class="btn-icon">🍎</span> macOS Apple Silicon
                             </a>
+                        </div>
+                        <div class="download-info">
+                            <p><strong>Latest Release:</strong> v2.0.0 - Stage 2 Self-Hosted</p>
+                            <p><a href="https://github.com/southwarridev/ovie/releases/latest">View all releases on GitHub</a></p>
                         </div>
                     </div>
                 </div>
@@ -342,6 +346,37 @@ make install</code></pre>
 cd ovie
 make build
 make install</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="download-options">
+                <div class="download-card">
+                    <div class="download-header">
+                        <h3>VS Code Extension</h3>
+                        <p>Full IDE support with syntax highlighting</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="download-links">
+                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-lang-1.0.0.vsix" class="btn btn-outline">
+                                <span class="btn-icon">📝</span> Download Extension
+                            </a>
+                        </div>
+                        <div class="download-info">
+                            <p><strong>Installation:</strong> Open VS Code → Extensions → Install from VSIX</p>
+                            <p>Includes syntax highlighting, code completion, and Aproko integration</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="download-card">
+                    <div class="download-header">
+                        <h3>Checksums & Verification</h3>
+                        <p>Verify download integrity</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="download-info">
+                            <p><a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/checksums.txt">Download SHA256 checksums</a></p>
+                            <p>All releases are signed and verified for security</p>
                         </div>
                     </div>
                 </div>

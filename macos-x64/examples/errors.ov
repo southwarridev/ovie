@@ -1,0 +1,125 @@
+// Error handling and edge cases in Ovie
+
+// This file demonstrates various error conditions
+// and how Ovie should handle them gracefully
+
+// 1. Basic error cases that should be caught by the compiler
+
+// Undefined variable (should cause compile error)
+// seeAm undefined_variable;
+
+// Type mismatch (should cause compile error) 
+// result = "hello" + 42;
+
+// 2. Function definition and calling
+fn divide(a, b) {
+    if b == 0 {
+        seeAm "Error: Cannot divide by zero!";
+        return 0;
+    } else {
+        return a / b;
+    }
+}
+
+// Test division
+result1 = divide(10, 2);
+result2 = divide(10, 0);
+
+seeAm "10 / 2 = " + result1;
+seeAm "10 / 0 = " + result2;
+
+// 3. Boundary conditions
+fn factorial_safe(n) {
+    if n < 0 {
+        seeAm "Error: Factorial not defined for negative numbers!";
+        return 0;
+    }
+    
+    if n == 0 {
+        return 1;
+    }
+    
+    if n > 20 {
+        seeAm "Warning: Large factorial, result may be inaccurate!";
+    }
+    
+    mut result = 1;
+    mut i = 1;
+    
+    while i <= n {
+        result = result * i;
+        i = i + 1;
+    }
+    
+    return result;
+}
+
+// Test factorial with various inputs
+seeAm "Factorial of -1: " + factorial_safe(-1);
+seeAm "Factorial of 0: " + factorial_safe(0);
+seeAm "Factorial of 5: " + factorial_safe(5);
+seeAm "Factorial of 25: " + factorial_safe(25);
+
+// 4. String operations that might fail
+fn safe_substring(text, start, length) {
+    // In a real implementation, this would check bounds
+    // For now, just demonstrate the concept
+    seeAm "Extracting substring from: " + text;
+    seeAm "Start: " + start + ", Length: " + length;
+    return text; // Simplified for now
+}
+
+text = "Hello, Ovie!";
+substring = safe_substring(text, 0, 5);
+seeAm "Result: " + substring;
+
+// 5. Enum for error types (when enums are implemented)
+enum ErrorType {
+    None,
+    DivisionByZero,
+    InvalidInput,
+    OutOfBounds,
+}
+
+// 6. Struct for error information
+struct ErrorInfo {
+    error_type: ErrorType,
+    message: String,
+    line_number: Number,
+}
+
+// Example error info
+error = ErrorInfo {
+    error_type: ErrorType.DivisionByZero,
+    message: "Attempted to divide by zero",
+    line_number: 42,
+};
+
+seeAm "Error occurred: " + error.message + " at line " + error.line_number;
+
+// 7. Demonstrating safe practices
+fn validate_input(value) {
+    if value < 0 {
+        seeAm "Warning: Negative value provided";
+        return false;
+    }
+    
+    if value > 1000 {
+        seeAm "Warning: Very large value provided";
+        return false;
+    }
+    
+    return true;
+}
+
+// Test input validation
+test_values = [5, -10, 500, 2000];
+
+for val in test_values {
+    is_valid = validate_input(val);
+    if is_valid {
+        seeAm "Value " + val + " is valid";
+    } else {
+        seeAm "Value " + val + " is invalid";
+    }
+}

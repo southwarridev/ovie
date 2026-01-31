@@ -1,0 +1,60 @@
+// Mathematical operations and functions in Ovie
+
+// Basic arithmetic
+a = 10;
+b = 5;
+
+sum = a + b;
+difference = a - b;
+product = a * b;
+quotient = a / b;
+remainder = a % b;
+
+seeAm "Sum: " + sum;
+seeAm "Difference: " + difference;
+seeAm "Product: " + product;
+seeAm "Quotient: " + quotient;
+seeAm "Remainder: " + remainder;
+
+// Functions for calculations
+fn add(x, y) {
+    return x + y;
+}
+
+fn multiply(x, y) {
+    return x * y;
+}
+
+fn factorial(n) {
+    if n <= 1 {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+// Using functions
+result1 = add(15, 25);
+result2 = multiply(6, 7);
+result3 = factorial(5);
+
+seeAm "15 + 25 = " + result1;
+seeAm "6 * 7 = " + result2;
+seeAm "5! = " + result3;
+
+// Loops for calculations
+mut counter = 0;
+mut total = 0;
+
+while counter < 10 {
+    total = total + counter;
+    counter = counter + 1;
+}
+
+seeAm "Sum of 0 to 9: " + total;
+
+// For loop example
+for i in 1..6 {
+    square = i * i;
+    seeAm "Square of " + i + " is " + square;
+}

@@ -1,0 +1,523 @@
+// Simple Lexer Implementation in Ovie
+// Demonstrates how a lexer might be implemented in Ovie itself
+// This is a progression toward self-hosting (Stage 1/2)
+
+enum TokenType {
+    // Keywords
+    Fn,
+    Mut,
+    If,
+    Else,
+    For,
+    While,
+    Struct,
+    Enum,
+    Unsafe,
+    Return,
+    True,
+    False,
+    SeeAm,
+    
+    // Literals
+    Identifier,
+    StringLiteral,
+    NumberLiteral,
+    
+    // Operators
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+    Assign,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessEqual,
+    GreaterEqual,
+    LogicalAnd,
+    LogicalOr,
+    LogicalNot,
+    
+    // Delimiters
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
+    Semicolon,
+    Comma,
+    Dot,
+    Colon,
+    Arrow,
+    
+    // Special
+    Newline,
+    Whitespace,
+    Comment,
+    EndOfFile,
+    Invalid,
+}
+
+struct Token {
+    token_type: TokenType,
+    lexeme: string,
+    line_number: u32,
+    column_number: u32,
+    start_position: u32,
+    end_position: u32,
+}
+
+struct LexerState {
+    source_code: string,
+    current_position: mut u32,
+    current_line: mut u32,
+    current_column: mut u32,
+    tokens: mut [Token],
+    errors: mut [string],
+}
+
+fn create_lexer(source: string) -> LexerState {
+    return LexerState {
+        source_code: source,
+        current_position: 0,
+        current_line: 1,
+        current_column: 1,
+        tokens: [],
+        errors: [],
+    }
+}
+
+fn current_char(lexer: LexerState) -> string {
+    if lexer.current_position >= lexer.source_code.length() {
+        return ""  // End of file
+    }
+    return lexer.source_code.char_at(lexer.current_position)
+}
+
+fn peek_char(lexer: LexerState, offset: u32) -> string {
+    mut peek_position = lexer.current_position + offset
+    if peek_position >= lexer.source_code.length() {
+        return ""
+    }
+    return lexer.source_code.char_at(peek_position)
+}
+
+fn advance_position(lexer: mut LexerState) {
+    if lexer.current_position < lexer.source_code.length() {
+        mut current = current_char(lexer)
+        
+        if current == "\n" {
+            lexer.current_line = lexer.current_line + 1
+            lexer.current_column = 1
+        } else {
+            lexer.current_column = lexer.current_column + 1
+        }
+        
+        lexer.current_position = lexer.current_position + 1
+    }
+}
+
+fn skip_whitespace(lexer: mut LexerState) {
+    while !is_at_end(lexer) {
+        mut ch = current_char(lexer)
+        
+        if ch == " " || ch == "\t" || ch == "\r" {
+            advance_position(lexer)
+        } else {
+            break
+        }
+    }
+}
+
+fn is_at_end(lexer: LexerState) -> bool {
+    return lexer.current_position >= lexer.source_code.length()
+}
+
+fn is_alpha(ch: string) -> bool {
+    return (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") || ch == "_"
+}
+
+fn is_digit(ch: string) -> bool {
+    return ch >= "0" && ch <= "9"
+}
+
+fn is_alphanumeric(ch: string) -> bool {
+    return is_alpha(ch) || is_digit(ch)
+}
+
+fn read_identifier(lexer: mut LexerState) -> string {
+    mut start_pos = lexer.current_position
+    
+    while !is_at_end(lexer) && is_alphanumeric(current_char(lexer)) {
+        advance_position(lexer)
+    }
+    
+    return lexer.source_code.substring(start_pos, lexer.current_position)
+}
+
+fn read_number(lexer: mut LexerState) -> string {
+    mut start_pos = lexer.current_position
+    
+    // Read integer part
+    while !is_at_end(lexer) && is_digit(current_char(lexer)) {
+        advance_position(lexer)
+    }
+    
+    // Check for decimal point
+    if !is_at_end(lexer) && current_char(lexer) == "." && is_digit(peek_char(lexer, 1)) {
+        advance_position(lexer)  // Consume the '.'
+        
+        // Read fractional part
+        while !is_at_end(lexer) && is_digit(current_char(lexer)) {
+            advance_position(lexer)
+        }
+    }
+    
+    return lexer.source_code.substring(start_pos, lexer.current_position)
+}
+
+fn read_string(lexer: mut LexerState) -> string {
+    mut start_pos = lexer.current_position
+    advance_position(lexer)  // Skip opening quote
+    
+    while !is_at_end(lexer) && current_char(lexer) != "\"" {
+        if current_char(lexer) == "\n" {
+            lexer.errors.push("Unterminated string literal at line " + lexer.current_line)
+            break
+        }
+        advance_position(lexer)
+    }
+    
+    if !is_at_end(lexer) {
+        advance_position(lexer)  // Skip closing quote
+    }
+    
+    return lexer.source_code.substring(start_pos, lexer.current_position)
+}
+
+fn read_comment(lexer: mut LexerState) -> string {
+    mut start_pos = lexer.current_position
+    
+    // Single-line comment
+    if current_char(lexer) == "/" && peek_char(lexer, 1) == "/" {
+        while !is_at_end(lexer) && current_char(lexer) != "\n" {
+            advance_position(lexer)
+        }
+    }
+    // Multi-line comment
+    else if current_char(lexer) == "/" && peek_char(lexer, 1) == "*" {
+        advance_position(lexer)  // Skip '/'
+        advance_position(lexer)  // Skip '*'
+        
+        while !is_at_end(lexer) {
+            if current_char(lexer) == "*" && peek_char(lexer, 1) == "/" {
+                advance_position(lexer)  // Skip '*'
+                advance_position(lexer)  // Skip '/'
+                break
+            }
+            advance_position(lexer)
+        }
+    }
+    
+    return lexer.source_code.substring(start_pos, lexer.current_position)
+}
+
+fn keyword_type(identifier: string) -> TokenType {
+    if identifier == "fn" {
+        return TokenType.Fn
+    } else if identifier == "mut" {
+        return TokenType.Mut
+    } else if identifier == "if" {
+        return TokenType.If
+    } else if identifier == "else" {
+        return TokenType.Else
+    } else if identifier == "for" {
+        return TokenType.For
+    } else if identifier == "while" {
+        return TokenType.While
+    } else if identifier == "struct" {
+        return TokenType.Struct
+    } else if identifier == "enum" {
+        return TokenType.Enum
+    } else if identifier == "unsafe" {
+        return TokenType.Unsafe
+    } else if identifier == "return" {
+        return TokenType.Return
+    } else if identifier == "true" {
+        return TokenType.True
+    } else if identifier == "false" {
+        return TokenType.False
+    } else if identifier == "seeAm" {
+        return TokenType.SeeAm
+    } else {
+        return TokenType.Identifier
+    }
+}
+
+fn create_token(token_type: TokenType, lexeme: string, line: u32, column: u32, start: u32, end: u32) -> Token {
+    return Token {
+        token_type: token_type,
+        lexeme: lexeme,
+        line_number: line,
+        column_number: column,
+        start_position: start,
+        end_position: end,
+    }
+}
+
+fn add_token(lexer: mut LexerState, token_type: TokenType, lexeme: string) {
+    mut token = create_token(
+        token_type,
+        lexeme,
+        lexer.current_line,
+        lexer.current_column,
+        lexer.current_position - lexeme.length(),
+        lexer.current_position
+    )
+    
+    lexer.tokens.push(token)
+}
+
+fn scan_token(lexer: mut LexerState) -> bool {
+    if is_at_end(lexer) {
+        add_token(lexer, TokenType.EndOfFile, "")
+        return false
+    }
+    
+    mut start_line = lexer.current_line
+    mut start_column = lexer.current_column
+    mut ch = current_char(lexer)
+    
+    // Single character tokens
+    if ch == "(" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.LeftParen, "(")
+    } else if ch == ")" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.RightParen, ")")
+    } else if ch == "{" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.LeftBrace, "{")
+    } else if ch == "}" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.RightBrace, "}")
+    } else if ch == "[" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.LeftBracket, "[")
+    } else if ch == "]" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.RightBracket, "]")
+    } else if ch == ";" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.Semicolon, ";")
+    } else if ch == "," {
+        advance_position(lexer)
+        add_token(lexer, TokenType.Comma, ",")
+    } else if ch == "." {
+        advance_position(lexer)
+        add_token(lexer, TokenType.Dot, ".")
+    } else if ch == ":" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.Colon, ":")
+    } else if ch == "+" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.Plus, "+")
+    } else if ch == "*" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.Multiply, "*")
+    } else if ch == "%" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.Modulo, "%")
+    } else if ch == "\n" {
+        advance_position(lexer)
+        add_token(lexer, TokenType.Newline, "\n")
+    }
+    // Multi-character tokens
+    else if ch == "-" {
+        advance_position(lexer)
+        if current_char(lexer) == ">" {
+            advance_position(lexer)
+            add_token(lexer, TokenType.Arrow, "->")
+        } else {
+            add_token(lexer, TokenType.Minus, "-")
+        }
+    } else if ch == "=" {
+        advance_position(lexer)
+        if current_char(lexer) == "=" {
+            advance_position(lexer)
+            add_token(lexer, TokenType.Equal, "==")
+        } else {
+            add_token(lexer, TokenType.Assign, "=")
+        }
+    } else if ch == "!" {
+        advance_position(lexer)
+        if current_char(lexer) == "=" {
+            advance_position(lexer)
+            add_token(lexer, TokenType.NotEqual, "!=")
+        } else {
+            add_token(lexer, TokenType.LogicalNot, "!")
+        }
+    } else if ch == "<" {
+        advance_position(lexer)
+        if current_char(lexer) == "=" {
+            advance_position(lexer)
+            add_token(lexer, TokenType.LessEqual, "<=")
+        } else {
+            add_token(lexer, TokenType.LessThan, "<")
+        }
+    } else if ch == ">" {
+        advance_position(lexer)
+        if current_char(lexer) == "=" {
+            advance_position(lexer)
+            add_token(lexer, TokenType.GreaterEqual, ">=")
+        } else {
+            add_token(lexer, TokenType.GreaterThan, ">")
+        }
+    } else if ch == "&" {
+        advance_position(lexer)
+        if current_char(lexer) == "&" {
+            advance_position(lexer)
+            add_token(lexer, TokenType.LogicalAnd, "&&")
+        } else {
+            lexer.errors.push("Unexpected character '&' at line " + lexer.current_line)
+        }
+    } else if ch == "|" {
+        advance_position(lexer)
+        if current_char(lexer) == "|" {
+            advance_position(lexer)
+            add_token(lexer, TokenType.LogicalOr, "||")
+        } else {
+            lexer.errors.push("Unexpected character '|' at line " + lexer.current_line)
+        }
+    } else if ch == "/" {
+        if peek_char(lexer, 1) == "/" || peek_char(lexer, 1) == "*" {
+            mut comment = read_comment(lexer)
+            add_token(lexer, TokenType.Comment, comment)
+        } else {
+            advance_position(lexer)
+            add_token(lexer, TokenType.Divide, "/")
+        }
+    }
+    // String literals
+    else if ch == "\"" {
+        mut string_literal = read_string(lexer)
+        add_token(lexer, TokenType.StringLiteral, string_literal)
+    }
+    // Numbers
+    else if is_digit(ch) {
+        mut number = read_number(lexer)
+        add_token(lexer, TokenType.NumberLiteral, number)
+    }
+    // Identifiers and keywords
+    else if is_alpha(ch) {
+        mut identifier = read_identifier(lexer)
+        mut token_type = keyword_type(identifier)
+        add_token(lexer, token_type, identifier)
+    }
+    // Whitespace
+    else if ch == " " || ch == "\t" || ch == "\r" {
+        skip_whitespace(lexer)
+        // Don't add whitespace tokens in this simple implementation
+    }
+    // Invalid character
+    else {
+        lexer.errors.push("Unexpected character '" + ch + "' at line " + lexer.current_line)
+        advance_position(lexer)
+    }
+    
+    return true
+}
+
+fn tokenize(lexer: mut LexerState) {
+    while scan_token(lexer) {
+        // Continue scanning until end of file
+    }
+}
+
+fn print_tokens(lexer: LexerState) {
+    seeAm "=== Tokens ==="
+    
+    for token in lexer.tokens {
+        mut type_name = token_type_name(token.token_type)
+        seeAm type_name + ": '" + token.lexeme + "' (Line " + token.line_number + ", Col " + token.column_number + ")"
+    }
+}
+
+fn token_type_name(token_type: TokenType) -> string {
+    match token_type {
+        TokenType.Fn => return "FN",
+        TokenType.Mut => return "MUT",
+        TokenType.If => return "IF",
+        TokenType.Else => return "ELSE",
+        TokenType.SeeAm => return "SEEAM",
+        TokenType.Identifier => return "IDENTIFIER",
+        TokenType.StringLiteral => return "STRING",
+        TokenType.NumberLiteral => return "NUMBER",
+        TokenType.Plus => return "PLUS",
+        TokenType.Minus => return "MINUS",
+        TokenType.LeftParen => return "LEFT_PAREN",
+        TokenType.RightParen => return "RIGHT_PAREN",
+        TokenType.LeftBrace => return "LEFT_BRACE",
+        TokenType.RightBrace => return "RIGHT_BRACE",
+        TokenType.Semicolon => return "SEMICOLON",
+        TokenType.Assign => return "ASSIGN",
+        TokenType.Equal => return "EQUAL",
+        TokenType.EndOfFile => return "EOF",
+        _ => return "UNKNOWN",
+    }
+}
+
+fn print_errors(lexer: LexerState) {
+    if !lexer.errors.is_empty() {
+        seeAm ""
+        seeAm "=== Lexer Errors ==="
+        
+        for error in lexer.errors {
+            seeAm "Error: " + error
+        }
+    }
+}
+
+fn main() {
+    seeAm "=== Ovie Lexer Demo ==="
+    seeAm "Demonstrating lexical analysis in Ovie"
+    seeAm ""
+    
+    // Example Ovie source code to tokenize
+    source_code = "fn main() {\n    mut x = 42;\n    seeAm \"Hello, World!\";\n    if x > 0 {\n        seeAm \"Positive\";\n    }\n}"
+    
+    seeAm "Source code to tokenize:"
+    seeAm source_code
+    seeAm ""
+    
+    // Create lexer and tokenize
+    mut lexer = create_lexer(source_code)
+    tokenize(lexer)
+    
+    // Print results
+    print_tokens(lexer)
+    print_errors(lexer)
+    
+    seeAm ""
+    seeAm "Tokenization complete!"
+    seeAm "Total tokens: " + lexer.tokens.length()
+    
+    // Demonstrate error handling
+    seeAm ""
+    seeAm "=== Error Handling Demo ==="
+    
+    invalid_source = "fn test() { mut x = @invalid; }"
+    seeAm "Invalid source: " + invalid_source
+    
+    mut error_lexer = create_lexer(invalid_source)
+    tokenize(error_lexer)
+    print_errors(error_lexer)
+}
+
+// This lexer demo shows how Ovie can be used to implement
+// compiler components in a natural, readable way.
+// This is a step toward self-hosting where the Ovie compiler
+// itself will be written in Ovie.

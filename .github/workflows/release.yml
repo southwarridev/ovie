@@ -505,14 +505,14 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name || github.event.inputs.version }}
+        tag_name: ${{ github.ref_name || format('v{0}', github.event.inputs.version) }}
         name: "🎉 Ovie v${{ github.ref_name || github.event.inputs.version }} - Stage 2 Self-Hosted!"
         body_path: release-notes.md
         files: |
           releases/*
         draft: false
         prerelease: false
-        make_latest: true
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

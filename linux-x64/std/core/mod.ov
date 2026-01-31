@@ -1,0 +1,699 @@
+// Ovie Standard Library - Core Module
+// Fundamental types and operations for the Ovie programming language
+// This module provides the foundation for all other standard library modules
+
+// ===== RESULT TYPE =====
+
+// Result type for operations that can fail
+// This is the primary error handling mechanism in Ovie
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+// Result implementation
+impl Result<T, E> {
+    // Check if the result is Ok
+    fn is_ok(self) -> Boolean {
+        if self == Result.Ok(_) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    // Check if the result is Err
+    fn is_err(self) -> Boolean {
+        return !self.is_ok();
+    }
+    
+    // Unwrap the Ok value, panic on Err
+    fn unwrap(self) -> T {
+        if self == Result.Ok(value) {
+            return value;
+        } else {
+            panic("Called unwrap on an Err value");
+        }
+    }
+    
+    // Unwrap the Ok value, return default on Err
+    fn unwrap_or(self, default: T) -> T {
+        if self == Result.Ok(value) {
+            return value;
+        } else {
+            return default;
+        }
+    }
+    
+    // Unwrap the Err value, panic on Ok
+    fn unwrap_err(self) -> E {
+        if self == Result.Err(error) {
+            return error;
+        } else {
+            panic("Called unwrap_err on an Ok value");
+        }
+    }
+    
+    // Map the Ok value to a new type
+    fn map<U>(self, f: fn(T) -> U) -> Result<U, E> {
+        if self == Result.Ok(value) {
+            return Result.Ok(f(value));
+        } else {
+            return Result.Err(self.unwrap_err());
+        }
+    }
+    
+    // Map the Err value to a new type
+    fn map_err<F>(self, f: fn(E) -> F) -> Result<T, F> {
+        if self == Result.Ok(value) {
+            return Result.Ok(value);
+        } else {
+            return Result.Err(f(self.unwrap_err()));
+        }
+    }
+    
+    // Chain operations that return Results
+    fn and_then<U>(self, f: fn(T) -> Result<U, E>) -> Result<U, E> {
+        if self == Result.Ok(value) {
+            return f(value);
+        } else {
+            return Result.Err(self.unwrap_err());
+        }
+    }
+}
+
+// Helper functions for creating Results
+fn ok<T, E>(value: T) -> Result<T, E> {
+    return Result.Ok(value);
+}
+
+fn err<T, E>(error: E) -> Result<T, E> {
+    return Result.Err(error);
+}
+
+// ===== OPTION TYPE =====
+
+// Option type for values that may or may not exist
+// This eliminates null pointer exceptions
+enum Option<T> {
+    Some(T),
+    None,
+}
+
+// Option implementation
+impl Option<T> {
+    // Check if the option is Some
+    fn is_some(self) -> Boolean {
+        if self == Option.Some(_) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    // Check if the option is None
+    fn is_none(self) -> Boolean {
+        return !self.is_some();
+    }
+    
+    // Unwrap the Some value, panic on None
+    fn unwrap(self) -> T {
+        if self == Option.Some(value) {
+            return value;
+        } else {
+            panic("Called unwrap on a None value");
+        }
+    }
+    
+    // Unwrap the Some value, return default on None
+    fn unwrap_or(self, default: T) -> T {
+        if self == Option.Some(value) {
+            return value;
+        } else {
+            return default;
+        }
+    }
+    
+    // Map the Some value to a new type
+    fn map<U>(self, f: fn(T) -> U) -> Option<U> {
+        if self == Option.Some(value) {
+            return Option.Some(f(value));
+        } else {
+            return Option.None;
+        }
+    }
+    
+    // Chain operations that return Options
+    fn and_then<U>(self, f: fn(T) -> Option<U>) -> Option<U> {
+        if self == Option.Some(value) {
+            return f(value);
+        } else {
+            return Option.None;
+        }
+    }
+    
+    // Convert Option to Result
+    fn ok_or<E>(self, error: E) -> Result<T, E> {
+        if self == Option.Some(value) {
+            return Result.Ok(value);
+        } else {
+            return Result.Err(error);
+        }
+    }
+}
+
+// Helper functions for creating Options
+fn some<T>(value: T) -> Option<T> {
+    return Option.Some(value);
+}
+
+fn none<T>() -> Option<T> {
+    return Option.None;
+}
+
+// ===== VECTOR TYPE =====
+
+// Dynamic array type with deterministic behavior
+struct Vec<T> {
+    data: [T],
+    length: Number,
+    capacity: Number,
+}
+
+// Vector implementation
+impl Vec<T> {
+    // Create a new empty vector
+    fn new() -> Vec<T> {
+        return Vec {
+            data: [],
+            length: 0,
+            capacity: 0,
+        };
+    }
+    
+    // Create a vector with initial capacity
+    fn with_capacity(capacity: Number) -> Vec<T> {
+        return Vec {
+            data: array_with_capacity(capacity),
+            length: 0,
+            capacity: capacity,
+        };
+    }
+    
+    // Get the length of the vector
+    fn len(self) -> Number {
+        return self.length;
+    }
+    
+    // Check if the vector is empty
+    fn is_empty(self) -> Boolean {
+        return self.length == 0;
+    }
+    
+    // Get the capacity of the vector
+    fn capacity(self) -> Number {
+        return self.capacity;
+    }
+    
+    // Push an element to the end
+    fn push(mut self, item: T) {
+        if self.length >= self.capacity {
+            self.grow();
+        }
+        
+        array_set(self.data, self.length, item);
+        self.length = self.length + 1;
+    }
+    
+    // Pop an element from the end
+    fn pop(mut self) -> Option<T> {
+        if self.length == 0 {
+            return Option.None;
+        }
+        
+        self.length = self.length - 1;
+        mut item = array_get(self.data, self.length);
+        return Option.Some(item);
+    }
+    
+    // Get an element at index
+    fn get(self, index: Number) -> Option<T> {
+        if index >= self.length {
+            return Option.None;
+        }
+        
+        mut item = array_get(self.data, index);
+        return Option.Some(item);
+    }
+    
+    // Set an element at index
+    fn set(mut self, index: Number, item: T) -> Result<(), String> {
+        if index >= self.length {
+            return Result.Err("Index out of bounds");
+        }
+        
+        array_set(self.data, index, item);
+        return Result.Ok(());
+    }
+    
+    // Insert an element at index
+    fn insert(mut self, index: Number, item: T) -> Result<(), String> {
+        if index > self.length {
+            return Result.Err("Index out of bounds");
+        }
+        
+        if self.length >= self.capacity {
+            self.grow();
+        }
+        
+        // Shift elements to the right
+        for i in self.length..index {
+            mut j = self.length - i + index;
+            mut element = array_get(self.data, j - 1);
+            array_set(self.data, j, element);
+        }
+        
+        array_set(self.data, index, item);
+        self.length = self.length + 1;
+        
+        return Result.Ok(());
+    }
+    
+    // Remove an element at index
+    fn remove(mut self, index: Number) -> Result<T, String> {
+        if index >= self.length {
+            return Result.Err("Index out of bounds");
+        }
+        
+        mut item = array_get(self.data, index);
+        
+        // Shift elements to the left
+        for i in index..(self.length - 1) {
+            mut element = array_get(self.data, i + 1);
+            array_set(self.data, i, element);
+        }
+        
+        self.length = self.length - 1;
+        
+        return Result.Ok(item);
+    }
+    
+    // Clear all elements
+    fn clear(mut self) {
+        self.length = 0;
+    }
+    
+    // Grow the vector capacity
+    fn grow(mut self) {
+        mut new_capacity = if self.capacity == 0 { 4 } else { self.capacity * 2 };
+        mut new_data = array_with_capacity(new_capacity);
+        
+        // Copy existing elements
+        for i in 0..self.length {
+            mut element = array_get(self.data, i);
+            array_set(new_data, i, element);
+        }
+        
+        self.data = new_data;
+        self.capacity = new_capacity;
+    }
+    
+    // Convert to array slice
+    fn as_slice(self) -> [T] {
+        mut slice = array_with_capacity(self.length);
+        
+        for i in 0..self.length {
+            mut element = array_get(self.data, i);
+            array_set(slice, i, element);
+        }
+        
+        return slice;
+    }
+}
+
+// ===== HASHMAP TYPE =====
+
+// Hash map for key-value storage with deterministic iteration order
+struct HashMap<K, V> {
+    buckets: [Vec<KeyValuePair<K, V>>],
+    size: Number,
+    capacity: Number,
+}
+
+// Key-value pair for hash map
+struct KeyValuePair<K, V> {
+    key: K,
+    value: V,
+}
+
+// HashMap implementation
+impl HashMap<K, V> {
+    // Create a new empty hash map
+    fn new() -> HashMap<K, V> {
+        mut initial_capacity = 16;
+        mut buckets = [];
+        
+        for i in 0..initial_capacity {
+            append(buckets, Vec.new());
+        }
+        
+        return HashMap {
+            buckets: buckets,
+            size: 0,
+            capacity: initial_capacity,
+        };
+    }
+    
+    // Get the number of key-value pairs
+    fn len(self) -> Number {
+        return self.size;
+    }
+    
+    // Check if the map is empty
+    fn is_empty(self) -> Boolean {
+        return self.size == 0;
+    }
+    
+    // Insert a key-value pair
+    fn insert(mut self, key: K, value: V) -> Option<V> {
+        mut hash_value = hash(key);
+        mut bucket_index = hash_value % self.capacity;
+        mut bucket = array_get(self.buckets, bucket_index);
+        
+        // Check if key already exists
+        for i in 0..bucket.len() {
+            mut pair = bucket.get(i).unwrap();
+            if pair.key == key {
+                mut old_value = pair.value;
+                pair.value = value;
+                return Option.Some(old_value);
+            }
+        }
+        
+        // Add new key-value pair
+        mut new_pair = KeyValuePair { key: key, value: value };
+        bucket.push(new_pair);
+        self.size = self.size + 1;
+        
+        // Resize if load factor is too high
+        if self.size > self.capacity * 3 / 4 {
+            self.resize();
+        }
+        
+        return Option.None;
+    }
+    
+    // Get a value by key
+    fn get(self, key: K) -> Option<V> {
+        mut hash_value = hash(key);
+        mut bucket_index = hash_value % self.capacity;
+        mut bucket = array_get(self.buckets, bucket_index);
+        
+        for i in 0..bucket.len() {
+            mut pair = bucket.get(i).unwrap();
+            if pair.key == key {
+                return Option.Some(pair.value);
+            }
+        }
+        
+        return Option.None;
+    }
+    
+    // Remove a key-value pair
+    fn remove(mut self, key: K) -> Option<V> {
+        mut hash_value = hash(key);
+        mut bucket_index = hash_value % self.capacity;
+        mut bucket = array_get(self.buckets, bucket_index);
+        
+        for i in 0..bucket.len() {
+            mut pair = bucket.get(i).unwrap();
+            if pair.key == key {
+                mut removed_pair = bucket.remove(i).unwrap();
+                self.size = self.size - 1;
+                return Option.Some(removed_pair.value);
+            }
+        }
+        
+        return Option.None;
+    }
+    
+    // Check if a key exists
+    fn contains_key(self, key: K) -> Boolean {
+        return self.get(key).is_some();
+    }
+    
+    // Resize the hash map
+    fn resize(mut self) {
+        mut old_buckets = self.buckets;
+        mut new_capacity = self.capacity * 2;
+        mut new_buckets = [];
+        
+        for i in 0..new_capacity {
+            append(new_buckets, Vec.new());
+        }
+        
+        self.buckets = new_buckets;
+        self.capacity = new_capacity;
+        self.size = 0;
+        
+        // Rehash all elements
+        for i in 0..array_length(old_buckets) {
+            mut bucket = array_get(old_buckets, i);
+            for j in 0..bucket.len() {
+                mut pair = bucket.get(j).unwrap();
+                self.insert(pair.key, pair.value);
+            }
+        }
+    }
+}
+
+// ===== MEMORY MANAGEMENT =====
+
+// Smart pointer for reference counting
+struct Rc<T> {
+    data: T,
+    ref_count: Number,
+}
+
+impl Rc<T> {
+    // Create a new reference-counted value
+    fn new(value: T) -> Rc<T> {
+        return Rc {
+            data: value,
+            ref_count: 1,
+        };
+    }
+    
+    // Clone the reference (increment ref count)
+    fn clone(mut self) -> Rc<T> {
+        self.ref_count = self.ref_count + 1;
+        return self;
+    }
+    
+    // Get the reference count
+    fn strong_count(self) -> Number {
+        return self.ref_count;
+    }
+    
+    // Get the inner value
+    fn get(self) -> T {
+        return self.data;
+    }
+}
+
+// Box for heap allocation
+struct Box<T> {
+    data: T,
+}
+
+impl Box<T> {
+    // Create a new boxed value
+    fn new(value: T) -> Box<T> {
+        return Box {
+            data: value,
+        };
+    }
+    
+    // Get the inner value
+    fn get(self) -> T {
+        return self.data;
+    }
+    
+    // Convert to the inner value
+    fn into_inner(self) -> T {
+        return self.data;
+    }
+}
+
+// ===== ITERATOR TRAIT =====
+
+// Iterator trait for traversing collections
+trait Iterator<T> {
+    // Get the next item
+    fn next(mut self) -> Option<T>;
+    
+    // Collect all items into a vector
+    fn collect(mut self) -> Vec<T> {
+        mut result = Vec.new();
+        
+        while true {
+            mut item = self.next();
+            if item.is_none() {
+                break;
+            }
+            result.push(item.unwrap());
+        }
+        
+        return result;
+    }
+    
+    // Map each item to a new type
+    fn map<U>(mut self, f: fn(T) -> U) -> MapIterator<T, U> {
+        return MapIterator {
+            inner: self,
+            mapper: f,
+        };
+    }
+    
+    // Filter items by predicate
+    fn filter(mut self, predicate: fn(T) -> Boolean) -> FilterIterator<T> {
+        return FilterIterator {
+            inner: self,
+            predicate: predicate,
+        };
+    }
+    
+    // Count the number of items
+    fn count(mut self) -> Number {
+        mut count = 0;
+        
+        while true {
+            mut item = self.next();
+            if item.is_none() {
+                break;
+            }
+            count = count + 1;
+        }
+        
+        return count;
+    }
+}
+
+// Map iterator adapter
+struct MapIterator<T, U> {
+    inner: Iterator<T>,
+    mapper: fn(T) -> U,
+}
+
+impl MapIterator<T, U> : Iterator<U> {
+    fn next(mut self) -> Option<U> {
+        mut item = self.inner.next();
+        if item.is_some() {
+            return Option.Some(self.mapper(item.unwrap()));
+        } else {
+            return Option.None;
+        }
+    }
+}
+
+// Filter iterator adapter
+struct FilterIterator<T> {
+    inner: Iterator<T>,
+    predicate: fn(T) -> Boolean,
+}
+
+impl FilterIterator<T> : Iterator<T> {
+    fn next(mut self) -> Option<T> {
+        while true {
+            mut item = self.inner.next();
+            if item.is_none() {
+                return Option.None;
+            }
+            
+            mut value = item.unwrap();
+            if self.predicate(value) {
+                return Option.Some(value);
+            }
+        }
+    }
+}
+
+// ===== PANIC HANDLING =====
+
+// Panic with a message
+fn panic(message: String) {
+    eprintln("PANIC: " + message);
+    // This would terminate the program
+    exit(1);
+}
+
+// Assert that a condition is true
+fn assert(condition: Boolean, message: String) {
+    if !condition {
+        panic("Assertion failed: " + message);
+    }
+}
+
+// Assert that two values are equal
+fn assert_eq<T>(left: T, right: T, message: String) {
+    if left != right {
+        panic("Assertion failed: " + message + " (left != right)");
+    }
+}
+
+// Assert that two values are not equal
+fn assert_ne<T>(left: T, right: T, message: String) {
+    if left == right {
+        panic("Assertion failed: " + message + " (left == right)");
+    }
+}
+
+// ===== UTILITY FUNCTIONS =====
+
+// Identity function
+fn identity<T>(value: T) -> T {
+    return value;
+}
+
+// Swap two values
+fn swap<T>(mut a: T, mut b: T) {
+    mut temp = a;
+    a = b;
+    b = temp;
+}
+
+// Minimum of two values
+fn min<T>(a: T, b: T) -> T {
+    if a < b {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+// Maximum of two values
+fn max<T>(a: T, b: T) -> T {
+    if a > b {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+// Clamp a value between min and max
+fn clamp<T>(value: T, min_val: T, max_val: T) -> T {
+    if value < min_val {
+        return min_val;
+    } else if value > max_val {
+        return max_val;
+    } else {
+        return value;
+    }
+}
+
+// ===== BUILT-IN FUNCTION DECLARATIONS =====
+// These are implemented by the runtime
+
+fn array_with_capacity<T>(capacity: Number) -> [T];
+fn hash<T>(value: T) -> Number;
+fn exit(code: Number);

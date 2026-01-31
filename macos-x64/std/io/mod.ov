@@ -1,0 +1,598 @@
+// Ovie Standard Library - I/O Module
+// Input/output operations with offline-first design
+// All operations work without network dependencies
+
+use core::{Result, Option, Vec, ok, err, some, none};
+use fs::{File, FileMode};
+
+// ===== I/O TYPES =====
+
+// Standard input/output handles
+struct Stdin {
+    handle: IoHandle,
+}
+
+struct Stdout {
+    handle: IoHandle,
+}
+
+struct Stderr {
+    handle: IoHandle,
+}
+
+// Opaque I/O handle (managed by runtime)
+struct IoHandle {
+    id: Number,
+}
+
+// Buffered reader for efficient line-by-line reading
+struct BufReader {
+    source: File,
+    buffer: Vec<String>,
+    buffer_pos: Number,
+    eof_reached: Boolean,
+}
+
+// Buffered writer for efficient writing
+struct BufWriter {
+    target: File,
+    buffer: String,
+    buffer_size: Number,
+}
+
+// ===== STANDARD I/O OPERATIONS =====
+
+// Get standard input handle
+fn stdin() -> Stdin {
+    return Stdin {
+        handle: get_stdin_handle(),
+    };
+}
+
+// Get standard output handle
+fn stdout() -> Stdout {
+    return Stdout {
+        handle: get_stdout_handle(),
+    };
+}
+
+// Get standard error handle
+fn stderr() -> Stderr {
+    return Stderr {
+        handle: get_stderr_handle(),
+    };
+}
+
+// Print to standard output
+fn print(text: String) {
+    mut out = stdout();
+    out.write_string(text);
+    out.flush();
+}
+
+// Print line to standard output
+fn println(text: String) {
+    print(text + "\n");
+}
+
+// Print to standard error
+fn eprint(text: String) {
+    mut err = stderr();
+    err.write_string(text);
+    err.flush();
+}
+
+// Print line to standard error
+fn eprintln(text: String) {
+    eprint(text + "\n");
+}
+
+// Read a line from standard input
+fn read_line() -> Result<String, String> {
+    mut input = stdin();
+    return input.read_line();
+}
+
+// Read all input from standard input
+fn read_to_string() -> Result<String, String> {
+    mut input = stdin();
+    return input.read_to_string();
+}
+
+// ===== STDIN IMPLEMENTATION =====
+
+impl Stdin {
+    // Read a line from standard input
+    fn read_line(self) -> Result<String, String> {
+        return read_stdin_line(self.handle);
+    }
+    
+    // Read all remaining input
+    fn read_to_string(self) -> Result<String, String> {
+        return read_stdin_all(self.handle);
+    }
+    
+    // Read all lines
+    fn read_lines(self) -> Result<Vec<String>, String> {
+        mut lines = Vec.new();
+        
+        while true {
+            mut line_result = self.read_line();
+            if line_result.is_err() {
+                return err(line_result.unwrap_err());
+            }
+            
+            mut line = line_result.unwrap();
+            if length(line) == 0 {
+                break; // End of input
+            }
+            
+            lines.push(line);
+        }
+        
+        return ok(lines);
+    }
+    
+    // Check if input is available
+    fn is_available(self) -> Boolean {
+        return stdin_available(self.handle);
+    }
+}
+
+// ===== STDOUT IMPLEMENTATION =====
+
+impl Stdout {
+    // Write string to standard output
+    fn write_string(self, text: String) -> Result<(), String> {
+        return write_stdout_string(self.handle, text);
+    }
+    
+    // Write bytes to standard output
+    fn write_bytes(self, bytes: Vec<Number>) -> Result<(), String> {
+        return write_stdout_bytes(self.handle, bytes);
+    }
+    
+    // Write a line to standard output
+    fn write_line(self, line: String) -> Result<(), String> {
+        return self.write_string(line + "\n");
+    }
+    
+    // Flush output buffer
+    fn flush(self) -> Result<(), String> {
+        return flush_stdout(self.handle);
+    }
+}
+
+// ===== STDERR IMPLEMENTATION =====
+
+impl Stderr {
+    // Write string to standard error
+    fn write_string(self, text: String) -> Result<(), String> {
+        return write_stderr_string(self.handle, text);
+    }
+    
+    // Write bytes to standard error
+    fn write_bytes(self, bytes: Vec<Number>) -> Result<(), String> {
+        return write_stderr_bytes(self.handle, bytes);
+    }
+    
+    // Write a line to standard error
+    fn write_line(self, line: String) -> Result<(), String> {
+        return self.write_string(line + "\n");
+    }
+    
+    // Flush error buffer
+    fn flush(self) -> Result<(), String> {
+        return flush_stderr(self.handle);
+    }
+}
+
+// ===== BUFFERED READER =====
+
+impl BufReader {
+    // Create a buffered reader from a file
+    fn new(file: File) -> BufReader {
+        return BufReader {
+            source: file,
+            buffer: Vec.new(),
+            buffer_pos: 0,
+            eof_reached: false,
+        };
+    }
+    
+    // Create a buffered reader with custom buffer size
+    fn with_capacity(file: File, capacity: Number) -> BufReader {
+        return BufReader {
+            source: file,
+            buffer: Vec.with_capacity(capacity),
+            buffer_pos: 0,
+            eof_reached: false,
+        };
+    }
+    
+    // Read a line from the buffered reader
+    fn read_line(mut self) -> Result<Option<String>, String> {
+        if self.eof_reached && self.buffer_pos >= self.buffer.len() {
+            return ok(none());
+        }
+        
+        // If buffer is empty or exhausted, fill it
+        if self.buffer_pos >= self.buffer.len() {
+            mut fill_result = self.fill_buffer();
+            if fill_result.is_err() {
+                return err(fill_result.unwrap_err());
+            }
+            
+            if self.buffer.len() == 0 {
+                return ok(none()); // EOF
+            }
+        }
+        
+        // Return next line from buffer
+        mut line = self.buffer.get(self.buffer_pos).unwrap();
+        self.buffer_pos = self.buffer_pos + 1;
+        
+        return ok(some(line));
+    }
+    
+    // Read all remaining lines
+    fn read_lines(mut self) -> Result<Vec<String>, String> {
+        mut lines = Vec.new();
+        
+        while true {
+            mut line_result = self.read_line();
+            if line_result.is_err() {
+                return err(line_result.unwrap_err());
+            }
+            
+            mut line_option = line_result.unwrap();
+            if line_option.is_none() {
+                break;
+            }
+            
+            lines.push(line_option.unwrap());
+        }
+        
+        return ok(lines);
+    }
+    
+    // Fill the internal buffer
+    fn fill_buffer(mut self) -> Result<(), String> {
+        if self.eof_reached {
+            return ok(());
+        }
+        
+        // Read lines from file
+        mut file_lines = self.source.read_lines();
+        if file_lines.is_err() {
+            return err(file_lines.unwrap_err());
+        }
+        
+        mut lines = file_lines.unwrap();
+        
+        // Clear buffer and add new lines
+        self.buffer.clear();
+        self.buffer_pos = 0;
+        
+        for i in 0..lines.len() {
+            mut line = lines.get(i).unwrap();
+            self.buffer.push(line);
+        }
+        
+        if lines.len() == 0 {
+            self.eof_reached = true;
+        }
+        
+        return ok(());
+    }
+    
+    // Check if EOF has been reached
+    fn is_eof(self) -> Boolean {
+        return self.eof_reached && self.buffer_pos >= self.buffer.len();
+    }
+    
+    // Get the underlying file
+    fn into_inner(self) -> File {
+        return self.source;
+    }
+}
+
+// ===== BUFFERED WRITER =====
+
+impl BufWriter {
+    // Create a buffered writer from a file
+    fn new(file: File) -> BufWriter {
+        return BufWriter {
+            target: file,
+            buffer: "",
+            buffer_size: 8192, // 8KB default buffer
+        };
+    }
+    
+    // Create a buffered writer with custom buffer size
+    fn with_capacity(file: File, capacity: Number) -> BufWriter {
+        return BufWriter {
+            target: file,
+            buffer: "",
+            buffer_size: capacity,
+        };
+    }
+    
+    // Write string to buffered writer
+    fn write_string(mut self, text: String) -> Result<(), String> {
+        self.buffer = self.buffer + text;
+        
+        // Flush if buffer is full
+        if length(self.buffer) >= self.buffer_size {
+            return self.flush();
+        }
+        
+        return ok(());
+    }
+    
+    // Write bytes to buffered writer
+    fn write_bytes(mut self, bytes: Vec<Number>) -> Result<(), String> {
+        // Convert bytes to string (assuming UTF-8)
+        mut text = bytes_to_string(bytes);
+        return self.write_string(text);
+    }
+    
+    // Write a line to buffered writer
+    fn write_line(mut self, line: String) -> Result<(), String> {
+        return self.write_string(line + "\n");
+    }
+    
+    // Flush the buffer to the underlying file
+    fn flush(mut self) -> Result<(), String> {
+        if length(self.buffer) > 0 {
+            mut write_result = self.target.write_string(self.buffer);
+            if write_result.is_err() {
+                return write_result;
+            }
+            
+            self.buffer = "";
+        }
+        
+        return self.target.flush();
+    }
+    
+    // Get the underlying file
+    fn into_inner(mut self) -> Result<File, String> {
+        mut flush_result = self.flush();
+        if flush_result.is_err() {
+            return err(flush_result.unwrap_err());
+        }
+        
+        return ok(self.target);
+    }
+}
+
+// ===== UTILITY FUNCTIONS =====
+
+// Create a buffered reader from a file path
+fn buf_reader(path: String) -> Result<BufReader, String> {
+    mut file_result = File.open(path);
+    if file_result.is_err() {
+        return err(file_result.unwrap_err());
+    }
+    
+    return ok(BufReader.new(file_result.unwrap()));
+}
+
+// Create a buffered writer from a file path
+fn buf_writer(path: String) -> Result<BufWriter, String> {
+    mut file_result = File.create(path);
+    if file_result.is_err() {
+        return err(file_result.unwrap_err());
+    }
+    
+    return ok(BufWriter.new(file_result.unwrap()));
+}
+
+// Copy data from reader to writer
+fn copy<R, W>(mut reader: R, mut writer: W) -> Result<Number, String>
+where R: Read, W: Write {
+    mut total_bytes = 0;
+    mut buffer_size = 4096;
+    
+    while true {
+        mut data_result = reader.read_bytes(buffer_size);
+        if data_result.is_err() {
+            return err(data_result.unwrap_err());
+        }
+        
+        mut data = data_result.unwrap();
+        if data.len() == 0 {
+            break; // EOF
+        }
+        
+        mut write_result = writer.write_bytes(data);
+        if write_result.is_err() {
+            return err(write_result.unwrap_err());
+        }
+        
+        total_bytes = total_bytes + data.len();
+    }
+    
+    return ok(total_bytes);
+}
+
+// ===== TRAITS FOR GENERIC I/O =====
+
+// Read trait for input sources
+trait Read {
+    // Read bytes into a buffer
+    fn read_bytes(mut self, max_bytes: Number) -> Result<Vec<Number>, String>;
+    
+    // Read a line of text
+    fn read_line(mut self) -> Result<Option<String>, String>;
+    
+    // Read all remaining data as string
+    fn read_to_string(mut self) -> Result<String, String>;
+}
+
+// Write trait for output destinations
+trait Write {
+    // Write bytes
+    fn write_bytes(mut self, bytes: Vec<Number>) -> Result<(), String>;
+    
+    // Write string
+    fn write_string(mut self, text: String) -> Result<(), String>;
+    
+    // Flush any buffered data
+    fn flush(mut self) -> Result<(), String>;
+}
+
+// Seek trait for seekable streams
+trait Seek {
+    // Seek to position from start
+    fn seek_from_start(mut self, pos: Number) -> Result<Number, String>;
+    
+    // Seek to position from current
+    fn seek_from_current(mut self, offset: Number) -> Result<Number, String>;
+    
+    // Seek to position from end
+    fn seek_from_end(mut self, offset: Number) -> Result<Number, String>;
+    
+    // Get current position
+    fn position(self) -> Result<Number, String>;
+}
+
+// ===== TRAIT IMPLEMENTATIONS =====
+
+// Implement Read for File
+impl File : Read {
+    fn read_bytes(mut self, max_bytes: Number) -> Result<Vec<Number>, String> {
+        return read_file_bytes_limited(self.handle, max_bytes);
+    }
+    
+    fn read_line(mut self) -> Result<Option<String>, String> {
+        return self.read_line();
+    }
+    
+    fn read_to_string(mut self) -> Result<String, String> {
+        return self.read_to_string();
+    }
+}
+
+// Implement Write for File
+impl File : Write {
+    fn write_bytes(mut self, bytes: Vec<Number>) -> Result<(), String> {
+        return self.write_bytes(bytes);
+    }
+    
+    fn write_string(mut self, text: String) -> Result<(), String> {
+        return self.write_string(text);
+    }
+    
+    fn flush(mut self) -> Result<(), String> {
+        return self.flush();
+    }
+}
+
+// Implement Read for Stdin
+impl Stdin : Read {
+    fn read_bytes(mut self, max_bytes: Number) -> Result<Vec<Number>, String> {
+        return read_stdin_bytes(self.handle, max_bytes);
+    }
+    
+    fn read_line(mut self) -> Result<Option<String>, String> {
+        mut line_result = self.read_line();
+        if line_result.is_err() {
+            return err(line_result.unwrap_err());
+        }
+        
+        return ok(some(line_result.unwrap()));
+    }
+    
+    fn read_to_string(mut self) -> Result<String, String> {
+        return self.read_to_string();
+    }
+}
+
+// Implement Write for Stdout
+impl Stdout : Write {
+    fn write_bytes(mut self, bytes: Vec<Number>) -> Result<(), String> {
+        return self.write_bytes(bytes);
+    }
+    
+    fn write_string(mut self, text: String) -> Result<(), String> {
+        return self.write_string(text);
+    }
+    
+    fn flush(mut self) -> Result<(), String> {
+        return self.flush();
+    }
+}
+
+// Implement Write for Stderr
+impl Stderr : Write {
+    fn write_bytes(mut self, bytes: Vec<Number>) -> Result<(), String> {
+        return self.write_bytes(bytes);
+    }
+    
+    fn write_string(mut self, text: String) -> Result<(), String> {
+        return self.write_string(text);
+    }
+    
+    fn flush(mut self) -> Result<(), String> {
+        return self.flush();
+    }
+}
+
+// ===== FORMAT UTILITIES =====
+
+// Format a string with arguments (simple implementation)
+fn format(template: String, args: Vec<String>) -> String {
+    mut result = template;
+    
+    for i in 0..args.len() {
+        mut placeholder = "{" + number_to_string(i) + "}";
+        mut arg = args.get(i).unwrap();
+        result = replace_all(result, placeholder, arg);
+    }
+    
+    return result;
+}
+
+// Format and print to stdout
+fn printf(template: String, args: Vec<String>) {
+    print(format(template, args));
+}
+
+// Format and print line to stdout
+fn printfln(template: String, args: Vec<String>) {
+    println(format(template, args));
+}
+
+// Format and print to stderr
+fn eprintf(template: String, args: Vec<String>) {
+    eprint(format(template, args));
+}
+
+// Format and print line to stderr
+fn eprintfln(template: String, args: Vec<String>) {
+    eprintln(format(template, args));
+}
+
+// ===== BUILT-IN FUNCTION DECLARATIONS =====
+// These functions are implemented by the runtime
+
+fn get_stdin_handle() -> IoHandle;
+fn get_stdout_handle() -> IoHandle;
+fn get_stderr_handle() -> IoHandle;
+fn read_stdin_line(handle: IoHandle) -> Result<String, String>;
+fn read_stdin_all(handle: IoHandle) -> Result<String, String>;
+fn read_stdin_bytes(handle: IoHandle, max_bytes: Number) -> Result<Vec<Number>, String>;
+fn stdin_available(handle: IoHandle) -> Boolean;
+fn write_stdout_string(handle: IoHandle, text: String) -> Result<(), String>;
+fn write_stdout_bytes(handle: IoHandle, bytes: Vec<Number>) -> Result<(), String>;
+fn flush_stdout(handle: IoHandle) -> Result<(), String>;
+fn write_stderr_string(handle: IoHandle, text: String) -> Result<(), String>;
+fn write_stderr_bytes(handle: IoHandle, bytes: Vec<Number>) -> Result<(), String>;
+fn flush_stderr(handle: IoHandle) -> Result<(), String>;
+fn read_file_bytes_limited(handle: FileHandle, max_bytes: Number) -> Result<Vec<Number>, String>;
+fn bytes_to_string(bytes: Vec<Number>) -> String;
+fn replace_all(text: String, from: String, to: String) -> String;
+fn number_to_string(num: Number) -> String;
+fn length(text: String) -> Number;

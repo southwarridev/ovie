@@ -1,0 +1,669 @@
+// Ovie Standard Library - File System Module
+// Offline-safe file operations with no network dependencies
+// All operations are designed to work entirely with local files
+
+use core::{Result, Option, Vec, ok, err, some, none};
+
+// ===== FILE SYSTEM TYPES =====
+
+// File handle for reading and writing
+struct File {
+    path: String,
+    handle: FileHandle, // Opaque handle managed by runtime
+    is_open: Boolean,
+    mode: FileMode,
+}
+
+// File opening modes
+enum FileMode {
+    Read,
+    Write,
+    Append,
+    ReadWrite,
+}
+
+// File metadata
+struct Metadata {
+    size: Number,
+    is_file: Boolean,
+    is_directory: Boolean,
+    created: Number,    // Unix timestamp
+    modified: Number,   // Unix timestamp
+    accessed: Number,   // Unix timestamp
+    permissions: Permissions,
+}
+
+// File permissions
+struct Permissions {
+    readable: Boolean,
+    writable: Boolean,
+    executable: Boolean,
+}
+
+// Directory entry
+struct DirEntry {
+    name: String,
+    path: String,
+    metadata: Metadata,
+}
+
+// Opaque file handle (managed by runtime)
+struct FileHandle {
+    id: Number,
+}
+
+// ===== FILE OPERATIONS =====
+
+// Open a file for reading
+fn open(path: String) -> Result<File, String> {
+    return open_with_mode(path, FileMode.Read);
+}
+
+// Open a file with specific mode
+fn open_with_mode(path: String, mode: FileMode) -> Result<File, String> {
+    // Validate path (no network schemes allowed)
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    // Normalize path to prevent directory traversal attacks
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid file path: " + normalized_path.unwrap_err());
+    }
+    
+    // Open file using runtime
+    mut handle_result = open_file_handle(normalized_path.unwrap(), mode);
+    if handle_result.is_err() {
+        return err("Failed to open file: " + handle_result.unwrap_err());
+    }
+    
+    mut file = File {
+        path: normalized_path.unwrap(),
+        handle: handle_result.unwrap(),
+        is_open: true,
+        mode: mode,
+    };
+    
+    return ok(file);
+}
+
+// Create a new file
+fn create(path: String) -> Result<File, String> {
+    // Validate and normalize path
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid file path: " + normalized_path.unwrap_err());
+    }
+    
+    // Create file using runtime
+    mut handle_result = create_file_handle(normalized_path.unwrap());
+    if handle_result.is_err() {
+        return err("Failed to create file: " + handle_result.unwrap_err());
+    }
+    
+    mut file = File {
+        path: normalized_path.unwrap(),
+        handle: handle_result.unwrap(),
+        is_open: true,
+        mode: FileMode.Write,
+    };
+    
+    return ok(file);
+}
+
+// Read entire file contents as string
+fn read_to_string(path: String) -> Result<String, String> {
+    mut file_result = open(path);
+    if file_result.is_err() {
+        return err(file_result.unwrap_err());
+    }
+    
+    mut file = file_result.unwrap();
+    mut content_result = file.read_to_string();
+    
+    // Close file
+    file.close();
+    
+    return content_result;
+}
+
+// Read entire file contents as bytes
+fn read_to_bytes(path: String) -> Result<Vec<Number>, String> {
+    mut file_result = open(path);
+    if file_result.is_err() {
+        return err(file_result.unwrap_err());
+    }
+    
+    mut file = file_result.unwrap();
+    mut content_result = file.read_to_bytes();
+    
+    // Close file
+    file.close();
+    
+    return content_result;
+}
+
+// Write string to file
+fn write_string(path: String, content: String) -> Result<(), String> {
+    mut file_result = create(path);
+    if file_result.is_err() {
+        return err(file_result.unwrap_err());
+    }
+    
+    mut file = file_result.unwrap();
+    mut write_result = file.write_string(content);
+    
+    // Close file
+    file.close();
+    
+    return write_result;
+}
+
+// Write bytes to file
+fn write_bytes(path: String, content: Vec<Number>) -> Result<(), String> {
+    mut file_result = create(path);
+    if file_result.is_err() {
+        return err(file_result.unwrap_err());
+    }
+    
+    mut file = file_result.unwrap();
+    mut write_result = file.write_bytes(content);
+    
+    // Close file
+    file.close();
+    
+    return write_result;
+}
+
+// Append string to file
+fn append_string(path: String, content: String) -> Result<(), String> {
+    mut file_result = open_with_mode(path, FileMode.Append);
+    if file_result.is_err() {
+        return err(file_result.unwrap_err());
+    }
+    
+    mut file = file_result.unwrap();
+    mut write_result = file.write_string(content);
+    
+    // Close file
+    file.close();
+    
+    return write_result;
+}
+
+// ===== FILE METHODS =====
+
+impl File {
+    // Read entire file contents as string
+    fn read_to_string(self) -> Result<String, String> {
+        if !self.is_open {
+            return err("File is not open");
+        }
+        
+        if self.mode != FileMode.Read && self.mode != FileMode.ReadWrite {
+            return err("File not opened for reading");
+        }
+        
+        return read_file_to_string(self.handle);
+    }
+    
+    // Read entire file contents as bytes
+    fn read_to_bytes(self) -> Result<Vec<Number>, String> {
+        if !self.is_open {
+            return err("File is not open");
+        }
+        
+        if self.mode != FileMode.Read && self.mode != FileMode.ReadWrite {
+            return err("File not opened for reading");
+        }
+        
+        return read_file_to_bytes(self.handle);
+    }
+    
+    // Read a line from the file
+    fn read_line(self) -> Result<Option<String>, String> {
+        if !self.is_open {
+            return err("File is not open");
+        }
+        
+        if self.mode != FileMode.Read && self.mode != FileMode.ReadWrite {
+            return err("File not opened for reading");
+        }
+        
+        return read_file_line(self.handle);
+    }
+    
+    // Read all lines from the file
+    fn read_lines(self) -> Result<Vec<String>, String> {
+        mut lines = Vec.new();
+        
+        while true {
+            mut line_result = self.read_line();
+            if line_result.is_err() {
+                return err(line_result.unwrap_err());
+            }
+            
+            mut line_option = line_result.unwrap();
+            if line_option.is_none() {
+                break; // End of file
+            }
+            
+            lines.push(line_option.unwrap());
+        }
+        
+        return ok(lines);
+    }
+    
+    // Write string to file
+    fn write_string(self, content: String) -> Result<(), String> {
+        if !self.is_open {
+            return err("File is not open");
+        }
+        
+        if self.mode == FileMode.Read {
+            return err("File not opened for writing");
+        }
+        
+        return write_file_string(self.handle, content);
+    }
+    
+    // Write bytes to file
+    fn write_bytes(self, content: Vec<Number>) -> Result<(), String> {
+        if !self.is_open {
+            return err("File is not open");
+        }
+        
+        if self.mode == FileMode.Read {
+            return err("File not opened for writing");
+        }
+        
+        return write_file_bytes(self.handle, content);
+    }
+    
+    // Write a line to the file
+    fn write_line(self, line: String) -> Result<(), String> {
+        return self.write_string(line + "\n");
+    }
+    
+    // Flush file buffers
+    fn flush(self) -> Result<(), String> {
+        if !self.is_open {
+            return err("File is not open");
+        }
+        
+        return flush_file(self.handle);
+    }
+    
+    // Close the file
+    fn close(mut self) -> Result<(), String> {
+        if !self.is_open {
+            return ok(()); // Already closed
+        }
+        
+        mut result = close_file(self.handle);
+        self.is_open = false;
+        
+        return result;
+    }
+    
+    // Get file metadata
+    fn metadata(self) -> Result<Metadata, String> {
+        return get_file_metadata(self.path);
+    }
+    
+    // Get file size
+    fn size(self) -> Result<Number, String> {
+        mut metadata_result = self.metadata();
+        if metadata_result.is_err() {
+            return err(metadata_result.unwrap_err());
+        }
+        
+        return ok(metadata_result.unwrap().size);
+    }
+}
+
+// ===== DIRECTORY OPERATIONS =====
+
+// Create a directory
+fn create_dir(path: String) -> Result<(), String> {
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid directory path: " + normalized_path.unwrap_err());
+    }
+    
+    return create_directory(normalized_path.unwrap());
+}
+
+// Create a directory and all parent directories
+fn create_dir_all(path: String) -> Result<(), String> {
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid directory path: " + normalized_path.unwrap_err());
+    }
+    
+    return create_directory_all(normalized_path.unwrap());
+}
+
+// Remove a directory (must be empty)
+fn remove_dir(path: String) -> Result<(), String> {
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid directory path: " + normalized_path.unwrap_err());
+    }
+    
+    return remove_directory(normalized_path.unwrap());
+}
+
+// Remove a directory and all its contents
+fn remove_dir_all(path: String) -> Result<(), String> {
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid directory path: " + normalized_path.unwrap_err());
+    }
+    
+    return remove_directory_all(normalized_path.unwrap());
+}
+
+// Read directory contents
+fn read_dir(path: String) -> Result<Vec<DirEntry>, String> {
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid directory path: " + normalized_path.unwrap_err());
+    }
+    
+    return read_directory(normalized_path.unwrap());
+}
+
+// ===== PATH OPERATIONS =====
+
+// Check if a path exists
+fn exists(path: String) -> Boolean {
+    if is_network_path(path) {
+        return false; // Network paths not allowed
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return false; // Invalid path
+    }
+    
+    return path_exists(normalized_path.unwrap());
+}
+
+// Check if a path is a file
+fn is_file(path: String) -> Boolean {
+    mut metadata_result = get_file_metadata(path);
+    if metadata_result.is_err() {
+        return false;
+    }
+    
+    return metadata_result.unwrap().is_file;
+}
+
+// Check if a path is a directory
+fn is_dir(path: String) -> Boolean {
+    mut metadata_result = get_file_metadata(path);
+    if metadata_result.is_err() {
+        return false;
+    }
+    
+    return metadata_result.unwrap().is_directory;
+}
+
+// Get file metadata
+fn metadata(path: String) -> Result<Metadata, String> {
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid file path: " + normalized_path.unwrap_err());
+    }
+    
+    return get_file_metadata(normalized_path.unwrap());
+}
+
+// Copy a file
+fn copy(from: String, to: String) -> Result<(), String> {
+    if is_network_path(from) || is_network_path(to) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    // Read source file
+    mut content_result = read_to_bytes(from);
+    if content_result.is_err() {
+        return err("Failed to read source file: " + content_result.unwrap_err());
+    }
+    
+    // Write to destination file
+    mut write_result = write_bytes(to, content_result.unwrap());
+    if write_result.is_err() {
+        return err("Failed to write destination file: " + write_result.unwrap_err());
+    }
+    
+    return ok(());
+}
+
+// Move/rename a file
+fn rename(from: String, to: String) -> Result<(), String> {
+    if is_network_path(from) || is_network_path(to) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut from_normalized = normalize_path(from);
+    if from_normalized.is_err() {
+        return err("Invalid source path: " + from_normalized.unwrap_err());
+    }
+    
+    mut to_normalized = normalize_path(to);
+    if to_normalized.is_err() {
+        return err("Invalid destination path: " + to_normalized.unwrap_err());
+    }
+    
+    return rename_file(from_normalized.unwrap(), to_normalized.unwrap());
+}
+
+// Remove a file
+fn remove_file(path: String) -> Result<(), String> {
+    if is_network_path(path) {
+        return err("Network paths not allowed in offline-first file system");
+    }
+    
+    mut normalized_path = normalize_path(path);
+    if normalized_path.is_err() {
+        return err("Invalid file path: " + normalized_path.unwrap_err());
+    }
+    
+    return delete_file(normalized_path.unwrap());
+}
+
+// ===== PATH UTILITIES =====
+
+// Join path components
+fn join(base: String, component: String) -> String {
+    if ends_with(base, "/") || ends_with(base, "\\") {
+        return base + component;
+    } else {
+        return base + "/" + component;
+    }
+}
+
+// Get parent directory of a path
+fn parent(path: String) -> Option<String> {
+    mut normalized = normalize_path(path).unwrap_or(path);
+    
+    // Find last path separator
+    mut last_sep = -1;
+    for i in 0..length(normalized) {
+        mut c = char_at(normalized, length(normalized) - 1 - i);
+        if c == "/" || c == "\\" {
+            last_sep = length(normalized) - 1 - i;
+            break;
+        }
+    }
+    
+    if last_sep <= 0 {
+        return none(); // No parent
+    }
+    
+    return some(substring(normalized, 0, last_sep));
+}
+
+// Get filename from a path
+fn filename(path: String) -> Option<String> {
+    mut normalized = normalize_path(path).unwrap_or(path);
+    
+    // Find last path separator
+    mut last_sep = -1;
+    for i in 0..length(normalized) {
+        mut c = char_at(normalized, length(normalized) - 1 - i);
+        if c == "/" || c == "\\" {
+            last_sep = length(normalized) - 1 - i;
+            break;
+        }
+    }
+    
+    if last_sep < 0 {
+        return some(normalized); // Entire path is filename
+    }
+    
+    if last_sep == length(normalized) - 1 {
+        return none(); // Path ends with separator
+    }
+    
+    return some(substring(normalized, last_sep + 1, length(normalized)));
+}
+
+// Get file extension
+fn extension(path: String) -> Option<String> {
+    mut filename_opt = filename(path);
+    if filename_opt.is_none() {
+        return none();
+    }
+    
+    mut name = filename_opt.unwrap();
+    
+    // Find last dot
+    mut last_dot = -1;
+    for i in 0..length(name) {
+        mut c = char_at(name, length(name) - 1 - i);
+        if c == "." {
+            last_dot = length(name) - 1 - i;
+            break;
+        }
+    }
+    
+    if last_dot <= 0 || last_dot == length(name) - 1 {
+        return none(); // No extension
+    }
+    
+    return some(substring(name, last_dot + 1, length(name)));
+}
+
+// ===== SECURITY AND VALIDATION =====
+
+// Check if a path is a network path (forbidden)
+fn is_network_path(path: String) -> Boolean {
+    mut lower_path = to_lowercase(path);
+    
+    // Check for network schemes
+    if starts_with(lower_path, "http://") ||
+       starts_with(lower_path, "https://") ||
+       starts_with(lower_path, "ftp://") ||
+       starts_with(lower_path, "sftp://") ||
+       starts_with(lower_path, "file://") ||
+       starts_with(lower_path, "\\\\") { // UNC paths
+        return true;
+    }
+    
+    return false;
+}
+
+// Normalize a path to prevent directory traversal
+fn normalize_path(path: String) -> Result<String, String> {
+    if length(path) == 0 {
+        return err("Empty path");
+    }
+    
+    // Check for dangerous patterns
+    if contains(path, "..") {
+        return err("Directory traversal not allowed");
+    }
+    
+    if contains(path, "~") {
+        return err("Home directory expansion not allowed");
+    }
+    
+    // Convert backslashes to forward slashes for consistency
+    mut normalized = replace_all(path, "\\", "/");
+    
+    // Remove duplicate slashes
+    while contains(normalized, "//") {
+        normalized = replace_all(normalized, "//", "/");
+    }
+    
+    // Remove trailing slash (except for root)
+    if length(normalized) > 1 && ends_with(normalized, "/") {
+        normalized = substring(normalized, 0, length(normalized) - 1);
+    }
+    
+    return ok(normalized);
+}
+
+// ===== BUILT-IN FUNCTION DECLARATIONS =====
+// These functions are implemented by the runtime
+
+fn open_file_handle(path: String, mode: FileMode) -> Result<FileHandle, String>;
+fn create_file_handle(path: String) -> Result<FileHandle, String>;
+fn read_file_to_string(handle: FileHandle) -> Result<String, String>;
+fn read_file_to_bytes(handle: FileHandle) -> Result<Vec<Number>, String>;
+fn read_file_line(handle: FileHandle) -> Result<Option<String>, String>;
+fn write_file_string(handle: FileHandle, content: String) -> Result<(), String>;
+fn write_file_bytes(handle: FileHandle, content: Vec<Number>) -> Result<(), String>;
+fn flush_file(handle: FileHandle) -> Result<(), String>;
+fn close_file(handle: FileHandle) -> Result<(), String>;
+fn create_directory(path: String) -> Result<(), String>;
+fn create_directory_all(path: String) -> Result<(), String>;
+fn remove_directory(path: String) -> Result<(), String>;
+fn remove_directory_all(path: String) -> Result<(), String>;
+fn read_directory(path: String) -> Result<Vec<DirEntry>, String>;
+fn path_exists(path: String) -> Boolean;
+fn get_file_metadata(path: String) -> Result<Metadata, String>;
+fn rename_file(from: String, to: String) -> Result<(), String>;
+fn delete_file(path: String) -> Result<(), String>;
+
+// String utility functions (would be in string module)
+fn starts_with(text: String, prefix: String) -> Boolean;
+fn ends_with(text: String, suffix: String) -> Boolean;
+fn contains(text: String, pattern: String) -> Boolean;
+fn replace_all(text: String, from: String, to: String) -> String;
+fn to_lowercase(text: String) -> String;
+fn char_at(text: String, index: Number) -> String;
+fn substring(text: String, start: Number, end: Number) -> String;
+fn length(text: String) -> Number;

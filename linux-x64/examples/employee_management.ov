@@ -1,0 +1,562 @@
+// Employee Management System in Ovie
+// Demonstrates enterprise-grade application development
+
+enum EmployeeStatus {
+    Active,
+    Inactive,
+    OnLeave,
+    Terminated,
+}
+
+enum Department {
+    Engineering,
+    Marketing,
+    Sales,
+    HumanResources,
+    Finance,
+    Operations,
+}
+
+enum EmployeeLevel {
+    Intern,
+    Junior,
+    Mid,
+    Senior,
+    Lead,
+    Manager,
+    Director,
+    VicePresident,
+}
+
+struct Address {
+    street_address: string,
+    city: string,
+    state: string,
+    postal_code: string,
+    country: string,
+}
+
+struct ContactInformation {
+    work_email: string,
+    personal_email: string,
+    work_phone: string,
+    mobile_phone: string,
+    emergency_contact_name: string,
+    emergency_contact_phone: string,
+}
+
+struct Employee {
+    employee_id: u32,
+    first_name: string,
+    last_name: string,
+    date_of_birth: string,
+    hire_date: string,
+    department: Department,
+    job_title: string,
+    employee_level: EmployeeLevel,
+    manager_id: u32,
+    salary: f64,
+    status: EmployeeStatus,
+    address: Address,
+    contact_info: ContactInformation,
+    performance_rating: f64,
+    vacation_days_remaining: u32,
+    sick_days_used: u32,
+}
+
+struct EmployeeDatabase {
+    employees: mut [Employee],
+    next_employee_id: mut u32,
+    total_payroll: mut f64,
+}
+
+enum ValidationError {
+    InvalidEmail,
+    InvalidPhoneNumber,
+    InvalidSalary,
+    InvalidEmployeeId,
+    DuplicateEmployee,
+    ManagerNotFound,
+}
+
+struct ValidationResult {
+    is_valid: bool,
+    errors: [ValidationError],
+    warnings: [string],
+}
+
+fn create_employee_database() -> EmployeeDatabase {
+    return EmployeeDatabase {
+        employees: [],
+        next_employee_id: 1001,
+        total_payroll: 0.0,
+    }
+}
+
+fn validate_employee_data(employee: Employee) -> ValidationResult {
+    mut errors: [ValidationError] = []
+    mut warnings: [string] = []
+    
+    // Validate email addresses
+    if !is_valid_email(employee.contact_info.work_email) {
+        errors.push(ValidationError.InvalidEmail)
+    }
+    
+    if !employee.contact_info.personal_email.is_empty() && !is_valid_email(employee.contact_info.personal_email) {
+        errors.push(ValidationError.InvalidEmail)
+    }
+    
+    // Validate phone numbers
+    if !is_valid_phone_number(employee.contact_info.work_phone) {
+        errors.push(ValidationError.InvalidPhoneNumber)
+    }
+    
+    // Validate salary
+    if employee.salary < 0.0 {
+        errors.push(ValidationError.InvalidSalary)
+    }
+    
+    if employee.salary < 30000.0 {
+        warnings.push("Salary below minimum wage threshold")
+    }
+    
+    if employee.salary > 500000.0 {
+        warnings.push("Salary above executive threshold - requires approval")
+    }
+    
+    // Validate names
+    if employee.first_name.is_empty() || employee.last_name.is_empty() {
+        warnings.push("Employee name fields should not be empty")
+    }
+    
+    return ValidationResult {
+        is_valid: errors.is_empty(),
+        errors: errors,
+        warnings: warnings,
+    }
+}
+
+fn add_employee(database: mut EmployeeDatabase, employee_data: Employee) -> Result<u32, string> {
+    // Validate employee data
+    mut validation = validate_employee_data(employee_data)
+    
+    if !validation.is_valid {
+        return Result.Error("Employee validation failed: " + format_validation_errors(validation.errors))
+    }
+    
+    // Check for duplicate employees
+    for existing_employee in database.employees {
+        if existing_employee.contact_info.work_email == employee_data.contact_info.work_email {
+            return Result.Error("Employee with email " + employee_data.contact_info.work_email + " already exists")
+        }
+    }
+    
+    // Assign employee ID
+    mut new_employee = employee_data
+    new_employee.employee_id = database.next_employee_id
+    database.next_employee_id = database.next_employee_id + 1
+    
+    // Add to database
+    database.employees.push(new_employee)
+    database.total_payroll = database.total_payroll + new_employee.salary
+    
+    seeAm "Added employee: " + new_employee.first_name + " " + new_employee.last_name
+    seeAm "Employee ID: " + new_employee.employee_id
+    seeAm "Department: " + department_name(new_employee.department)
+    
+    // Print warnings if any
+    for warning in validation.warnings {
+        seeAm "Warning: " + warning
+    }
+    
+    return Result.Ok(new_employee.employee_id)
+}
+
+fn find_employee_by_id(database: EmployeeDatabase, employee_id: u32) -> Option<Employee> {
+    for employee in database.employees {
+        if employee.employee_id == employee_id {
+            return Option.Some(employee)
+        }
+    }
+    return Option.None
+}
+
+fn find_employees_by_department(database: EmployeeDatabase, dept: Department) -> [Employee] {
+    mut department_employees: [Employee] = []
+    
+    for employee in database.employees {
+        if employee.department == dept && employee.status == EmployeeStatus.Active {
+            department_employees.push(employee)
+        }
+    }
+    
+    return department_employees
+}
+
+fn update_employee_salary(database: mut EmployeeDatabase, employee_id: u32, new_salary: f64) -> Result<bool, string> {
+    if new_salary < 0.0 {
+        return Result.Error("Salary cannot be negative")
+    }
+    
+    for i in 0..database.employees.length() {
+        if database.employees[i].employee_id == employee_id {
+            mut old_salary = database.employees[i].salary
+            database.employees[i].salary = new_salary
+            
+            // Update total payroll
+            database.total_payroll = database.total_payroll - old_salary + new_salary
+            
+            seeAm "Updated salary for employee " + employee_id
+            seeAm "Old salary: $" + old_salary
+            seeAm "New salary: $" + new_salary
+            
+            return Result.Ok(true)
+        }
+    }
+    
+    return Result.Error("Employee with ID " + employee_id + " not found")
+}
+
+fn terminate_employee(database: mut EmployeeDatabase, employee_id: u32, termination_reason: string) -> Result<bool, string> {
+    for i in 0..database.employees.length() {
+        if database.employees[i].employee_id == employee_id {
+            database.employees[i].status = EmployeeStatus.Terminated
+            database.total_payroll = database.total_payroll - database.employees[i].salary
+            
+            seeAm "Terminated employee: " + database.employees[i].first_name + " " + database.employees[i].last_name
+            seeAm "Reason: " + termination_reason
+            seeAm "Effective immediately"
+            
+            return Result.Ok(true)
+        }
+    }
+    
+    return Result.Error("Employee with ID " + employee_id + " not found")
+}
+
+fn generate_department_report(database: EmployeeDatabase, dept: Department) {
+    mut dept_employees = find_employees_by_department(database, dept)
+    mut dept_name = department_name(dept)
+    
+    seeAm "=== " + dept_name + " Department Report ==="
+    seeAm "Total employees: " + dept_employees.length()
+    
+    if dept_employees.is_empty() {
+        seeAm "No active employees in this department"
+        return
+    }
+    
+    mut total_salary = 0.0
+    mut level_counts: [u32] = [0, 0, 0, 0, 0, 0, 0, 0]  // For each EmployeeLevel
+    
+    seeAm ""
+    seeAm "Employee List:"
+    
+    for employee in dept_employees {
+        seeAm "  " + employee.first_name + " " + employee.last_name + " (" + employee.job_title + ")"
+        seeAm "    Level: " + employee_level_name(employee.level) + ", Salary: $" + employee.salary
+        
+        total_salary = total_salary + employee.salary
+        level_counts[employee_level_index(employee.level)] = level_counts[employee_level_index(employee.level)] + 1
+    }
+    
+    mut average_salary = total_salary / dept_employees.length()
+    
+    seeAm ""
+    seeAm "Department Statistics:"
+    seeAm "  Total payroll: $" + total_salary
+    seeAm "  Average salary: $" + average_salary
+    seeAm ""
+    seeAm "  Level distribution:"
+    seeAm "    Interns: " + level_counts[0]
+    seeAm "    Junior: " + level_counts[1]
+    seeAm "    Mid: " + level_counts[2]
+    seeAm "    Senior: " + level_counts[3]
+    seeAm "    Lead: " + level_counts[4]
+    seeAm "    Manager: " + level_counts[5]
+    seeAm "    Director: " + level_counts[6]
+    seeAm "    VP: " + level_counts[7]
+}
+
+fn generate_company_summary(database: EmployeeDatabase) {
+    seeAm "=== Company Summary Report ==="
+    seeAm "Total employees: " + database.employees.length()
+    seeAm "Total payroll: $" + database.total_payroll
+    
+    if database.employees.length() > 0 {
+        mut average_salary = database.total_payroll / database.employees.length()
+        seeAm "Average salary: $" + average_salary
+    }
+    
+    // Count by status
+    mut active_count = 0
+    mut inactive_count = 0
+    mut on_leave_count = 0
+    mut terminated_count = 0
+    
+    for employee in database.employees {
+        match employee.status {
+            EmployeeStatus.Active => active_count = active_count + 1,
+            EmployeeStatus.Inactive => inactive_count = inactive_count + 1,
+            EmployeeStatus.OnLeave => on_leave_count = on_leave_count + 1,
+            EmployeeStatus.Terminated => terminated_count = terminated_count + 1,
+        }
+    }
+    
+    seeAm ""
+    seeAm "Employee Status Distribution:"
+    seeAm "  Active: " + active_count
+    seeAm "  Inactive: " + inactive_count
+    seeAm "  On Leave: " + on_leave_count
+    seeAm "  Terminated: " + terminated_count
+    
+    // Count by department
+    seeAm ""
+    seeAm "Department Distribution:"
+    
+    mut dept_counts = [0, 0, 0, 0, 0, 0]  // For each Department
+    
+    for employee in database.employees {
+        if employee.status == EmployeeStatus.Active {
+            dept_counts[department_index(employee.department)] = dept_counts[department_index(employee.department)] + 1
+        }
+    }
+    
+    seeAm "  Engineering: " + dept_counts[0]
+    seeAm "  Marketing: " + dept_counts[1]
+    seeAm "  Sales: " + dept_counts[2]
+    seeAm "  Human Resources: " + dept_counts[3]
+    seeAm "  Finance: " + dept_counts[4]
+    seeAm "  Operations: " + dept_counts[5]
+}
+
+// Helper functions
+
+fn is_valid_email(email: string) -> bool {
+    return email.contains("@") && email.contains(".") && email.length() > 5
+}
+
+fn is_valid_phone_number(phone: string) -> bool {
+    return phone.length() >= 10
+}
+
+fn format_validation_errors(errors: [ValidationError]) -> string {
+    mut error_message = ""
+    
+    for error in errors {
+        match error {
+            ValidationError.InvalidEmail => error_message = error_message + "Invalid email address; ",
+            ValidationError.InvalidPhoneNumber => error_message = error_message + "Invalid phone number; ",
+            ValidationError.InvalidSalary => error_message = error_message + "Invalid salary; ",
+            ValidationError.InvalidEmployeeId => error_message = error_message + "Invalid employee ID; ",
+            ValidationError.DuplicateEmployee => error_message = error_message + "Duplicate employee; ",
+            ValidationError.ManagerNotFound => error_message = error_message + "Manager not found; ",
+        }
+    }
+    
+    return error_message
+}
+
+fn department_name(dept: Department) -> string {
+    match dept {
+        Department.Engineering => return "Engineering",
+        Department.Marketing => return "Marketing",
+        Department.Sales => return "Sales",
+        Department.HumanResources => return "Human Resources",
+        Department.Finance => return "Finance",
+        Department.Operations => return "Operations",
+    }
+}
+
+fn employee_level_name(level: EmployeeLevel) -> string {
+    match level {
+        EmployeeLevel.Intern => return "Intern",
+        EmployeeLevel.Junior => return "Junior",
+        EmployeeLevel.Mid => return "Mid-Level",
+        EmployeeLevel.Senior => return "Senior",
+        EmployeeLevel.Lead => return "Lead",
+        EmployeeLevel.Manager => return "Manager",
+        EmployeeLevel.Director => return "Director",
+        EmployeeLevel.VicePresident => return "Vice President",
+    }
+}
+
+fn department_index(dept: Department) -> u32 {
+    match dept {
+        Department.Engineering => return 0,
+        Department.Marketing => return 1,
+        Department.Sales => return 2,
+        Department.HumanResources => return 3,
+        Department.Finance => return 4,
+        Department.Operations => return 5,
+    }
+}
+
+fn employee_level_index(level: EmployeeLevel) -> u32 {
+    match level {
+        EmployeeLevel.Intern => return 0,
+        EmployeeLevel.Junior => return 1,
+        EmployeeLevel.Mid => return 2,
+        EmployeeLevel.Senior => return 3,
+        EmployeeLevel.Lead => return 4,
+        EmployeeLevel.Manager => return 5,
+        EmployeeLevel.Director => return 6,
+        EmployeeLevel.VicePresident => return 7,
+    }
+}
+
+fn main() {
+    seeAm "=== Employee Management System Demo ==="
+    seeAm "Enterprise-grade HR system in Ovie"
+    seeAm ""
+    
+    mut company_db = create_employee_database()
+    
+    // Add sample employees
+    seeAm "=== Adding Employees ==="
+    
+    mut alice = Employee {
+        employee_id: 0,  // Will be assigned automatically
+        first_name: "Alice",
+        last_name: "Johnson",
+        date_of_birth: "1990-05-15",
+        hire_date: "2022-01-15",
+        department: Department.Engineering,
+        job_title: "Senior Software Engineer",
+        employee_level: EmployeeLevel.Senior,
+        manager_id: 1005,
+        salary: 95000.0,
+        status: EmployeeStatus.Active,
+        address: Address {
+            street_address: "123 Tech Street",
+            city: "San Francisco",
+            state: "CA",
+            postal_code: "94105",
+            country: "USA",
+        },
+        contact_info: ContactInformation {
+            work_email: "alice.johnson@company.com",
+            personal_email: "alice@personal.com",
+            work_phone: "555-0101",
+            mobile_phone: "555-0102",
+            emergency_contact_name: "Bob Johnson",
+            emergency_contact_phone: "555-0103",
+        },
+        performance_rating: 4.2,
+        vacation_days_remaining: 15,
+        sick_days_used: 2,
+    }
+    
+    mut bob = Employee {
+        employee_id: 0,
+        first_name: "Bob",
+        last_name: "Smith",
+        date_of_birth: "1985-08-22",
+        hire_date: "2020-03-01",
+        department: Department.Engineering,
+        job_title: "Engineering Manager",
+        employee_level: EmployeeLevel.Manager,
+        manager_id: 1010,
+        salary: 125000.0,
+        status: EmployeeStatus.Active,
+        address: Address {
+            street_address: "456 Innovation Ave",
+            city: "San Francisco",
+            state: "CA",
+            postal_code: "94107",
+            country: "USA",
+        },
+        contact_info: ContactInformation {
+            work_email: "bob.smith@company.com",
+            personal_email: "bob@personal.com",
+            work_phone: "555-0201",
+            mobile_phone: "555-0202",
+            emergency_contact_name: "Carol Smith",
+            emergency_contact_phone: "555-0203",
+        },
+        performance_rating: 4.5,
+        vacation_days_remaining: 20,
+        sick_days_used: 1,
+    }
+    
+    mut charlie = Employee {
+        employee_id: 0,
+        first_name: "Charlie",
+        last_name: "Brown",
+        date_of_birth: "1992-12-10",
+        hire_date: "2023-06-01",
+        department: Department.Marketing,
+        job_title: "Marketing Specialist",
+        employee_level: EmployeeLevel.Mid,
+        manager_id: 1015,
+        salary: 65000.0,
+        status: EmployeeStatus.Active,
+        address: Address {
+            street_address: "789 Creative Blvd",
+            city: "San Francisco",
+            state: "CA",
+            postal_code: "94110",
+            country: "USA",
+        },
+        contact_info: ContactInformation {
+            work_email: "charlie.brown@company.com",
+            personal_email: "charlie@personal.com",
+            work_phone: "555-0301",
+            mobile_phone: "555-0302",
+            emergency_contact_name: "Diana Brown",
+            emergency_contact_phone: "555-0303",
+        },
+        performance_rating: 3.8,
+        vacation_days_remaining: 12,
+        sick_days_used: 0,
+    }
+    
+    // Add employees to database
+    mut alice_result = add_employee(company_db, alice)
+    mut bob_result = add_employee(company_db, bob)
+    mut charlie_result = add_employee(company_db, charlie)
+    
+    seeAm ""
+    
+    // Demonstrate employee operations
+    seeAm "=== Employee Operations ==="
+    
+    // Find employee by ID
+    match alice_result {
+        Result.Ok(alice_id) => {
+            mut found_employee = find_employee_by_id(company_db, alice_id)
+            match found_employee {
+                Option.Some(employee) => {
+                    seeAm "Found employee: " + employee.first_name + " " + employee.last_name
+                    seeAm "Job title: " + employee.job_title
+                },
+                Option.None => seeAm "Employee not found",
+            }
+        },
+        Result.Error(error) => seeAm "Error adding Alice: " + error,
+    }
+    
+    // Update salary
+    match bob_result {
+        Result.Ok(bob_id) => {
+            mut salary_update = update_employee_salary(company_db, bob_id, 130000.0)
+            match salary_update {
+                Result.Ok(_) => seeAm "Salary updated successfully",
+                Result.Error(error) => seeAm "Salary update failed: " + error,
+            }
+        },
+        Result.Error(error) => seeAm "Error adding Bob: " + error,
+    }
+    
+    seeAm ""
+    
+    // Generate reports
+    generate_department_report(company_db, Department.Engineering)
+    seeAm ""
+    generate_department_report(company_db, Department.Marketing)
+    seeAm ""
+    generate_company_summary(company_db)
+    
+    seeAm ""
+    seeAm "Employee Management System demo complete!"
+}

@@ -1,0 +1,387 @@
+// LLM-optimized code examples for AI systems
+// Key concepts: natural language patterns, clear structure, predictable naming, AI-friendly patterns
+
+// Clear, descriptive function names that explain intent
+fn calculate_monthly_mortgage_payment(principal_amount: f64, annual_interest_rate: f64, loan_term_years: u32) -> f64 {
+    // Convert annual rate to monthly and years to months
+    mut monthly_interest_rate = annual_interest_rate / 12.0
+    mut total_number_of_payments = loan_term_years * 12
+    
+    // Handle special case: no interest loan
+    if monthly_interest_rate == 0.0 {
+        return principal_amount / total_number_of_payments
+    }
+    
+    // Standard mortgage payment formula
+    mut rate_factor = (1.0 + monthly_interest_rate).pow(total_number_of_payments)
+    mut monthly_payment = principal_amount * (monthly_interest_rate * rate_factor) / (rate_factor - 1.0)
+    
+    // Clear output showing calculation details
+    seeAm "Mortgage Calculation Details:"
+    seeAm "Principal: $" + principal_amount
+    seeAm "Annual Interest Rate: " + (annual_interest_rate * 100.0) + "%"
+    seeAm "Loan Term: " + loan_term_years + " years"
+    seeAm "Monthly Payment: $" + monthly_payment
+    
+    return monthly_payment
+}
+
+// Function with clear validation and error messages
+fn validate_email_address_format(email_address: string) -> Result<bool, string> {
+    // Step-by-step validation with clear error messages
+    
+    // Check if email is empty
+    if email_address.is_empty() {
+        return Result.Error("Email address cannot be empty")
+    }
+    
+    // Check for exactly one @ symbol
+    if !email_address.contains("@") {
+        return Result.Error("Email address must contain an @ symbol")
+    }
+    
+    mut at_symbol_count = email_address.count("@")
+    if at_symbol_count != 1 {
+        return Result.Error("Email address must contain exactly one @ symbol")
+    }
+    
+    // Split email into local and domain parts
+    mut email_parts = email_address.split("@")
+    mut local_part = email_parts[0]
+    mut domain_part = email_parts[1]
+    
+    // Validate local part (before @)
+    if local_part.is_empty() {
+        return Result.Error("Email address must have text before the @ symbol")
+    }
+    
+    if local_part.length() > 64 {
+        return Result.Error("Local part of email address cannot exceed 64 characters")
+    }
+    
+    // Validate domain part (after @)
+    if domain_part.is_empty() {
+        return Result.Error("Email address must have a domain after the @ symbol")
+    }
+    
+    if !domain_part.contains(".") {
+        return Result.Error("Domain must contain at least one dot (.) for top-level domain")
+    }
+    
+    mut domain_parts = domain_part.split(".")
+    for part in domain_parts {
+        if part.is_empty() {
+            return Result.Error("Domain cannot have empty parts between dots")
+        }
+    }
+    
+    // All validations passed
+    seeAm "Email address '" + email_address + "' is valid"
+    return Result.Ok(true)
+}
+
+// Function that processes a list with clear iteration pattern
+fn analyze_student_test_scores(student_names: [string], test_scores: [f64]) -> StudentAnalysisReport {
+    mut total_students = student_names.length()
+    mut total_score_sum = 0.0
+    mut highest_score = 0.0
+    mut lowest_score = 100.0
+    mut passing_students = 0
+    mut failing_students = 0
+    mut passing_threshold = 60.0
+    
+    seeAm "Analyzing test scores for " + total_students + " students:"
+    seeAm "Passing threshold: " + passing_threshold + "%"
+    seeAm ""
+    
+    // Process each student individually
+    for student_index in 0..total_students {
+        mut student_name = student_names[student_index]
+        mut student_score = test_scores[student_index]
+        
+        // Update statistics
+        total_score_sum = total_score_sum + student_score
+        
+        if student_score > highest_score {
+            highest_score = student_score
+        }
+        
+        if student_score < lowest_score {
+            lowest_score = student_score
+        }
+        
+        // Determine pass/fail status
+        mut pass_fail_status: string
+        if student_score >= passing_threshold {
+            pass_fail_status = "PASS"
+            passing_students = passing_students + 1
+        } else {
+            pass_fail_status = "FAIL"
+            failing_students = failing_students + 1
+        }
+        
+        // Determine letter grade
+        mut letter_grade = if student_score >= 90.0 {
+            "A"
+        } else if student_score >= 80.0 {
+            "B"
+        } else if student_score >= 70.0 {
+            "C"
+        } else if student_score >= 60.0 {
+            "D"
+        } else {
+            "F"
+        }
+        
+        // Display individual student results
+        seeAm student_name + ": " + student_score + "% (" + letter_grade + ") - " + pass_fail_status
+    }
+    
+    // Calculate final statistics
+    mut class_average = total_score_sum / total_students
+    mut pass_rate = (passing_students / total_students) * 100.0
+    
+    // Display summary statistics
+    seeAm ""
+    seeAm "=== Class Summary Statistics ==="
+    seeAm "Total Students: " + total_students
+    seeAm "Class Average: " + class_average + "%"
+    seeAm "Highest Score: " + highest_score + "%"
+    seeAm "Lowest Score: " + lowest_score + "%"
+    seeAm "Students Passing: " + passing_students
+    seeAm "Students Failing: " + failing_students
+    seeAm "Pass Rate: " + pass_rate + "%"
+    
+    // Return structured report
+    return StudentAnalysisReport {
+        total_students: total_students,
+        class_average: class_average,
+        highest_score: highest_score,
+        lowest_score: lowest_score,
+        passing_students: passing_students,
+        failing_students: failing_students,
+        pass_rate: pass_rate,
+    }
+}
+
+// Clear data structure with descriptive field names
+struct StudentAnalysisReport {
+    total_students: u32,
+    class_average: f64,
+    highest_score: f64,
+    lowest_score: f64,
+    passing_students: u32,
+    failing_students: u32,
+    pass_rate: f64,
+}
+
+// Function with clear business logic and step-by-step processing
+fn calculate_employee_payroll(employee_name: string, hours_worked: f64, hourly_rate: f64, tax_rate: f64) -> PayrollCalculation {
+    seeAm "Calculating payroll for: " + employee_name
+    
+    // Calculate gross pay with overtime rules
+    mut regular_hours = if hours_worked <= 40.0 { hours_worked } else { 40.0 }
+    mut overtime_hours = if hours_worked > 40.0 { hours_worked - 40.0 } else { 0.0 }
+    mut overtime_rate = hourly_rate * 1.5  // Time and a half for overtime
+    
+    mut regular_pay = regular_hours * hourly_rate
+    mut overtime_pay = overtime_hours * overtime_rate
+    mut gross_pay = regular_pay + overtime_pay
+    
+    // Calculate deductions
+    mut tax_deduction = gross_pay * tax_rate
+    mut social_security_deduction = gross_pay * 0.062  // 6.2% Social Security
+    mut medicare_deduction = gross_pay * 0.0145        // 1.45% Medicare
+    mut total_deductions = tax_deduction + social_security_deduction + medicare_deduction
+    
+    // Calculate net pay
+    mut net_pay = gross_pay - total_deductions
+    
+    // Display detailed breakdown
+    seeAm "=== Payroll Breakdown for " + employee_name + " ==="
+    seeAm "Hours Worked: " + hours_worked
+    seeAm "Regular Hours: " + regular_hours + " @ $" + hourly_rate + "/hour = $" + regular_pay
+    seeAm "Overtime Hours: " + overtime_hours + " @ $" + overtime_rate + "/hour = $" + overtime_pay
+    seeAm "Gross Pay: $" + gross_pay
+    seeAm ""
+    seeAm "Deductions:"
+    seeAm "  Tax (" + (tax_rate * 100.0) + "%): $" + tax_deduction
+    seeAm "  Social Security (6.2%): $" + social_security_deduction
+    seeAm "  Medicare (1.45%): $" + medicare_deduction
+    seeAm "  Total Deductions: $" + total_deductions
+    seeAm ""
+    seeAm "Net Pay: $" + net_pay
+    
+    return PayrollCalculation {
+        employee_name: employee_name,
+        hours_worked: hours_worked,
+        regular_hours: regular_hours,
+        overtime_hours: overtime_hours,
+        hourly_rate: hourly_rate,
+        overtime_rate: overtime_rate,
+        gross_pay: gross_pay,
+        tax_deduction: tax_deduction,
+        total_deductions: total_deductions,
+        net_pay: net_pay,
+    }
+}
+
+struct PayrollCalculation {
+    employee_name: string,
+    hours_worked: f64,
+    regular_hours: f64,
+    overtime_hours: f64,
+    hourly_rate: f64,
+    overtime_rate: f64,
+    gross_pay: f64,
+    tax_deduction: f64,
+    total_deductions: f64,
+    net_pay: f64,
+}
+
+// Function demonstrating clear error handling patterns
+fn process_customer_order(customer_name: string, item_name: string, quantity: u32, unit_price: f64) -> Result<OrderSummary, string> {
+    // Input validation with specific error messages
+    if customer_name.is_empty() {
+        return Result.Error("Customer name cannot be empty")
+    }
+    
+    if item_name.is_empty() {
+        return Result.Error("Item name cannot be empty")
+    }
+    
+    if quantity == 0 {
+        return Result.Error("Quantity must be greater than zero")
+    }
+    
+    if unit_price <= 0.0 {
+        return Result.Error("Unit price must be greater than zero")
+    }
+    
+    // Calculate order totals
+    mut subtotal = quantity * unit_price
+    mut tax_rate = 0.08  // 8% sales tax
+    mut tax_amount = subtotal * tax_rate
+    mut total_amount = subtotal + tax_amount
+    
+    // Apply discounts for large orders
+    mut discount_amount = 0.0
+    mut discount_rate = 0.0
+    
+    if quantity >= 100 {
+        discount_rate = 0.10  // 10% discount for 100+ items
+    } else if quantity >= 50 {
+        discount_rate = 0.05  // 5% discount for 50+ items
+    }
+    
+    if discount_rate > 0.0 {
+        discount_amount = subtotal * discount_rate
+        total_amount = total_amount - discount_amount
+    }
+    
+    // Generate order summary
+    mut order_summary = OrderSummary {
+        customer_name: customer_name,
+        item_name: item_name,
+        quantity: quantity,
+        unit_price: unit_price,
+        subtotal: subtotal,
+        discount_rate: discount_rate,
+        discount_amount: discount_amount,
+        tax_rate: tax_rate,
+        tax_amount: tax_amount,
+        total_amount: total_amount,
+    }
+    
+    // Display order details
+    seeAm "=== Order Summary ==="
+    seeAm "Customer: " + customer_name
+    seeAm "Item: " + item_name
+    seeAm "Quantity: " + quantity
+    seeAm "Unit Price: $" + unit_price
+    seeAm "Subtotal: $" + subtotal
+    
+    if discount_amount > 0.0 {
+        seeAm "Discount (" + (discount_rate * 100.0) + "%): -$" + discount_amount
+    }
+    
+    seeAm "Tax (" + (tax_rate * 100.0) + "%): $" + tax_amount
+    seeAm "Total: $" + total_amount
+    
+    return Result.Ok(order_summary)
+}
+
+struct OrderSummary {
+    customer_name: string,
+    item_name: string,
+    quantity: u32,
+    unit_price: f64,
+    subtotal: f64,
+    discount_rate: f64,
+    discount_amount: f64,
+    tax_rate: f64,
+    tax_amount: f64,
+    total_amount: f64,
+}
+
+fn main() {
+    seeAm "=== LLM-Friendly Code Examples ==="
+    seeAm "These examples demonstrate clear, predictable patterns for AI systems"
+    seeAm ""
+    
+    // Mortgage calculation example
+    seeAm "1. Mortgage Payment Calculation:"
+    mut monthly_payment = calculate_monthly_mortgage_payment(250000.0, 0.045, 30)
+    seeAm ""
+    
+    // Email validation examples
+    seeAm "2. Email Validation Examples:"
+    mut test_emails = [
+        "user@example.com",
+        "invalid.email",
+        "@missing-local.com",
+        "missing-at-symbol.com",
+        "",
+        "user@domain.co.uk",
+    ]
+    
+    for email in test_emails {
+        mut validation_result = validate_email_address_format(email)
+        match validation_result {
+            Result.Ok(_) => seeAm "✓ Valid: " + email,
+            Result.Error(message) => seeAm "✗ Invalid: " + email + " - " + message,
+        }
+    }
+    seeAm ""
+    
+    // Student score analysis
+    seeAm "3. Student Score Analysis:"
+    mut student_names = ["Alice", "Bob", "Charlie", "Diana", "Eve"]
+    mut test_scores = [92.5, 78.0, 85.5, 67.0, 94.0]
+    mut analysis_report = analyze_student_test_scores(student_names, test_scores)
+    seeAm ""
+    
+    // Payroll calculation
+    seeAm "4. Payroll Calculation:"
+    mut payroll_result = calculate_employee_payroll("John Smith", 45.0, 25.0, 0.22)
+    seeAm ""
+    
+    // Order processing
+    seeAm "5. Order Processing:"
+    mut order_result = process_customer_order("Jane Doe", "Widget", 75, 12.99)
+    match order_result {
+        Result.Ok(order) => seeAm "Order processed successfully for " + order.customer_name,
+        Result.Error(message) => seeAm "Order processing failed: " + message,
+    }
+    
+    seeAm ""
+    seeAm "LLM-friendly examples complete!"
+    seeAm ""
+    seeAm "Key patterns demonstrated:"
+    seeAm "- Descriptive function and variable names"
+    seeAm "- Clear step-by-step logic"
+    seeAm "- Explicit error handling with specific messages"
+    seeAm "- Structured data with meaningful field names"
+    seeAm "- Consistent formatting and documentation"
+    seeAm "- Natural language flow in code structure"
+}

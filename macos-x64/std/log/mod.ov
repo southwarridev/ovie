@@ -1,0 +1,862 @@
+// Ovie Standard Library - Logging Module
+// Structured logging system with offline-first design
+// No network dependencies, deterministic output
+
+use core::{Result, Option, Vec, HashMap, ok, err, some, none};
+use time::{SystemTime, DateTime};
+use io::{print, println, eprint, eprintln};
+use fs::{File, create, open_with_mode, FileMode};
+
+// ===== LOG LEVELS =====
+
+// Log level enumeration
+enum LogLevel {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Fatal,
+}
+
+impl LogLevel {
+    // Convert to string
+    fn to_string(self) -> String {
+        match self {
+            LogLevel.Trace => "TRACE",
+            LogLevel.Debug => "DEBUG",
+            LogLevel.Info => "INFO",
+            LogLevel.Warn => "WARN",
+            LogLevel.Error => "ERROR",
+            LogLevel.Fatal => "FATAL",
+        }
+    }
+    
+    // Convert from string
+    fn from_string(level: String) -> Option<LogLevel> {
+        mut upper_level = to_uppercase(level);
+        
+        if upper_level == "TRACE" {
+            return some(LogLevel.Trace);
+        } else if upper_level == "DEBUG" {
+            return some(LogLevel.Debug);
+        } else if upper_level == "INFO" {
+            return some(LogLevel.Info);
+        } else if upper_level == "WARN" || upper_level == "WARNING" {
+            return some(LogLevel.Warn);
+        } else if upper_level == "ERROR" {
+            return some(LogLevel.Error);
+        } else if upper_level == "FATAL" {
+            return some(LogLevel.Fatal);
+        } else {
+            return none();
+        }
+    }
+    
+    // Get numeric value for comparison
+    fn to_number(self) -> Number {
+        match self {
+            LogLevel.Trace => 0,
+            LogLevel.Debug => 1,
+            LogLevel.Info => 2,
+            LogLevel.Warn => 3,
+            LogLevel.Error => 4,
+            LogLevel.Fatal => 5,
+        }
+    }
+    
+    // Compare log levels
+    fn compare(self, other: LogLevel) -> Number {
+        mut self_num = self.to_number();
+        mut other_num = other.to_number();
+        
+        if self_num < other_num {
+            return -1;
+        } else if self_num > other_num {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    
+    // Check if this level should be logged given minimum level
+    fn should_log(self, min_level: LogLevel) -> Boolean {
+        return self.to_number() >= min_level.to_number();
+    }
+}
+
+// ===== LOG RECORD =====
+
+// Log record containing all information about a log entry
+struct LogRecord {
+    level: LogLevel,
+    message: String,
+    timestamp: SystemTime,
+    module: String,
+    file: String,
+    line: Number,
+    thread_id: String,
+    fields: HashMap<String, String>,
+}
+
+impl LogRecord {
+    // Create a new log record
+    fn new(level: LogLevel, message: String) -> LogRecord {
+        return LogRecord {
+            level: level,
+            message: message,
+            timestamp: SystemTime.now(),
+            module: "",
+            file: "",
+            line: 0,
+            thread_id: get_thread_id(),
+            fields: HashMap.new(),
+        };
+    }
+    
+    // Set module name
+    fn module(mut self, module: String) -> LogRecord {
+        self.module = module;
+        return self;
+    }
+    
+    // Set file and line
+    fn location(mut self, file: String, line: Number) -> LogRecord {
+        self.file = file;
+        self.line = line;
+        return self;
+    }
+    
+    // Add a field
+    fn field(mut self, key: String, value: String) -> LogRecord {
+        self.fields.insert(key, value);
+        return self;
+    }
+    
+    // Add multiple fields
+    fn fields(mut self, fields: HashMap<String, String>) -> LogRecord {
+        for key in fields.keys() {
+            mut value = fields.get(key).unwrap();
+            self.fields.insert(key, value);
+        }
+        return self;
+    }
+}
+
+// ===== LOG FORMATTER =====
+
+// Log formatter trait
+trait LogFormatter {
+    // Format a log record to string
+    fn format(self, record: LogRecord) -> String;
+}
+
+// Simple text formatter
+struct SimpleFormatter {
+    include_timestamp: Boolean,
+    include_level: Boolean,
+    include_module: Boolean,
+    include_location: Boolean,
+    timestamp_format: String,
+}
+
+impl SimpleFormatter {
+    // Create a new simple formatter
+    fn new() -> SimpleFormatter {
+        return SimpleFormatter {
+            include_timestamp: true,
+            include_level: true,
+            include_module: true,
+            include_location: false,
+            timestamp_format: "YYYY-MM-DD HH:mm:ss",
+        };
+    }
+    
+    // Configure timestamp inclusion
+    fn with_timestamp(mut self, include: Boolean) -> SimpleFormatter {
+        self.include_timestamp = include;
+        return self;
+    }
+    
+    // Configure level inclusion
+    fn with_level(mut self, include: Boolean) -> SimpleFormatter {
+        self.include_level = include;
+        return self;
+    }
+    
+    // Configure module inclusion
+    fn with_module(mut self, include: Boolean) -> SimpleFormatter {
+        self.include_module = include;
+        return self;
+    }
+    
+    // Configure location inclusion
+    fn with_location(mut self, include: Boolean) -> SimpleFormatter {
+        self.include_location = include;
+        return self;
+    }
+    
+    // Set timestamp format
+    fn timestamp_format(mut self, format: String) -> SimpleFormatter {
+        self.timestamp_format = format;
+        return self;
+    }
+}
+
+impl SimpleFormatter : LogFormatter {
+    fn format(self, record: LogRecord) -> String {
+        mut parts = Vec.new();
+        
+        // Timestamp
+        if self.include_timestamp {
+            mut datetime = record.timestamp.to_datetime_local();
+            mut timestamp_str = datetime.format(self.timestamp_format);
+            parts.push(timestamp_str);
+        }
+        
+        // Level
+        if self.include_level {
+            parts.push("[" + record.level.to_string() + "]");
+        }
+        
+        // Module
+        if self.include_module && record.module != "" {
+            parts.push(record.module);
+        }
+        
+        // Location
+        if self.include_location && record.file != "" {
+            mut location = record.file;
+            if record.line > 0 {
+                location = location + ":" + number_to_string(record.line);
+            }
+            parts.push("(" + location + ")");
+        }
+        
+        // Message
+        parts.push(record.message);
+        
+        // Fields
+        if record.fields.len() > 0 {
+            mut field_parts = Vec.new();
+            for key in record.fields.keys() {
+                mut value = record.fields.get(key).unwrap();
+                field_parts.push(key + "=" + value);
+            }
+            parts.push("{" + join_strings(field_parts, ", ") + "}");
+        }
+        
+        return join_strings(parts, " ");
+    }
+}
+
+// JSON formatter
+struct JsonFormatter {
+    pretty: Boolean,
+}
+
+impl JsonFormatter {
+    // Create a new JSON formatter
+    fn new() -> JsonFormatter {
+        return JsonFormatter {
+            pretty: false,
+        };
+    }
+    
+    // Enable pretty printing
+    fn pretty(mut self) -> JsonFormatter {
+        self.pretty = true;
+        return self;
+    }
+}
+
+impl JsonFormatter : LogFormatter {
+    fn format(self, record: LogRecord) -> String {
+        mut json_fields = HashMap.new();
+        
+        // Standard fields
+        json_fields.insert("timestamp", record.timestamp.as_unix_timestamp().to_string());
+        json_fields.insert("level", record.level.to_string());
+        json_fields.insert("message", record.message);
+        
+        if record.module != "" {
+            json_fields.insert("module", record.module);
+        }
+        
+        if record.file != "" {
+            json_fields.insert("file", record.file);
+        }
+        
+        if record.line > 0 {
+            json_fields.insert("line", number_to_string(record.line));
+        }
+        
+        if record.thread_id != "" {
+            json_fields.insert("thread_id", record.thread_id);
+        }
+        
+        // Custom fields
+        for key in record.fields.keys() {
+            mut value = record.fields.get(key).unwrap();
+            json_fields.insert(key, value);
+        }
+        
+        return format_json(json_fields, self.pretty);
+    }
+}
+
+// ===== LOG APPENDER =====
+
+// Log appender trait
+trait LogAppender {
+    // Append a log record
+    fn append(mut self, record: LogRecord) -> Result<(), String>;
+    
+    // Flush any buffered output
+    fn flush(mut self) -> Result<(), String>;
+}
+
+// Console appender (stdout/stderr)
+struct ConsoleAppender {
+    use_stderr_for_errors: Boolean,
+    formatter: LogFormatter,
+}
+
+impl ConsoleAppender {
+    // Create a new console appender
+    fn new() -> ConsoleAppender {
+        return ConsoleAppender {
+            use_stderr_for_errors: true,
+            formatter: SimpleFormatter.new(),
+        };
+    }
+    
+    // Set formatter
+    fn formatter(mut self, formatter: LogFormatter) -> ConsoleAppender {
+        self.formatter = formatter;
+        return self;
+    }
+    
+    // Configure stderr usage for errors
+    fn use_stderr_for_errors(mut self, use_stderr: Boolean) -> ConsoleAppender {
+        self.use_stderr_for_errors = use_stderr;
+        return self;
+    }
+}
+
+impl ConsoleAppender : LogAppender {
+    fn append(mut self, record: LogRecord) -> Result<(), String> {
+        mut formatted = self.formatter.format(record);
+        
+        if self.use_stderr_for_errors && 
+           (record.level == LogLevel.Error || record.level == LogLevel.Fatal) {
+            eprintln(formatted);
+        } else {
+            println(formatted);
+        }
+        
+        return ok(());
+    }
+    
+    fn flush(mut self) -> Result<(), String> {
+        // Console output is typically unbuffered
+        return ok(());
+    }
+}
+
+// File appender
+struct FileAppender {
+    file_path: String,
+    file: Option<File>,
+    formatter: LogFormatter,
+    append_mode: Boolean,
+    buffer_size: Number,
+    buffer: Vec<String>,
+}
+
+impl FileAppender {
+    // Create a new file appender
+    fn new(file_path: String) -> FileAppender {
+        return FileAppender {
+            file_path: file_path,
+            file: none(),
+            formatter: SimpleFormatter.new(),
+            append_mode: true,
+            buffer_size: 0, // Unbuffered by default
+            buffer: Vec.new(),
+        };
+    }
+    
+    // Set formatter
+    fn formatter(mut self, formatter: LogFormatter) -> FileAppender {
+        self.formatter = formatter;
+        return self;
+    }
+    
+    // Set append mode
+    fn append_mode(mut self, append: Boolean) -> FileAppender {
+        self.append_mode = append;
+        return self;
+    }
+    
+    // Set buffer size (0 = unbuffered)
+    fn buffer_size(mut self, size: Number) -> FileAppender {
+        self.buffer_size = size;
+        return self;
+    }
+    
+    // Open the log file
+    fn open(mut self) -> Result<(), String> {
+        mut mode = if self.append_mode { FileMode.Append } else { FileMode.Write };
+        
+        mut file_result = if self.append_mode {
+            open_with_mode(self.file_path, mode)
+        } else {
+            create(self.file_path)
+        };
+        
+        if file_result.is_err() {
+            return err("Failed to open log file: " + file_result.unwrap_err());
+        }
+        
+        self.file = some(file_result.unwrap());
+        return ok(());
+    }
+    
+    // Close the log file
+    fn close(mut self) -> Result<(), String> {
+        if self.file.is_some() {
+            mut flush_result = self.flush();
+            if flush_result.is_err() {
+                return flush_result;
+            }
+            
+            mut close_result = self.file.unwrap().close();
+            self.file = none();
+            return close_result;
+        }
+        
+        return ok(());
+    }
+}
+
+impl FileAppender : LogAppender {
+    fn append(mut self, record: LogRecord) -> Result<(), String> {
+        if self.file.is_none() {
+            mut open_result = self.open();
+            if open_result.is_err() {
+                return open_result;
+            }
+        }
+        
+        mut formatted = self.formatter.format(record);
+        
+        if self.buffer_size > 0 {
+            // Buffered mode
+            self.buffer.push(formatted);
+            
+            if self.buffer.len() >= self.buffer_size {
+                return self.flush();
+            }
+        } else {
+            // Unbuffered mode
+            mut write_result = self.file.unwrap().write_line(formatted);
+            if write_result.is_err() {
+                return write_result;
+            }
+            
+            mut flush_result = self.file.unwrap().flush();
+            if flush_result.is_err() {
+                return flush_result;
+            }
+        }
+        
+        return ok(());
+    }
+    
+    fn flush(mut self) -> Result<(), String> {
+        if self.file.is_some() && self.buffer.len() > 0 {
+            for line in self.buffer {
+                mut write_result = self.file.unwrap().write_line(line);
+                if write_result.is_err() {
+                    return write_result;
+                }
+            }
+            
+            self.buffer.clear();
+            
+            mut flush_result = self.file.unwrap().flush();
+            if flush_result.is_err() {
+                return flush_result;
+            }
+        }
+        
+        return ok(());
+    }
+}
+
+// ===== LOGGER =====
+
+// Logger configuration
+struct Logger {
+    name: String,
+    level: LogLevel,
+    appenders: Vec<LogAppender>,
+    enabled: Boolean,
+}
+
+impl Logger {
+    // Create a new logger
+    fn new(name: String) -> Logger {
+        return Logger {
+            name: name,
+            level: LogLevel.Info,
+            appenders: Vec.new(),
+            enabled: true,
+        };
+    }
+    
+    // Set minimum log level
+    fn level(mut self, level: LogLevel) -> Logger {
+        self.level = level;
+        return self;
+    }
+    
+    // Add an appender
+    fn appender(mut self, appender: LogAppender) -> Logger {
+        self.appenders.push(appender);
+        return self;
+    }
+    
+    // Enable or disable logger
+    fn enabled(mut self, enabled: Boolean) -> Logger {
+        self.enabled = enabled;
+        return self;
+    }
+    
+    // Log a message at specified level
+    fn log(mut self, level: LogLevel, message: String) -> Result<(), String> {
+        if !self.enabled || !level.should_log(self.level) {
+            return ok(());
+        }
+        
+        mut record = LogRecord.new(level, message).module(self.name);
+        
+        for appender in self.appenders {
+            mut append_result = appender.append(record);
+            if append_result.is_err() {
+                return append_result;
+            }
+        }
+        
+        return ok(());
+    }
+    
+    // Log with additional fields
+    fn log_with_fields(mut self, level: LogLevel, message: String, fields: HashMap<String, String>) -> Result<(), String> {
+        if !self.enabled || !level.should_log(self.level) {
+            return ok(());
+        }
+        
+        mut record = LogRecord.new(level, message).module(self.name).fields(fields);
+        
+        for appender in self.appenders {
+            mut append_result = appender.append(record);
+            if append_result.is_err() {
+                return append_result;
+            }
+        }
+        
+        return ok(());
+    }
+    
+    // Convenience methods for different log levels
+    fn trace(mut self, message: String) -> Result<(), String> {
+        return self.log(LogLevel.Trace, message);
+    }
+    
+    fn debug(mut self, message: String) -> Result<(), String> {
+        return self.log(LogLevel.Debug, message);
+    }
+    
+    fn info(mut self, message: String) -> Result<(), String> {
+        return self.log(LogLevel.Info, message);
+    }
+    
+    fn warn(mut self, message: String) -> Result<(), String> {
+        return self.log(LogLevel.Warn, message);
+    }
+    
+    fn error(mut self, message: String) -> Result<(), String> {
+        return self.log(LogLevel.Error, message);
+    }
+    
+    fn fatal(mut self, message: String) -> Result<(), String> {
+        return self.log(LogLevel.Fatal, message);
+    }
+    
+    // Convenience methods with fields
+    fn trace_with_fields(mut self, message: String, fields: HashMap<String, String>) -> Result<(), String> {
+        return self.log_with_fields(LogLevel.Trace, message, fields);
+    }
+    
+    fn debug_with_fields(mut self, message: String, fields: HashMap<String, String>) -> Result<(), String> {
+        return self.log_with_fields(LogLevel.Debug, message, fields);
+    }
+    
+    fn info_with_fields(mut self, message: String, fields: HashMap<String, String>) -> Result<(), String> {
+        return self.log_with_fields(LogLevel.Info, message, fields);
+    }
+    
+    fn warn_with_fields(mut self, message: String, fields: HashMap<String, String>) -> Result<(), String> {
+        return self.log_with_fields(LogLevel.Warn, message, fields);
+    }
+    
+    fn error_with_fields(mut self, message: String, fields: HashMap<String, String>) -> Result<(), String> {
+        return self.log_with_fields(LogLevel.Error, message, fields);
+    }
+    
+    fn fatal_with_fields(mut self, message: String, fields: HashMap<String, String>) -> Result<(), String> {
+        return self.log_with_fields(LogLevel.Fatal, message, fields);
+    }
+    
+    // Flush all appenders
+    fn flush(mut self) -> Result<(), String> {
+        for appender in self.appenders {
+            mut flush_result = appender.flush();
+            if flush_result.is_err() {
+                return flush_result;
+            }
+        }
+        
+        return ok(());
+    }
+}
+
+// ===== GLOBAL LOGGER =====
+
+// Global logger instance
+mut GLOBAL_LOGGER: Option<Logger> = none();
+
+// Initialize global logger
+fn init_logger(logger: Logger) {
+    GLOBAL_LOGGER = some(logger);
+}
+
+// Get global logger
+fn get_logger() -> Option<Logger> {
+    return GLOBAL_LOGGER;
+}
+
+// Global logging functions
+fn trace(message: String) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().trace(message);
+    }
+}
+
+fn debug(message: String) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().debug(message);
+    }
+}
+
+fn info(message: String) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().info(message);
+    }
+}
+
+fn warn(message: String) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().warn(message);
+    }
+}
+
+fn error(message: String) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().error(message);
+    }
+}
+
+fn fatal(message: String) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().fatal(message);
+    }
+}
+
+// Global logging functions with fields
+fn trace_with_fields(message: String, fields: HashMap<String, String>) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().trace_with_fields(message, fields);
+    }
+}
+
+fn debug_with_fields(message: String, fields: HashMap<String, String>) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().debug_with_fields(message, fields);
+    }
+}
+
+fn info_with_fields(message: String, fields: HashMap<String, String>) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().info_with_fields(message, fields);
+    }
+}
+
+fn warn_with_fields(message: String, fields: HashMap<String, String>) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().warn_with_fields(message, fields);
+    }
+}
+
+fn error_with_fields(message: String, fields: HashMap<String, String>) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().error_with_fields(message, fields);
+    }
+}
+
+fn fatal_with_fields(message: String, fields: HashMap<String, String>) {
+    mut logger = get_logger();
+    if logger.is_some() {
+        logger.unwrap().fatal_with_fields(message, fields);
+    }
+}
+
+// ===== UTILITY FUNCTIONS =====
+
+// Create a simple console logger
+fn simple_logger() -> Logger {
+    mut console_appender = ConsoleAppender.new();
+    
+    return Logger.new("root")
+        .level(LogLevel.Info)
+        .appender(console_appender);
+}
+
+// Create a file logger
+fn file_logger(file_path: String) -> Result<Logger, String> {
+    mut file_appender = FileAppender.new(file_path);
+    mut open_result = file_appender.open();
+    
+    if open_result.is_err() {
+        return err(open_result.unwrap_err());
+    }
+    
+    mut logger = Logger.new("file")
+        .level(LogLevel.Info)
+        .appender(file_appender);
+    
+    return ok(logger);
+}
+
+// Create a combined console and file logger
+fn combined_logger(file_path: String) -> Result<Logger, String> {
+    mut console_appender = ConsoleAppender.new();
+    mut file_appender = FileAppender.new(file_path);
+    
+    mut open_result = file_appender.open();
+    if open_result.is_err() {
+        return err(open_result.unwrap_err());
+    }
+    
+    mut logger = Logger.new("combined")
+        .level(LogLevel.Info)
+        .appender(console_appender)
+        .appender(file_appender);
+    
+    return ok(logger);
+}
+
+// Initialize simple console logging
+fn init_simple_logging() {
+    mut logger = simple_logger();
+    init_logger(logger);
+}
+
+// Initialize file logging
+fn init_file_logging(file_path: String) -> Result<(), String> {
+    mut logger_result = file_logger(file_path);
+    if logger_result.is_err() {
+        return err(logger_result.unwrap_err());
+    }
+    
+    init_logger(logger_result.unwrap());
+    return ok(());
+}
+
+// Initialize combined logging
+fn init_combined_logging(file_path: String) -> Result<(), String> {
+    mut logger_result = combined_logger(file_path);
+    if logger_result.is_err() {
+        return err(logger_result.unwrap_err());
+    }
+    
+    init_logger(logger_result.unwrap());
+    return ok(());
+}
+
+// ===== HELPER FUNCTIONS =====
+
+// Join strings with separator
+fn join_strings(strings: Vec<String>, separator: String) -> String {
+    if strings.len() == 0 {
+        return "";
+    }
+    
+    mut result = strings.get(0).unwrap();
+    
+    for i in 1..strings.len() {
+        result = result + separator + strings.get(i).unwrap();
+    }
+    
+    return result;
+}
+
+// Format HashMap as JSON (simple implementation)
+fn format_json(fields: HashMap<String, String>, pretty: Boolean) -> String {
+    mut pairs = Vec.new();
+    
+    for key in fields.keys() {
+        mut value = fields.get(key).unwrap();
+        mut escaped_key = escape_json_string(key);
+        mut escaped_value = escape_json_string(value);
+        pairs.push("\"" + escaped_key + "\":\"" + escaped_value + "\"");
+    }
+    
+    if pretty {
+        return "{\n  " + join_strings(pairs, ",\n  ") + "\n}";
+    } else {
+        return "{" + join_strings(pairs, ",") + "}";
+    }
+}
+
+// Escape string for JSON
+fn escape_json_string(text: String) -> String {
+    mut result = text;
+    result = replace_all(result, "\\", "\\\\");
+    result = replace_all(result, "\"", "\\\"");
+    result = replace_all(result, "\n", "\\n");
+    result = replace_all(result, "\r", "\\r");
+    result = replace_all(result, "\t", "\\t");
+    return result;
+}
+
+// ===== BUILT-IN FUNCTION DECLARATIONS =====
+// These functions are implemented by the runtime
+
+fn get_thread_id() -> String;
+fn to_uppercase(text: String) -> String;
+fn number_to_string(num: Number) -> String;
+fn replace_all(text: String, from: String, to: String) -> String;

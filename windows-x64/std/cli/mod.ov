@@ -1,0 +1,990 @@
+// Ovie Standard Library - CLI Module
+// Command-line interface utilities for building CLI applications
+// Designed for offline-first operation with no network dependencies
+
+use core::{Result, Option, Vec, HashMap, ok, err, some, none};
+use io::{print, println, eprint, eprintln, read_line};
+
+// ===== CLI TYPES =====
+
+// Command-line application
+struct App {
+    name: String,
+    version: String,
+    description: String,
+    author: String,
+    commands: Vec<Command>,
+    global_flags: Vec<Flag>,
+    global_options: Vec<Option>,
+    help_template: String,
+}
+
+// Command within an application
+struct Command {
+    name: String,
+    description: String,
+    aliases: Vec<String>,
+    flags: Vec<Flag>,
+    options: Vec<Option>,
+    arguments: Vec<Argument>,
+    subcommands: Vec<Command>,
+    handler: fn(CommandContext) -> Result<(), String>,
+}
+
+// Command-line flag (boolean option)
+struct Flag {
+    name: String,
+    short: String,        // Single character shorthand
+    description: String,
+    default_value: Boolean,
+    required: Boolean,
+}
+
+// Command-line option (key-value pair)
+struct Option {
+    name: String,
+    short: String,        // Single character shorthand
+    description: String,
+    default_value: String,
+    required: Boolean,
+    takes_value: Boolean,
+    possible_values: Vec<String>,
+}
+
+// Positional argument
+struct Argument {
+    name: String,
+    description: String,
+    required: Boolean,
+    multiple: Boolean,    // Can accept multiple values
+    index: Number,        // Position in argument list
+}
+
+// Parsed command-line arguments
+struct Args {
+    command_path: Vec<String>,  // Path to the executed command
+    flags: HashMap<String, Boolean>,
+    options: HashMap<String, String>,
+    arguments: Vec<String>,
+    raw_args: Vec<String>,      // Original command line arguments
+}
+
+// Context passed to command handlers
+struct CommandContext {
+    app: App,
+    command: Command,
+    args: Args,
+}
+
+// CLI parsing error
+enum CliError {
+    UnknownCommand(String),
+    UnknownFlag(String),
+    UnknownOption(String),
+    MissingRequiredFlag(String),
+    MissingRequiredOption(String),
+    MissingRequiredArgument(String),
+    InvalidOptionValue(String, String),
+    TooManyArguments,
+    TooFewArguments,
+    HelpRequested,
+    VersionRequested,
+}
+
+// ===== APP BUILDER =====
+
+impl App {
+    // Create a new CLI application
+    fn new(name: String) -> App {
+        return App {
+            name: name,
+            version: "1.0.0",
+            description: "",
+            author: "",
+            commands: Vec.new(),
+            global_flags: Vec.new(),
+            global_options: Vec.new(),
+            help_template: default_help_template(),
+        };
+    }
+    
+    // Set application version
+    fn version(mut self, version: String) -> App {
+        self.version = version;
+        return self;
+    }
+    
+    // Set application description
+    fn description(mut self, description: String) -> App {
+        self.description = description;
+        return self;
+    }
+    
+    // Set application author
+    fn author(mut self, author: String) -> App {
+        self.author = author;
+        return self;
+    }
+    
+    // Add a command to the application
+    fn command(mut self, command: Command) -> App {
+        self.commands.push(command);
+        return self;
+    }
+    
+    // Add a global flag
+    fn flag(mut self, flag: Flag) -> App {
+        self.global_flags.push(flag);
+        return self;
+    }
+    
+    // Add a global option
+    fn option(mut self, option: Option) -> App {
+        self.global_options.push(option);
+        return self;
+    }
+    
+    // Set custom help template
+    fn help_template(mut self, template: String) -> App {
+        self.help_template = template;
+        return self;
+    }
+    
+    // Parse command line arguments and run the application
+    fn run(self, args: Vec<String>) -> Result<(), String> {
+        mut parse_result = self.parse_args(args);
+        
+        if parse_result.is_err() {
+            mut error = parse_result.unwrap_err();
+            
+            match error {
+                CliError.HelpRequested => {
+                    self.print_help();
+                    return ok(());
+                }
+                CliError.VersionRequested => {
+                    self.print_version();
+                    return ok(());
+                }
+                _ => {
+                    eprintln("Error: " + cli_error_to_string(error));
+                    eprintln("");
+                    self.print_help();
+                    return err(cli_error_to_string(error));
+                }
+            }
+        }
+        
+        mut context = parse_result.unwrap();
+        
+        // Find and execute the command
+        mut command_result = self.execute_command(context);
+        if command_result.is_err() {
+            eprintln("Error: " + command_result.unwrap_err());
+            return command_result;
+        }
+        
+        return ok(());
+    }
+    
+    // Parse command line arguments
+    fn parse_args(self, args: Vec<String>) -> Result<CommandContext, CliError> {
+        if args.len() == 0 {
+            return err(CliError.TooFewArguments);
+        }
+        
+        mut current_args = args;
+        mut command_path = Vec.new();
+        mut current_command = none();
+        mut parsed_flags = HashMap.new();
+        mut parsed_options = HashMap.new();
+        mut parsed_arguments = Vec.new();
+        
+        // Skip program name (first argument)
+        if current_args.len() > 0 {
+            current_args.remove(0);
+        }
+        
+        // Check for global help/version flags
+        for arg in current_args {
+            if arg == "--help" || arg == "-h" {
+                return err(CliError.HelpRequested);
+            }
+            if arg == "--version" || arg == "-V" {
+                return err(CliError.VersionRequested);
+            }
+        }
+        
+        // Parse command path
+        mut remaining_args = current_args;
+        mut commands = self.commands;
+        
+        while remaining_args.len() > 0 {
+            mut first_arg = remaining_args.get(0).unwrap();
+            
+            // Check if it's a flag or option
+            if starts_with(first_arg, "-") {
+                break;
+            }
+            
+            // Look for matching command
+            mut found_command = none();
+            for command in commands {
+                if command.name == first_arg || contains_string(command.aliases, first_arg) {
+                    found_command = some(command);
+                    break;
+                }
+            }
+            
+            if found_command.is_some() {
+                mut cmd = found_command.unwrap();
+                command_path.push(first_arg);
+                current_command = some(cmd);
+                commands = cmd.subcommands;
+                remaining_args.remove(0);
+            } else {
+                break;
+            }
+        }
+        
+        // If no command found, use default behavior
+        if current_command.is_none() {
+            if self.commands.len() > 0 {
+                return err(CliError.UnknownCommand(if remaining_args.len() > 0 { remaining_args.get(0).unwrap() } else { "" }));
+            }
+            
+            // Create a default command for apps without subcommands
+            current_command = some(Command {
+                name: self.name,
+                description: self.description,
+                aliases: Vec.new(),
+                flags: Vec.new(),
+                options: Vec.new(),
+                arguments: Vec.new(),
+                subcommands: Vec.new(),
+                handler: default_handler,
+            });
+        }
+        
+        mut command = current_command.unwrap();
+        
+        // Parse flags and options
+        mut i = 0;
+        while i < remaining_args.len() {
+            mut arg = remaining_args.get(i).unwrap();
+            
+            if starts_with(arg, "--") {
+                // Long flag or option
+                mut name = substring(arg, 2, length(arg));
+                
+                if contains(name, "=") {
+                    // Option with value: --option=value
+                    mut parts = split_string(name, "=");
+                    mut option_name = parts.get(0).unwrap();
+                    mut option_value = parts.get(1).unwrap();
+                    
+                    mut option_def = find_option(command, self.global_options, option_name);
+                    if option_def.is_none() {
+                        return err(CliError.UnknownOption(option_name));
+                    }
+                    
+                    parsed_options.insert(option_name, option_value);
+                } else {
+                    // Check if it's a flag or option
+                    mut flag_def = find_flag(command, self.global_flags, name);
+                    if flag_def.is_some() {
+                        parsed_flags.insert(name, true);
+                    } else {
+                        mut option_def = find_option(command, self.global_options, name);
+                        if option_def.is_some() {
+                            mut opt = option_def.unwrap();
+                            if opt.takes_value {
+                                // Next argument should be the value
+                                if i + 1 >= remaining_args.len() {
+                                    return err(CliError.MissingRequiredOption(name));
+                                }
+                                
+                                i = i + 1;
+                                mut value = remaining_args.get(i).unwrap();
+                                parsed_options.insert(name, value);
+                            } else {
+                                parsed_flags.insert(name, true);
+                            }
+                        } else {
+                            return err(CliError.UnknownOption(name));
+                        }
+                    }
+                }
+            } else if starts_with(arg, "-") && length(arg) > 1 {
+                // Short flag(s) or option
+                mut chars = substring(arg, 1, length(arg));
+                
+                for j in 0..length(chars) {
+                    mut char = char_at(chars, j);
+                    
+                    mut flag_def = find_flag_by_short(command, self.global_flags, char);
+                    if flag_def.is_some() {
+                        parsed_flags.insert(flag_def.unwrap().name, true);
+                    } else {
+                        mut option_def = find_option_by_short(command, self.global_options, char);
+                        if option_def.is_some() {
+                            mut opt = option_def.unwrap();
+                            if opt.takes_value {
+                                // Rest of the argument or next argument is the value
+                                if j + 1 < length(chars) {
+                                    mut value = substring(chars, j + 1, length(chars));
+                                    parsed_options.insert(opt.name, value);
+                                    break;
+                                } else {
+                                    if i + 1 >= remaining_args.len() {
+                                        return err(CliError.MissingRequiredOption(opt.name));
+                                    }
+                                    
+                                    i = i + 1;
+                                    mut value = remaining_args.get(i).unwrap();
+                                    parsed_options.insert(opt.name, value);
+                                }
+                            } else {
+                                parsed_flags.insert(opt.name, true);
+                            }
+                        } else {
+                            return err(CliError.UnknownFlag(char));
+                        }
+                    }
+                }
+            } else {
+                // Positional argument
+                parsed_arguments.push(arg);
+            }
+            
+            i = i + 1;
+        }
+        
+        // Validate required flags and options
+        for flag in command.flags {
+            if flag.required && !parsed_flags.contains_key(flag.name) {
+                return err(CliError.MissingRequiredFlag(flag.name));
+            }
+        }
+        
+        for flag in self.global_flags {
+            if flag.required && !parsed_flags.contains_key(flag.name) {
+                return err(CliError.MissingRequiredFlag(flag.name));
+            }
+        }
+        
+        for option in command.options {
+            if option.required && !parsed_options.contains_key(option.name) {
+                return err(CliError.MissingRequiredOption(option.name));
+            }
+        }
+        
+        for option in self.global_options {
+            if option.required && !parsed_options.contains_key(option.name) {
+                return err(CliError.MissingRequiredOption(option.name));
+            }
+        }
+        
+        // Validate arguments
+        mut required_args = 0;
+        for arg in command.arguments {
+            if arg.required {
+                required_args = required_args + 1;
+            }
+        }
+        
+        if parsed_arguments.len() < required_args {
+            return err(CliError.TooFewArguments);
+        }
+        
+        if parsed_arguments.len() > command.arguments.len() && !has_multiple_arg(command.arguments) {
+            return err(CliError.TooManyArguments);
+        }
+        
+        // Create context
+        mut args = Args {
+            command_path: command_path,
+            flags: parsed_flags,
+            options: parsed_options,
+            arguments: parsed_arguments,
+            raw_args: args,
+        };
+        
+        mut context = CommandContext {
+            app: self,
+            command: command,
+            args: args,
+        };
+        
+        return ok(context);
+    }
+    
+    // Execute the parsed command
+    fn execute_command(self, context: CommandContext) -> Result<(), String> {
+        return context.command.handler(context);
+    }
+    
+    // Print application help
+    fn print_help(self) {
+        mut help_text = self.help_template;
+        
+        // Replace template variables
+        help_text = replace_all(help_text, "{name}", self.name);
+        help_text = replace_all(help_text, "{version}", self.version);
+        help_text = replace_all(help_text, "{description}", self.description);
+        help_text = replace_all(help_text, "{author}", self.author);
+        
+        // Generate commands section
+        if self.commands.len() > 0 {
+            mut commands_text = "COMMANDS:\n";
+            for command in self.commands {
+                commands_text = commands_text + "    " + command.name;
+                if command.description != "" {
+                    commands_text = commands_text + "    " + command.description;
+                }
+                commands_text = commands_text + "\n";
+            }
+            help_text = replace_all(help_text, "{commands}", commands_text);
+        } else {
+            help_text = replace_all(help_text, "{commands}", "");
+        }
+        
+        // Generate flags section
+        mut flags_text = "";
+        if self.global_flags.len() > 0 {
+            flags_text = "FLAGS:\n";
+            for flag in self.global_flags {
+                flags_text = flags_text + "    ";
+                if flag.short != "" {
+                    flags_text = flags_text + "-" + flag.short + ", ";
+                }
+                flags_text = flags_text + "--" + flag.name;
+                if flag.description != "" {
+                    flags_text = flags_text + "    " + flag.description;
+                }
+                flags_text = flags_text + "\n";
+            }
+        }
+        help_text = replace_all(help_text, "{flags}", flags_text);
+        
+        // Generate options section
+        mut options_text = "";
+        if self.global_options.len() > 0 {
+            options_text = "OPTIONS:\n";
+            for option in self.global_options {
+                options_text = options_text + "    ";
+                if option.short != "" {
+                    options_text = options_text + "-" + option.short + ", ";
+                }
+                options_text = options_text + "--" + option.name;
+                if option.takes_value {
+                    options_text = options_text + " <value>";
+                }
+                if option.description != "" {
+                    options_text = options_text + "    " + option.description;
+                }
+                if option.default_value != "" {
+                    options_text = options_text + " [default: " + option.default_value + "]";
+                }
+                options_text = options_text + "\n";
+            }
+        }
+        help_text = replace_all(help_text, "{options}", options_text);
+        
+        println(help_text);
+    }
+    
+    // Print application version
+    fn print_version(self) {
+        println(self.name + " " + self.version);
+    }
+}
+
+// ===== COMMAND BUILDER =====
+
+impl Command {
+    // Create a new command
+    fn new(name: String) -> Command {
+        return Command {
+            name: name,
+            description: "",
+            aliases: Vec.new(),
+            flags: Vec.new(),
+            options: Vec.new(),
+            arguments: Vec.new(),
+            subcommands: Vec.new(),
+            handler: default_handler,
+        };
+    }
+    
+    // Set command description
+    fn description(mut self, description: String) -> Command {
+        self.description = description;
+        return self;
+    }
+    
+    // Add command alias
+    fn alias(mut self, alias: String) -> Command {
+        self.aliases.push(alias);
+        return self;
+    }
+    
+    // Add a flag to the command
+    fn flag(mut self, flag: Flag) -> Command {
+        self.flags.push(flag);
+        return self;
+    }
+    
+    // Add an option to the command
+    fn option(mut self, option: Option) -> Command {
+        self.options.push(option);
+        return self;
+    }
+    
+    // Add an argument to the command
+    fn argument(mut self, argument: Argument) -> Command {
+        self.arguments.push(argument);
+        return self;
+    }
+    
+    // Add a subcommand
+    fn subcommand(mut self, subcommand: Command) -> Command {
+        self.subcommands.push(subcommand);
+        return self;
+    }
+    
+    // Set command handler
+    fn handler(mut self, handler: fn(CommandContext) -> Result<(), String>) -> Command {
+        self.handler = handler;
+        return self;
+    }
+}
+
+// ===== FLAG BUILDER =====
+
+impl Flag {
+    // Create a new flag
+    fn new(name: String) -> Flag {
+        return Flag {
+            name: name,
+            short: "",
+            description: "",
+            default_value: false,
+            required: false,
+        };
+    }
+    
+    // Set short flag
+    fn short(mut self, short: String) -> Flag {
+        self.short = short;
+        return self;
+    }
+    
+    // Set flag description
+    fn description(mut self, description: String) -> Flag {
+        self.description = description;
+        return self;
+    }
+    
+    // Set default value
+    fn default_value(mut self, default: Boolean) -> Flag {
+        self.default_value = default;
+        return self;
+    }
+    
+    // Make flag required
+    fn required(mut self) -> Flag {
+        self.required = true;
+        return self;
+    }
+}
+
+// ===== OPTION BUILDER =====
+
+impl Option {
+    // Create a new option
+    fn new(name: String) -> Option {
+        return Option {
+            name: name,
+            short: "",
+            description: "",
+            default_value: "",
+            required: false,
+            takes_value: true,
+            possible_values: Vec.new(),
+        };
+    }
+    
+    // Set short option
+    fn short(mut self, short: String) -> Option {
+        self.short = short;
+        return self;
+    }
+    
+    // Set option description
+    fn description(mut self, description: String) -> Option {
+        self.description = description;
+        return self;
+    }
+    
+    // Set default value
+    fn default_value(mut self, default: String) -> Option {
+        self.default_value = default;
+        return self;
+    }
+    
+    // Make option required
+    fn required(mut self) -> Option {
+        self.required = true;
+        return self;
+    }
+    
+    // Set whether option takes a value
+    fn takes_value(mut self, takes_value: Boolean) -> Option {
+        self.takes_value = takes_value;
+        return self;
+    }
+    
+    // Set possible values
+    fn possible_values(mut self, values: Vec<String>) -> Option {
+        self.possible_values = values;
+        return self;
+    }
+}
+
+// ===== ARGUMENT BUILDER =====
+
+impl Argument {
+    // Create a new argument
+    fn new(name: String, index: Number) -> Argument {
+        return Argument {
+            name: name,
+            description: "",
+            required: false,
+            multiple: false,
+            index: index,
+        };
+    }
+    
+    // Set argument description
+    fn description(mut self, description: String) -> Argument {
+        self.description = description;
+        return self;
+    }
+    
+    // Make argument required
+    fn required(mut self) -> Argument {
+        self.required = true;
+        return self;
+    }
+    
+    // Allow multiple values
+    fn multiple(mut self) -> Argument {
+        self.multiple = true;
+        return self;
+    }
+}
+
+// ===== ARGS HELPER METHODS =====
+
+impl Args {
+    // Check if flag is present
+    fn has_flag(self, name: String) -> Boolean {
+        return self.flags.contains_key(name) && self.flags.get(name).unwrap();
+    }
+    
+    // Get option value
+    fn get_option(self, name: String) -> Option<String> {
+        if self.options.contains_key(name) {
+            return some(self.options.get(name).unwrap());
+        } else {
+            return none();
+        }
+    }
+    
+    // Get option value with default
+    fn get_option_or(self, name: String, default: String) -> String {
+        mut value = self.get_option(name);
+        if value.is_some() {
+            return value.unwrap();
+        } else {
+            return default;
+        }
+    }
+    
+    // Get argument by index
+    fn get_argument(self, index: Number) -> Option<String> {
+        if index < self.arguments.len() {
+            return some(self.arguments.get(index).unwrap());
+        } else {
+            return none();
+        }
+    }
+    
+    // Get all arguments
+    fn get_arguments(self) -> Vec<String> {
+        return self.arguments;
+    }
+}
+
+// ===== UTILITY FUNCTIONS =====
+
+// Default command handler
+fn default_handler(context: CommandContext) -> Result<(), String> {
+    context.app.print_help();
+    return ok(());
+}
+
+// Default help template
+fn default_help_template() -> String {
+    return "{name} {version}\n{author}\n{description}\n\nUSAGE:\n    {name} [FLAGS] [OPTIONS] [SUBCOMMAND]\n\n{flags}{options}{commands}";
+}
+
+// Convert CLI error to string
+fn cli_error_to_string(error: CliError) -> String {
+    match error {
+        CliError.UnknownCommand(cmd) => "Unknown command: " + cmd,
+        CliError.UnknownFlag(flag) => "Unknown flag: " + flag,
+        CliError.UnknownOption(option) => "Unknown option: " + option,
+        CliError.MissingRequiredFlag(flag) => "Missing required flag: " + flag,
+        CliError.MissingRequiredOption(option) => "Missing required option: " + option,
+        CliError.MissingRequiredArgument(arg) => "Missing required argument: " + arg,
+        CliError.InvalidOptionValue(option, value) => "Invalid value for option " + option + ": " + value,
+        CliError.TooManyArguments => "Too many arguments provided",
+        CliError.TooFewArguments => "Too few arguments provided",
+        CliError.HelpRequested => "Help requested",
+        CliError.VersionRequested => "Version requested",
+    }
+}
+
+// Find flag by name
+fn find_flag(command: Command, global_flags: Vec<Flag>, name: String) -> Option<Flag> {
+    for flag in command.flags {
+        if flag.name == name {
+            return some(flag);
+        }
+    }
+    
+    for flag in global_flags {
+        if flag.name == name {
+            return some(flag);
+        }
+    }
+    
+    return none();
+}
+
+// Find flag by short name
+fn find_flag_by_short(command: Command, global_flags: Vec<Flag>, short: String) -> Option<Flag> {
+    for flag in command.flags {
+        if flag.short == short {
+            return some(flag);
+        }
+    }
+    
+    for flag in global_flags {
+        if flag.short == short {
+            return some(flag);
+        }
+    }
+    
+    return none();
+}
+
+// Find option by name
+fn find_option(command: Command, global_options: Vec<Option>, name: String) -> Option<Option> {
+    for option in command.options {
+        if option.name == name {
+            return some(option);
+        }
+    }
+    
+    for option in global_options {
+        if option.name == name {
+            return some(option);
+        }
+    }
+    
+    return none();
+}
+
+// Find option by short name
+fn find_option_by_short(command: Command, global_options: Vec<Option>, short: String) -> Option<Option> {
+    for option in command.options {
+        if option.short == short {
+            return some(option);
+        }
+    }
+    
+    for option in global_options {
+        if option.short == short {
+            return some(option);
+        }
+    }
+    
+    return none();
+}
+
+// Check if vector contains string
+fn contains_string(vec: Vec<String>, item: String) -> Boolean {
+    for element in vec {
+        if element == item {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Check if arguments have multiple flag
+fn has_multiple_arg(arguments: Vec<Argument>) -> Boolean {
+    for arg in arguments {
+        if arg.multiple {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ===== INTERACTIVE CLI UTILITIES =====
+
+// Prompt user for input
+fn prompt(message: String) -> Result<String, String> {
+    print(message);
+    return read_line();
+}
+
+// Prompt user for confirmation (y/n)
+fn confirm(message: String) -> Boolean {
+    while true {
+        mut response = prompt(message + " (y/n): ");
+        if response.is_err() {
+            continue;
+        }
+        
+        mut answer = to_lowercase(trim(response.unwrap()));
+        if answer == "y" || answer == "yes" {
+            return true;
+        } else if answer == "n" || answer == "no" {
+            return false;
+        } else {
+            println("Please enter 'y' or 'n'");
+        }
+    }
+}
+
+// Select from multiple options
+fn select(message: String, options: Vec<String>) -> Result<Number, String> {
+    println(message);
+    
+    for i in 0..options.len() {
+        println("  " + number_to_string(i + 1) + ") " + options.get(i).unwrap());
+    }
+    
+    while true {
+        mut response = prompt("Select option (1-" + number_to_string(options.len()) + "): ");
+        if response.is_err() {
+            continue;
+        }
+        
+        mut input = trim(response.unwrap());
+        mut choice = string_to_number(input);
+        
+        if choice.is_some() {
+            mut num = choice.unwrap();
+            if num >= 1 && num <= options.len() {
+                return ok(num - 1);
+            }
+        }
+        
+        println("Please enter a number between 1 and " + number_to_string(options.len()));
+    }
+}
+
+// Progress bar for long-running operations
+struct ProgressBar {
+    total: Number,
+    current: Number,
+    width: Number,
+    message: String,
+}
+
+impl ProgressBar {
+    // Create a new progress bar
+    fn new(total: Number) -> ProgressBar {
+        return ProgressBar {
+            total: total,
+            current: 0,
+            width: 50,
+            message: "",
+        };
+    }
+    
+    // Set progress bar message
+    fn message(mut self, message: String) -> ProgressBar {
+        self.message = message;
+        return self;
+    }
+    
+    // Set progress bar width
+    fn width(mut self, width: Number) -> ProgressBar {
+        self.width = width;
+        return self;
+    }
+    
+    // Update progress
+    fn update(mut self, current: Number) {
+        self.current = current;
+        self.render();
+    }
+    
+    // Increment progress
+    fn increment(mut self) {
+        self.current = self.current + 1;
+        self.render();
+    }
+    
+    // Finish progress bar
+    fn finish(mut self) {
+        self.current = self.total;
+        self.render();
+        println("");
+    }
+    
+    // Render progress bar
+    fn render(self) {
+        mut percentage = if self.total > 0 { (self.current / self.total) * 100 } else { 0 };
+        mut filled = truncate((self.current / self.total) * self.width);
+        mut empty = self.width - filled;
+        
+        mut bar = "[";
+        for i in 0..filled {
+            bar = bar + "=";
+        }
+        for i in 0..empty {
+            bar = bar + " ";
+        }
+        bar = bar + "]";
+        
+        mut output = "\r" + self.message + " " + bar + " " + 
+                    number_to_string(truncate(percentage)) + "% (" + 
+                    number_to_string(self.current) + "/" + number_to_string(self.total) + ")";
+        
+        print(output);
+    }
+}
+
+// ===== BUILT-IN FUNCTION DECLARATIONS =====
+// These functions are implemented by the runtime or other modules
+
+fn starts_with(text: String, prefix: String) -> Boolean;
+fn substring(text: String, start: Number, end: Number) -> String;
+fn length(text: String) -> Number;
+fn contains(text: String, pattern: String) -> Boolean;
+fn replace_all(text: String, from: String, to: String) -> String;
+fn split_string(text: String, delimiter: String) -> Vec<String>;
+fn char_at(text: String, index: Number) -> String;
+fn to_lowercase(text: String) -> String;
+fn trim(text: String) -> String;
+fn number_to_string(num: Number) -> String;
+fn string_to_number(text: String) -> Option<Number>;
+fn truncate(x: Number) -> Number;

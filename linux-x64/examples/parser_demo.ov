@@ -1,0 +1,407 @@
+// Basic parser example - Self-hosting progression
+// Key concepts: parsing, AST construction, tokenization, language implementation
+
+// Token types for a simple expression language
+enum TokenType {
+    Number,
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    LeftParen,
+    RightParen,
+    EOF,
+    Invalid,
+}
+
+// Token structure
+struct Token {
+    token_type: TokenType,
+    value: string,
+    position: u32,
+}
+
+// AST node types
+enum ASTNode {
+    Number(f64),
+    BinaryOp(Box<ASTNode>, BinaryOperator, Box<ASTNode>),
+    UnaryOp(UnaryOperator, Box<ASTNode>),
+}
+
+enum BinaryOperator {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+}
+
+enum UnaryOperator {
+    Plus,
+    Minus,
+}
+
+// Parser structure
+struct Parser {
+    tokens: [Token],
+    current_position: mut u32,
+    current_token: mut Token,
+}
+
+// Lexer functions
+fn is_digit(ch: char) -> bool {
+    return ch >= '0' && ch <= '9'
+}
+
+fn is_whitespace(ch: char) -> bool {
+    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
+}
+
+fn tokenize(input: string) -> [Token] {
+    mut tokens = []
+    mut position = 0
+    mut chars = input.chars()
+    
+    while position < chars.length() {
+        mut ch = chars[position]
+        
+        // Skip whitespace
+        if is_whitespace(ch) {
+            position = position + 1
+            continue
+        }
+        
+        // Numbers
+        if is_digit(ch) {
+            mut number_str = ""
+            mut start_pos = position
+            
+            while position < chars.length() && (is_digit(chars[position]) || chars[position] == '.') {
+                number_str = number_str + chars[position]
+                position = position + 1
+            }
+            
+            mut token = Token {
+                token_type: TokenType.Number,
+                value: number_str,
+                position: start_pos,
+            }
+            tokens.push(token)
+            continue
+        }
+        
+        // Operators and punctuation
+        mut token_type = match ch {
+            '+' => TokenType.Plus,
+            '-' => TokenType.Minus,
+            '*' => TokenType.Multiply,
+            '/' => TokenType.Divide,
+            '(' => TokenType.LeftParen,
+            ')' => TokenType.RightParen,
+            _ => TokenType.Invalid,
+        }
+        
+        mut token = Token {
+            token_type: token_type,
+            value: ch.to_string(),
+            position: position,
+        }
+        tokens.push(token)
+        position = position + 1
+    }
+    
+    // Add EOF token
+    mut eof_token = Token {
+        token_type: TokenType.EOF,
+        value: "",
+        position: position,
+    }
+    tokens.push(eof_token)
+    
+    return tokens
+}
+
+// Parser functions
+fn create_parser(tokens: [Token]) -> Parser {
+    mut first_token = if tokens.length() > 0 { tokens[0] } else { 
+        Token { token_type: TokenType.EOF, value: "", position: 0 }
+    }
+    
+    return Parser {
+        tokens: tokens,
+        current_position: 0,
+        current_token: first_token,
+    }
+}
+
+fn advance_parser(parser: mut Parser) {
+    if parser.current_position < parser.tokens.length() - 1 {
+        parser.current_position = parser.current_position + 1
+        parser.current_token = parser.tokens[parser.current_position]
+    }
+}
+
+fn peek_token(parser: Parser) -> Token {
+    if parser.current_position + 1 < parser.tokens.length() {
+        return parser.tokens[parser.current_position + 1]
+    }
+    return Token { token_type: TokenType.EOF, value: "", position: 0 }
+}
+
+// Recursive descent parser implementation
+fn parse_expression(parser: mut Parser) -> Result<ASTNode, string> {
+    return parse_addition(parser)
+}
+
+fn parse_addition(parser: mut Parser) -> Result<ASTNode, string> {
+    mut left_result = parse_multiplication(parser)
+    match left_result {
+        Result.Error(message) => return Result.Error(message),
+        Result.Ok(left) => {
+            while parser.current_token.token_type == TokenType.Plus || 
+                  parser.current_token.token_type == TokenType.Minus {
+                
+                mut operator = if parser.current_token.token_type == TokenType.Plus {
+                    BinaryOperator.Add
+                } else {
+                    BinaryOperator.Subtract
+                }
+                
+                advance_parser(parser)
+                
+                mut right_result = parse_multiplication(parser)
+                match right_result {
+                    Result.Error(message) => return Result.Error(message),
+                    Result.Ok(right) => {
+                        left = ASTNode.BinaryOp(Box.new(left), operator, Box.new(right))
+                    },
+                }
+            }
+            
+            return Result.Ok(left)
+        },
+    }
+}
+
+fn parse_multiplication(parser: mut Parser) -> Result<ASTNode, string> {
+    mut left_result = parse_factor(parser)
+    match left_result {
+        Result.Error(message) => return Result.Error(message),
+        Result.Ok(left) => {
+            while parser.current_token.token_type == TokenType.Multiply || 
+                  parser.current_token.token_type == TokenType.Divide {
+                
+                mut operator = if parser.current_token.token_type == TokenType.Multiply {
+                    BinaryOperator.Multiply
+                } else {
+                    BinaryOperator.Divide
+                }
+                
+                advance_parser(parser)
+                
+                mut right_result = parse_factor(parser)
+                match right_result {
+                    Result.Error(message) => return Result.Error(message),
+                    Result.Ok(right) => {
+                        left = ASTNode.BinaryOp(Box.new(left), operator, Box.new(right))
+                    },
+                }
+            }
+            
+            return Result.Ok(left)
+        },
+    }
+}
+
+fn parse_factor(parser: mut Parser) -> Result<ASTNode, string> {
+    match parser.current_token.token_type {
+        TokenType.Number => {
+            mut value = parser.current_token.value.parse_float()
+            advance_parser(parser)
+            return Result.Ok(ASTNode.Number(value))
+        },
+        TokenType.Plus => {
+            advance_parser(parser)
+            mut operand_result = parse_factor(parser)
+            match operand_result {
+                Result.Error(message) => return Result.Error(message),
+                Result.Ok(operand) => return Result.Ok(ASTNode.UnaryOp(UnaryOperator.Plus, Box.new(operand))),
+            }
+        },
+        TokenType.Minus => {
+            advance_parser(parser)
+            mut operand_result = parse_factor(parser)
+            match operand_result {
+                Result.Error(message) => return Result.Error(message),
+                Result.Ok(operand) => return Result.Ok(ASTNode.UnaryOp(UnaryOperator.Minus, Box.new(operand))),
+            }
+        },
+        TokenType.LeftParen => {
+            advance_parser(parser)  // consume '('
+            mut expr_result = parse_expression(parser)
+            match expr_result {
+                Result.Error(message) => return Result.Error(message),
+                Result.Ok(expr) => {
+                    if parser.current_token.token_type != TokenType.RightParen {
+                        return Result.Error("Expected ')' after expression")
+                    }
+                    advance_parser(parser)  // consume ')'
+                    return Result.Ok(expr)
+                },
+            }
+        },
+        _ => {
+            return Result.Error("Unexpected token: " + parser.current_token.value)
+        },
+    }
+}
+
+// AST evaluation
+fn evaluate_ast(node: ASTNode) -> Result<f64, string> {
+    match node {
+        ASTNode.Number(value) => return Result.Ok(value),
+        ASTNode.BinaryOp(left, operator, right) => {
+            mut left_result = evaluate_ast(*left)
+            mut right_result = evaluate_ast(*right)
+            
+            match left_result {
+                Result.Error(message) => return Result.Error(message),
+                Result.Ok(left_val) => {
+                    match right_result {
+                        Result.Error(message) => return Result.Error(message),
+                        Result.Ok(right_val) => {
+                            match operator {
+                                BinaryOperator.Add => return Result.Ok(left_val + right_val),
+                                BinaryOperator.Subtract => return Result.Ok(left_val - right_val),
+                                BinaryOperator.Multiply => return Result.Ok(left_val * right_val),
+                                BinaryOperator.Divide => {
+                                    if right_val == 0.0 {
+                                        return Result.Error("Division by zero")
+                                    }
+                                    return Result.Ok(left_val / right_val)
+                                },
+                            }
+                        },
+                    }
+                },
+            }
+        },
+        ASTNode.UnaryOp(operator, operand) => {
+            mut operand_result = evaluate_ast(*operand)
+            match operand_result {
+                Result.Error(message) => return Result.Error(message),
+                Result.Ok(value) => {
+                    match operator {
+                        UnaryOperator.Plus => return Result.Ok(value),
+                        UnaryOperator.Minus => return Result.Ok(-value),
+                    }
+                },
+            }
+        },
+    }
+}
+
+// Pretty print AST
+fn print_ast(node: ASTNode, indent: u32) {
+    mut indent_str = ""
+    for i in 0..indent {
+        indent_str = indent_str + "  "
+    }
+    
+    match node {
+        ASTNode.Number(value) => {
+            seeAm indent_str + "Number: " + value
+        },
+        ASTNode.BinaryOp(left, operator, right) => {
+            mut op_str = match operator {
+                BinaryOperator.Add => "+",
+                BinaryOperator.Subtract => "-",
+                BinaryOperator.Multiply => "*",
+                BinaryOperator.Divide => "/",
+            }
+            seeAm indent_str + "BinaryOp: " + op_str
+            print_ast(*left, indent + 1)
+            print_ast(*right, indent + 1)
+        },
+        ASTNode.UnaryOp(operator, operand) => {
+            mut op_str = match operator {
+                UnaryOperator.Plus => "+",
+                UnaryOperator.Minus => "-",
+            }
+            seeAm indent_str + "UnaryOp: " + op_str
+            print_ast(*operand, indent + 1)
+        },
+    }
+}
+
+// Main parsing function
+fn parse_and_evaluate(input: string) -> Result<f64, string> {
+    seeAm "Parsing expression: " + input
+    
+    // Tokenize
+    mut tokens = tokenize(input)
+    seeAm "Tokens generated: " + tokens.length()
+    
+    // Create parser
+    mut parser = create_parser(tokens)
+    
+    // Parse
+    mut ast_result = parse_expression(parser)
+    match ast_result {
+        Result.Error(message) => return Result.Error("Parse error: " + message),
+        Result.Ok(ast) => {
+            seeAm "AST structure:"
+            print_ast(ast, 0)
+            
+            // Evaluate
+            mut eval_result = evaluate_ast(ast)
+            match eval_result {
+                Result.Error(message) => return Result.Error("Evaluation error: " + message),
+                Result.Ok(value) => {
+                    seeAm "Result: " + value
+                    return Result.Ok(value)
+                },
+            }
+        },
+    }
+}
+
+fn main() {
+    seeAm "=== Simple Expression Parser Demo ==="
+    seeAm "Demonstrates basic parsing concepts for self-hosting"
+    seeAm ""
+    
+    // Test expressions
+    mut test_expressions = [
+        "42",
+        "3 + 4",
+        "10 - 5",
+        "6 * 7",
+        "20 / 4",
+        "2 + 3 * 4",
+        "(2 + 3) * 4",
+        "-5 + 3",
+        "10 + -2 * 3",
+        "((1 + 2) * 3) + 4",
+        "100 / (5 + 5)",
+    ]
+    
+    for expression in test_expressions {
+        seeAm "=" * 50
+        mut result = parse_and_evaluate(expression)
+        match result {
+            Result.Ok(value) => seeAm "✓ Final result: " + value,
+            Result.Error(message) => seeAm "✗ Error: " + message,
+        }
+        seeAm ""
+    }
+    
+    seeAm "Parser demo complete!"
+    seeAm ""
+    seeAm "This example demonstrates:"
+    seeAm "- Tokenization (lexical analysis)"
+    seeAm "- Recursive descent parsing"
+    seeAm "- AST (Abstract Syntax Tree) construction"
+    seeAm "- AST evaluation"
+    seeAm "- Error handling in parsing"
+    seeAm "- Foundation concepts for self-hosting compilers"
+}

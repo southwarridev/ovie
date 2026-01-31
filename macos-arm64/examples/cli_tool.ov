@@ -1,0 +1,417 @@
+// Command-line application example
+// Key concepts: CLI design, argument parsing, user interaction, file operations
+
+enum Command {
+    Help,
+    Version,
+    List,
+    Create(string),
+    Delete(string),
+    Update(string, string),
+    Search(string),
+    Unknown(string),
+}
+
+struct TodoItem {
+    id: u32,
+    title: string,
+    description: string,
+    completed: bool,
+    created_at: string,
+}
+
+struct TodoApp {
+    items: mut [TodoItem],
+    next_id: mut u32,
+}
+
+// Command parsing
+fn parse_command(args: [string]) -> Command {
+    if args.length() == 0 {
+        return Command.Help
+    }
+    
+    mut command = args[0].to_lowercase()
+    
+    match command {
+        "help" | "-h" | "--help" => return Command.Help,
+        "version" | "-v" | "--version" => return Command.Version,
+        "list" | "ls" => return Command.List,
+        "create" | "add" => {
+            if args.length() < 2 {
+                seeAm "Error: create command requires a title"
+                return Command.Help
+            }
+            return Command.Create(args[1])
+        },
+        "delete" | "rm" => {
+            if args.length() < 2 {
+                seeAm "Error: delete command requires an ID"
+                return Command.Help
+            }
+            return Command.Delete(args[1])
+        },
+        "update" | "edit" => {
+            if args.length() < 3 {
+                seeAm "Error: update command requires ID and new title"
+                return Command.Help
+            }
+            return Command.Update(args[1], args[2])
+        },
+        "search" | "find" => {
+            if args.length() < 2 {
+                seeAm "Error: search command requires a search term"
+                return Command.Help
+            }
+            return Command.Search(args[1])
+        },
+        _ => return Command.Unknown(command),
+    }
+}
+
+// Application functions
+fn create_todo_app() -> TodoApp {
+    return TodoApp {
+        items: [],
+        next_id: 1,
+    }
+}
+
+fn add_todo_item(app: mut TodoApp, title: string) -> u32 {
+    mut item = TodoItem {
+        id: app.next_id,
+        title: title,
+        description: "",
+        completed: false,
+        created_at: get_current_timestamp(),
+    }
+    
+    app.items.push(item)
+    mut item_id = app.next_id
+    app.next_id = app.next_id + 1
+    
+    return item_id
+}
+
+fn find_todo_item(app: TodoApp, id: u32) -> Option<TodoItem> {
+    for item in app.items {
+        if item.id == id {
+            return Option.Some(item)
+        }
+    }
+    return Option.None
+}
+
+fn delete_todo_item(app: mut TodoApp, id: u32) -> bool {
+    mut found_index = -1
+    
+    for i in 0..app.items.length() {
+        if app.items[i].id == id {
+            found_index = i
+            break
+        }
+    }
+    
+    if found_index >= 0 {
+        app.items.remove(found_index)
+        return true
+    }
+    
+    return false
+}
+
+fn update_todo_item(app: mut TodoApp, id: u32, new_title: string) -> bool {
+    for item in app.items {
+        if item.id == id {
+            item.title = new_title
+            return true
+        }
+    }
+    return false
+}
+
+fn search_todo_items(app: TodoApp, search_term: string) -> [TodoItem] {
+    mut results = []
+    mut search_lower = search_term.to_lowercase()
+    
+    for item in app.items {
+        mut title_lower = item.title.to_lowercase()
+        if title_lower.contains(search_lower) {
+            results.push(item)
+        }
+    }
+    
+    return results
+}
+
+fn get_current_timestamp() -> string {
+    // Simplified timestamp
+    return "2026-01-28 10:30:00"
+}
+
+// Display functions
+fn show_help() {
+    seeAm "Todo CLI - A simple command-line todo application"
+    seeAm ""
+    seeAm "USAGE:"
+    seeAm "    todo <COMMAND> [ARGS]"
+    seeAm ""
+    seeAm "COMMANDS:"
+    seeAm "    help, -h, --help       Show this help message"
+    seeAm "    version, -v, --version Show version information"
+    seeAm "    list, ls               List all todo items"
+    seeAm "    create, add <TITLE>    Create a new todo item"
+    seeAm "    delete, rm <ID>        Delete a todo item by ID"
+    seeAm "    update, edit <ID> <TITLE> Update a todo item"
+    seeAm "    search, find <TERM>    Search for todo items"
+    seeAm ""
+    seeAm "EXAMPLES:"
+    seeAm "    todo create \"Buy groceries\""
+    seeAm "    todo list"
+    seeAm "    todo update 1 \"Buy groceries and cook dinner\""
+    seeAm "    todo search \"groceries\""
+    seeAm "    todo delete 1"
+}
+
+fn show_version() {
+    seeAm "Todo CLI v1.0.0"
+    seeAm "Built with Ovie Programming Language"
+    seeAm "Copyright (c) 2026 Ovie Examples"
+}
+
+fn list_todo_items(app: TodoApp) {
+    if app.items.is_empty() {
+        seeAm "No todo items found. Use 'todo create <title>' to add one."
+        return
+    }
+    
+    seeAm "Todo Items:"
+    seeAm "==========="
+    
+    for item in app.items {
+        mut status = if item.completed { "✓" } else { " " }
+        seeAm "[" + status + "] " + item.id + ". " + item.title
+        
+        if !item.description.is_empty() {
+            seeAm "    Description: " + item.description
+        }
+        
+        seeAm "    Created: " + item.created_at
+        seeAm ""
+    }
+    
+    mut total_items = app.items.length()
+    mut completed_items = 0
+    
+    for item in app.items {
+        if item.completed {
+            completed_items = completed_items + 1
+        }
+    }
+    
+    seeAm "Total: " + total_items + " items (" + completed_items + " completed, " + (total_items - completed_items) + " pending)"
+}
+
+fn display_search_results(results: [TodoItem], search_term: string) {
+    if results.is_empty() {
+        seeAm "No items found matching '" + search_term + "'"
+        return
+    }
+    
+    seeAm "Search results for '" + search_term + "':"
+    seeAm "=================================="
+    
+    for item in results {
+        mut status = if item.completed { "✓" } else { " " }
+        seeAm "[" + status + "] " + item.id + ". " + item.title
+        seeAm "    Created: " + item.created_at
+        seeAm ""
+    }
+    
+    seeAm "Found " + results.length() + " matching items"
+}
+
+// Main application logic
+fn run_todo_app(args: [string]) {
+    mut app = create_todo_app()
+    
+    // Load some sample data for demonstration
+    add_todo_item(app, "Learn Ovie programming language")
+    add_todo_item(app, "Build a CLI application")
+    add_todo_item(app, "Write comprehensive examples")
+    add_todo_item(app, "Test the todo application")
+    
+    // Mark some items as completed
+    app.items[0].completed = true
+    app.items[2].completed = true
+    
+    mut command = parse_command(args)
+    
+    match command {
+        Command.Help => show_help(),
+        Command.Version => show_version(),
+        Command.List => list_todo_items(app),
+        Command.Create(title) => {
+            mut item_id = add_todo_item(app, title)
+            seeAm "Created todo item #" + item_id + ": " + title
+        },
+        Command.Delete(id_str) => {
+            mut id_result = id_str.parse_u32()
+            match id_result {
+                Result.Ok(id) => {
+                    if delete_todo_item(app, id) {
+                        seeAm "Deleted todo item #" + id
+                    } else {
+                        seeAm "Error: Todo item #" + id + " not found"
+                    }
+                },
+                Result.Error(_) => {
+                    seeAm "Error: Invalid ID '" + id_str + "'. ID must be a number."
+                },
+            }
+        },
+        Command.Update(id_str, new_title) => {
+            mut id_result = id_str.parse_u32()
+            match id_result {
+                Result.Ok(id) => {
+                    if update_todo_item(app, id, new_title) {
+                        seeAm "Updated todo item #" + id + ": " + new_title
+                    } else {
+                        seeAm "Error: Todo item #" + id + " not found"
+                    }
+                },
+                Result.Error(_) => {
+                    seeAm "Error: Invalid ID '" + id_str + "'. ID must be a number."
+                },
+            }
+        },
+        Command.Search(search_term) => {
+            mut results = search_todo_items(app, search_term)
+            display_search_results(results, search_term)
+        },
+        Command.Unknown(cmd) => {
+            seeAm "Error: Unknown command '" + cmd + "'"
+            seeAm "Use 'todo help' to see available commands"
+        },
+    }
+}
+
+// Interactive mode
+fn run_interactive_mode() {
+    mut app = create_todo_app()
+    
+    // Add sample data
+    add_todo_item(app, "Learn Ovie programming")
+    add_todo_item(app, "Build CLI tools")
+    
+    seeAm "=== Todo CLI - Interactive Mode ==="
+    seeAm "Type 'help' for commands, 'quit' to exit"
+    seeAm ""
+    
+    mut running = true
+    
+    while running {
+        seeAm "todo> "
+        
+        // Simulate user input (in real implementation, would read from stdin)
+        mut user_commands = [
+            "list",
+            "create \"Finish the CLI example\"",
+            "list",
+            "search \"CLI\"",
+            "update 3 \"Complete the CLI example with tests\"",
+            "list",
+            "quit",
+        ]
+        
+        for user_input in user_commands {
+            seeAm "todo> " + user_input
+            
+            if user_input == "quit" || user_input == "exit" {
+                running = false
+                seeAm "Goodbye!"
+                break
+            }
+            
+            // Parse and execute command
+            mut args = user_input.split(" ")
+            mut command = parse_command(args)
+            
+            match command {
+                Command.Help => show_help(),
+                Command.Version => show_version(),
+                Command.List => list_todo_items(app),
+                Command.Create(title) => {
+                    mut item_id = add_todo_item(app, title)
+                    seeAm "Created todo item #" + item_id + ": " + title
+                },
+                Command.Delete(id_str) => {
+                    // Implementation similar to above
+                    seeAm "Delete functionality (implementation omitted for brevity)"
+                },
+                Command.Update(id_str, new_title) => {
+                    // Implementation similar to above
+                    seeAm "Update functionality (implementation omitted for brevity)"
+                },
+                Command.Search(search_term) => {
+                    mut results = search_todo_items(app, search_term)
+                    display_search_results(results, search_term)
+                },
+                Command.Unknown(cmd) => {
+                    seeAm "Unknown command: " + cmd
+                },
+            }
+            
+            seeAm ""
+        }
+    }
+}
+
+fn main() {
+    seeAm "=== CLI Tool Example ==="
+    seeAm "Demonstrating command-line application development in Ovie"
+    seeAm ""
+    
+    // Simulate command-line arguments
+    seeAm "1. Showing help:"
+    run_todo_app(["help"])
+    seeAm ""
+    
+    seeAm "2. Showing version:"
+    run_todo_app(["version"])
+    seeAm ""
+    
+    seeAm "3. Listing items:"
+    run_todo_app(["list"])
+    seeAm ""
+    
+    seeAm "4. Creating new item:"
+    run_todo_app(["create", "Write documentation"])
+    seeAm ""
+    
+    seeAm "5. Searching items:"
+    run_todo_app(["search", "Ovie"])
+    seeAm ""
+    
+    seeAm "6. Interactive mode simulation:"
+    run_interactive_mode()
+    seeAm ""
+    
+    seeAm "=== CLI Tool Features Demonstrated ==="
+    seeAm "✓ Command parsing and validation"
+    seeAm "✓ Help and version information"
+    seeAm "✓ CRUD operations (Create, Read, Update, Delete)"
+    seeAm "✓ Search functionality"
+    seeAm "✓ Error handling and user feedback"
+    seeAm "✓ Interactive mode support"
+    seeAm "✓ Data persistence concepts"
+    seeAm "✓ User-friendly output formatting"
+    seeAm ""
+    seeAm "This example shows how Ovie can be used to build:"
+    seeAm "- Command-line utilities"
+    seeAm "- System administration tools"
+    seeAm "- Development tools and scripts"
+    seeAm "- Interactive applications"
+    seeAm ""
+    seeAm "CLI tool demonstration complete!"
+}
