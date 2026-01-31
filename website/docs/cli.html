@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLI Reference - Ovie Programming Language</title>
+    <link rel="icon" type="image/png" href="../assets/ovie.png">
+    <link rel="stylesheet" href="../assets/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .doc-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 120px var(--spacing-lg) var(--spacing-3xl);
+        }
+        
+        .doc-header {
+            text-align: center;
+            margin-bottom: var(--spacing-3xl);
+        }
+        
+        .doc-content {
+            line-height: 1.8;
+        }
+        
+        .doc-content h2 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-xl);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--border-primary);
+        }
+        
+        .doc-content h3 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .doc-content p {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .doc-content code {
+            background: var(--bg-code);
+            color: var(--brand-primary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+        }
+        
+        .doc-content pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            overflow-x: auto;
+            margin: var(--spacing-md) 0;
+        }
+        
+        .doc-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+        
+        .command-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            margin: var(--spacing-lg) 0;
+            overflow: hidden;
+        }
+        
+        .command-header {
+            background: var(--bg-secondary);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .command-name {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+        
+        .command-category {
+            background: var(--brand-gradient);
+            color: white;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .command-content {
+            padding: var(--spacing-lg);
+        }
+        
+        .command-description {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .command-usage {
+            background: var(--bg-code);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            margin: var(--spacing-md) 0;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+        
+        .options-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: var(--spacing-md) 0;
+        }
+        
+        .options-table th,
+        .options-table td {
+            padding: var(--spacing-sm) var(--spacing-md);
+            text-align: left;
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .options-table th {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .options-table td {
+            color: var(--text-secondary);
+        }
+        
+        .options-table code {
+            background: var(--bg-tertiary);
+            color: var(--brand-primary);
+            padding: var(--spacing-xs);
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+        }
+        
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .info-box h4 {
+            color: var(--brand-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .success-box {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .success-box h4 {
+            color: var(--success);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .workflow-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .workflow-step {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            text-align: center;
+        }
+        
+        .step-number {
+            background: var(--brand-gradient);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-sm);
+            font-weight: 600;
+        }
+        
+        .workflow-step h4 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .workflow-step p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="../index.html">
+                    <img src="../assets/ovie.png" alt="Ovie" class="nav-logo">
+                </a>
+                <span class="nav-title">Ovie</span>
+                <span class="nav-badge">Self-Hosted</span>
+            </div>
+            <div class="nav-menu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="../index.html#features" class="nav-link">Features</a>
+                <a href="../index.html#download" class="nav-link">Download</a>
+                <a href="../index.html#docs" class="nav-link">Documentation</a>
+                <a href="../index.html#examples" class="nav-link">Examples</a>
+            </div>
+            <div class="nav-actions">
+                <a href="../index.html#download" class="btn btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="doc-container">
+        <div class="doc-header">
+            <img src="../assets/ovie.png" alt="Ovie" width="80" height="80" style="margin-bottom: var(--spacing-md); border-radius: var(--radius-lg);">
+            <h1>CLI Reference</h1>
+            <p class="section-subtitle">Complete guide to Ovie command-line tools</p>
+        </div>
+
+        <div class="doc-content">
+            <div class="success-box">
+                <h4>🏆 Self-Hosted CLI!</h4>
+                <p>The Ovie CLI tools are powered by the self-hosted compiler - a compiler written in Ovie itself!</p>
+            </div>
+
+            <h2>Overview</h2>
+            
+            <p>The Ovie CLI provides a comprehensive set of tools for developing, building, testing, and managing Ovie projects. All commands are designed to be intuitive and follow consistent patterns.</p>
+
+            <div class="info-box">
+                <h4>💡 Getting Help</h4>
+                <p>Use <code>ovie --help</code> or <code>ovie &lt;command&gt; --help</code> to get detailed information about any command.</p>
+            </div>
+
+            <h2>Basic Commands</h2>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie --version</span>
+                    <span class="command-category">Info</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Display the Ovie version and build information.</p>
+                    <div class="command-usage">ovie --version</div>
+                    <p><strong>Example output:</strong></p>
+                    <pre><code>Ovie Programming Language v1.0.0
+Self-hosted compiler (written in Ovie)
+Build: 2026-01-30
+Target: x86_64-unknown-linux-gnu</code></pre>
+                </div>
+            </div>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie --help</span>
+                    <span class="command-category">Info</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Show help information and available commands.</p>
+                    <div class="command-usage">ovie --help</div>
+                </div>
+            </div>
+
+            <h2>Project Management</h2>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie new</span>
+                    <span class="command-category">Project</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Create a new Ovie project with the standard directory structure.</p>
+                    <div class="command-usage">ovie new &lt;project-name&gt; [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                                <th>Default</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--template &lt;name&gt;</code></td>
+                                <td>Use a specific project template</td>
+                                <td>basic</td>
+                            </tr>
+                            <tr>
+                                <td><code>--lib</code></td>
+                                <td>Create a library project</td>
+                                <td>false</td>
+                            </tr>
+                            <tr>
+                                <td><code>--bin</code></td>
+                                <td>Create a binary project</td>
+                                <td>true</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <p><strong>Examples:</strong></p>
+                    <pre><code>ovie new my-app
+ovie new my-lib --lib
+ovie new web-server --template web</code></pre>
+                </div>
+            </div>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie init</span>
+                    <span class="command-category">Project</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Initialize an Ovie project in the current directory.</p>
+                    <div class="command-usage">ovie init [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--name &lt;name&gt;</code></td>
+                                <td>Set the project name</td>
+                            </tr>
+                            <tr>
+                                <td><code>--force</code></td>
+                                <td>Overwrite existing files</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h2>Building and Running</h2>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie run</span>
+                    <span class="command-category">Execute</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Compile and run an Ovie program or project.</p>
+                    <div class="command-usage">ovie run [file] [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--release</code></td>
+                                <td>Build in release mode (optimized)</td>
+                            </tr>
+                            <tr>
+                                <td><code>--target &lt;target&gt;</code></td>
+                                <td>Specify compilation target</td>
+                            </tr>
+                            <tr>
+                                <td><code>--args &lt;args&gt;</code></td>
+                                <td>Pass arguments to the program</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <p><strong>Examples:</strong></p>
+                    <pre><code>ovie run                    # Run current project
+ovie run main.ov           # Run specific file
+ovie run --release         # Run optimized build
+ovie run --args "arg1 arg2" # Pass arguments</code></pre>
+                </div>
+            </div>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie build</span>
+                    <span class="command-category">Build</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Compile an Ovie project without running it.</p>
+                    <div class="command-usage">ovie build [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--release</code></td>
+                                <td>Build in release mode</td>
+                            </tr>
+                            <tr>
+                                <td><code>--target &lt;target&gt;</code></td>
+                                <td>Compilation target</td>
+                            </tr>
+                            <tr>
+                                <td><code>--output &lt;path&gt;</code></td>
+                                <td>Output file path</td>
+                            </tr>
+                            <tr>
+                                <td><code>--verbose</code></td>
+                                <td>Verbose compilation output</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie check</span>
+                    <span class="command-category">Validate</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Check code for errors without building.</p>
+                    <div class="command-usage">ovie check [file] [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--all</code></td>
+                                <td>Check all files in project</td>
+                            </tr>
+                            <tr>
+                                <td><code>--json</code></td>
+                                <td>Output results in JSON format</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h2>Testing</h2>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie test</span>
+                    <span class="command-category">Test</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Run tests for the current project.</p>
+                    <div class="command-usage">ovie test [pattern] [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--release</code></td>
+                                <td>Run tests in release mode</td>
+                            </tr>
+                            <tr>
+                                <td><code>--verbose</code></td>
+                                <td>Show detailed test output</td>
+                            </tr>
+                            <tr>
+                                <td><code>--parallel</code></td>
+                                <td>Run tests in parallel</td>
+                            </tr>
+                            <tr>
+                                <td><code>--coverage</code></td>
+                                <td>Generate code coverage report</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <p><strong>Examples:</strong></p>
+                    <pre><code>ovie test                  # Run all tests
+ovie test math             # Run tests matching "math"
+ovie test --coverage       # Run with coverage report</code></pre>
+                </div>
+            </div>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie bench</span>
+                    <span class="command-category">Test</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Run benchmark tests.</p>
+                    <div class="command-usage">ovie bench [pattern] [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--save-baseline</code></td>
+                                <td>Save results as baseline</td>
+                            </tr>
+                            <tr>
+                                <td><code>--compare</code></td>
+                                <td>Compare with baseline</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h2>Code Quality</h2>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie fmt</span>
+                    <span class="command-category">Format</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Format Ovie source code according to style guidelines.</p>
+                    <div class="command-usage">ovie fmt [files] [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--check</code></td>
+                                <td>Check if files are formatted</td>
+                            </tr>
+                            <tr>
+                                <td><code>--diff</code></td>
+                                <td>Show formatting differences</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie lint</span>
+                    <span class="command-category">Quality</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Run the Aproko code assistant for style and quality checks.</p>
+                    <div class="command-usage">ovie lint [files] [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--fix</code></td>
+                                <td>Automatically fix issues</td>
+                            </tr>
+                            <tr>
+                                <td><code>--strict</code></td>
+                                <td>Enable strict mode</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h2>Package Management</h2>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie add</span>
+                    <span class="command-category">Package</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Add a dependency to the current project.</p>
+                    <div class="command-usage">ovie add &lt;package&gt; [options]</div>
+                    
+                    <table class="options-table">
+                        <thead>
+                            <tr>
+                                <th>Option</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>--dev</code></td>
+                                <td>Add as development dependency</td>
+                            </tr>
+                            <tr>
+                                <td><code>--version &lt;ver&gt;</code></td>
+                                <td>Specify package version</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie remove</span>
+                    <span class="command-category">Package</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Remove a dependency from the current project.</p>
+                    <div class="command-usage">ovie remove &lt;package&gt;</div>
+                </div>
+            </div>
+
+            <div class="command-section">
+                <div class="command-header">
+                    <span class="command-name">ovie update</span>
+                    <span class="command-category">Package</span>
+                </div>
+                <div class="command-content">
+                    <p class="command-description">Update project dependencies.</p>
+                    <div class="command-usage">ovie update [package]</div>
+                </div>
+            </div>
+
+            <h2>Development Workflow</h2>
+            
+            <p>Here's a typical development workflow using the Ovie CLI:</p>
+
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-number">1</div>
+                    <h4>Create Project</h4>
+                    <p><code>ovie new my-app</code></p>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">2</div>
+                    <h4>Write Code</h4>
+                    <p>Edit <code>src/main.ov</code></p>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">3</div>
+                    <h4>Check Code</h4>
+                    <p><code>ovie check</code></p>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">4</div>
+                    <h4>Run Tests</h4>
+                    <p><code>ovie test</code></p>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">5</div>
+                    <h4>Format Code</h4>
+                    <p><code>ovie fmt</code></p>
+                </div>
+                <div class="workflow-step">
+                    <div class="step-number">6</div>
+                    <h4>Build Release</h4>
+                    <p><code>ovie build --release</code></p>
+                </div>
+            </div>
+
+            <h2>Configuration</h2>
+            
+            <p>The Ovie CLI can be configured through the <code>ovie.toml</code> file in your project root:</p>
+
+            <pre><code>[project]
+name = "my-app"
+version = "1.0.0"
+authors = ["Your Name &lt;you@example.com&gt;"]
+
+[build]
+target = "native"
+optimization = "speed"
+debug_info = true
+
+[dependencies]
+# Add dependencies here
+
+[dev-dependencies]
+# Add development dependencies here
+
+[features]
+aproko = true
+self_hosting = true</code></pre>
+
+            <h2>Environment Variables</h2>
+            
+            <p>The Ovie CLI respects these environment variables:</p>
+
+            <table class="options-table">
+                <thead>
+                    <tr>
+                        <th>Variable</th>
+                        <th>Description</th>
+                        <th>Default</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>OVIE_HOME</code></td>
+                        <td>Ovie installation directory</td>
+                        <td>Auto-detected</td>
+                    </tr>
+                    <tr>
+                        <td><code>OVIE_CACHE</code></td>
+                        <td>Compilation cache directory</td>
+                        <td><code>~/.cache/ovie</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>OVIE_LOG</code></td>
+                        <td>Logging level</td>
+                        <td><code>info</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>OVIE_TARGET</code></td>
+                        <td>Default compilation target</td>
+                        <td><code>native</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="info-box">
+                <h4>🚀 Pro Tips</h4>
+                <ul>
+                    <li>Use <code>ovie check</code> frequently during development for fast feedback</li>
+                    <li>Set up <code>ovie fmt</code> in your editor for automatic formatting</li>
+                    <li>Use <code>ovie test --coverage</code> to ensure good test coverage</li>
+                    <li>The <code>--verbose</code> flag provides detailed output for debugging</li>
+                </ul>
+            </div>
+
+            <hr style="margin: var(--spacing-3xl) 0; border: none; border-top: 1px solid var(--border-primary);">
+
+            <div style="text-align: center; color: var(--text-muted);">
+                <p>CLI powered by the self-hosted Ovie compiler 🎉</p>
+                <p>For more help, visit our <a href="https://github.com/southwarridev/ovie/discussions">Community Discussions</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/script.js"></script>
+</body>
+</html>

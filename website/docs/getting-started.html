@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Getting Started - Ovie Programming Language</title>
+    <link rel="icon" type="image/png" href="../assets/ovie.png">
+    <link rel="stylesheet" href="../assets/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .doc-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 120px var(--spacing-lg) var(--spacing-3xl);
+        }
+        
+        .doc-header {
+            text-align: center;
+            margin-bottom: var(--spacing-3xl);
+        }
+        
+        .doc-nav {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .doc-nav h3 {
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+        
+        .doc-nav ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .doc-nav li {
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .doc-nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: var(--transition-fast);
+        }
+        
+        .doc-nav a:hover {
+            color: var(--brand-primary);
+        }
+        
+        .doc-content {
+            line-height: 1.8;
+        }
+        
+        .doc-content h2 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-xl);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--border-primary);
+        }
+        
+        .doc-content h3 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .doc-content p {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .doc-content code {
+            background: var(--bg-code);
+            color: var(--brand-primary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+        }
+        
+        .doc-content pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            overflow-x: auto;
+            margin: var(--spacing-md) 0;
+        }
+        
+        .doc-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+        
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .info-box h4 {
+            color: var(--brand-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .warning-box {
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .warning-box h4 {
+            color: var(--warning);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .success-box {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .success-box h4 {
+            color: var(--success);
+            margin-bottom: var(--spacing-sm);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="../index.html" style="display: flex; align-items: center; gap: var(--spacing-sm); text-decoration: none;">
+                    <img src="../assets/ovie.png" alt="Ovie" class="nav-logo">
+                    <span class="nav-title">Ovie</span>
+                    <span class="nav-badge">Self-Hosted</span>
+                </a>
+            </div>
+            <div class="nav-menu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="../index.html#features" class="nav-link">Features</a>
+                <a href="../index.html#download" class="nav-link">Download</a>
+                <a href="../index.html#docs" class="nav-link">Documentation</a>
+                <a href="../index.html#examples" class="nav-link">Examples</a>
+            </div>
+            <div class="nav-actions">
+                <a href="../index.html#download" class="btn btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="doc-container">
+        <div class="doc-header">
+            <img src="../assets/ovie.png" alt="Ovie" width="80" height="80" style="margin-bottom: var(--spacing-md); border-radius: var(--radius-lg);">
+            <h1>Getting Started with Ovie</h1>
+            <p class="section-subtitle">Your journey into self-hosted programming begins here</p>
+        </div>
+
+        <div class="doc-nav">
+            <h3>📚 Table of Contents</h3>
+            <ul>
+                <li><a href="#what-is-ovie">What is Ovie?</a></li>
+                <li><a href="#installation">Installation</a></li>
+                <li><a href="#first-program">Your First Program</a></li>
+                <li><a href="#basic-syntax">Basic Syntax</a></li>
+                <li><a href="#next-steps">Next Steps</a></li>
+            </ul>
+        </div>
+
+        <div class="doc-content">
+            <div class="success-box">
+                <h4>🎉 Historic Achievement!</h4>
+                <p>You're learning a programming language that can compile itself! Ovie achieved self-hosting capability on January 30, 2026, making it a truly sovereign programming language.</p>
+            </div>
+
+            <h2 id="what-is-ovie">What is Ovie?</h2>
+            
+            <p>Ovie is a modern, self-hosted programming language designed to make programming accessible to everyone. Unlike traditional programming languages with cryptic syntax, Ovie uses natural language patterns that are easy to read and understand.</p>
+
+            <h3>Key Features</h3>
+            <ul>
+                <li><strong>Self-Hosted:</strong> The Ovie compiler is written in Ovie itself</li>
+                <li><strong>Natural Syntax:</strong> Uses pidgin English keywords like <code>seeAm</code> instead of <code>print</code></li>
+                <li><strong>Offline-First:</strong> Complete development environment with no network dependencies</li>
+                <li><strong>AI-Friendly:</strong> Designed for seamless AI/LLM integration</li>
+                <li><strong>Memory Safe:</strong> Built-in memory safety without garbage collection overhead</li>
+                <li><strong>Deterministic:</strong> Identical inputs always produce identical outputs</li>
+            </ul>
+
+            <h2 id="installation">Installation</h2>
+
+            <p>Getting Ovie installed on your system is quick and easy. Choose the method that works best for you:</p>
+
+            <h3>Quick Install (Recommended)</h3>
+
+            <div class="info-box">
+                <h4>💡 One-Line Installation</h4>
+                <p>The fastest way to get started with Ovie.</p>
+            </div>
+
+            <p><strong>Unix/Linux/macOS:</strong></p>
+            <pre><code>curl -sSL https://install.ovie-lang.org | sh</code></pre>
+
+            <p><strong>Windows (PowerShell):</strong></p>
+            <pre><code>iwr -useb https://install.ovie-lang.org/install.ps1 | iex</code></pre>
+
+            <h3>Build from Source (Offline)</h3>
+
+            <p>For complete offline installation or if you want to build from source:</p>
+
+            <pre><code>git clone https://github.com/southwarridev/ovie.git
+cd ovie
+make build
+make install</code></pre>
+
+            <h3>Verify Installation</h3>
+
+            <p>After installation, verify that Ovie is working correctly:</p>
+
+            <pre><code>ovie --version</code></pre>
+
+            <p>You should see output similar to:</p>
+
+            <pre><code>Ovie Programming Language v1.0.0
+Self-hosted compiler (written in Ovie)
+Build: 2026-01-30</code></pre>
+
+            <div class="success-box">
+                <h4>✅ Installation Complete!</h4>
+                <p>If you see the version information, Ovie is successfully installed and ready to use.</p>
+            </div>
+
+            <h2 id="first-program">Your First Program</h2>
+
+            <p>Let's create your first Ovie program! We'll start with the classic "Hello, World!" example.</p>
+
+            <h3>Create a New Project</h3>
+
+            <pre><code>ovie new hello-world
+cd hello-world</code></pre>
+
+            <p>This creates a new Ovie project with the following structure:</p>
+
+            <pre><code>hello-world/
+├── ovie.toml          # Project configuration
+├── src/
+│   └── main.ov        # Main source file
+└── tests/
+    └── main.test.ov   # Test file</code></pre>
+
+            <h3>Write Your First Code</h3>
+
+            <p>Open <code>src/main.ov</code> and replace the contents with:</p>
+
+            <pre><code class="language-ovie">// Hello World in Ovie - Self-Hosted Programming Language!
+// This code is compiled by a compiler written in Ovie itself
+
+seeAm "Hello, World!"
+seeAm "Welcome to Ovie programming!"
+
+// Let's try some variables
+mut name = "Developer"
+mut language = "Ovie"
+
+seeAm "Hello, " + name + "!"
+seeAm "You're learning " + language + " - the self-hosted language!"</code></pre>
+
+            <h3>Run Your Program</h3>
+
+            <pre><code>ovie run</code></pre>
+
+            <p>You should see the output:</p>
+
+            <pre><code>Hello, World!
+Welcome to Ovie programming!
+Hello, Developer!
+You're learning Ovie - the self-hosted language!</code></pre>
+
+            <div class="success-box">
+                <h4>🎉 Congratulations!</h4>
+                <p>You've just run your first Ovie program compiled by the self-hosted Ovie compiler!</p>
+            </div>
+
+            <h2 id="basic-syntax">Basic Syntax</h2>
+
+            <p>Ovie's syntax is designed to be natural and readable. Here are the fundamental concepts:</p>
+
+            <h3>Variables</h3>
+
+            <pre><code class="language-ovie">// Immutable variables (default)
+name = "Alice"
+age = 25
+
+// Mutable variables
+mut counter = 0
+mut score = 100</code></pre>
+
+            <h3>Functions</h3>
+
+            <pre><code class="language-ovie">// Simple function
+fn greet(name) {
+    seeAm "Hello, " + name + "!"
+}
+
+// Function with return value
+fn add(a, b) {
+    return a + b
+}
+
+// Using functions
+greet("World")
+mut result = add(5, 3)
+seeAm "5 + 3 = " + result</code></pre>
+
+            <h3>Control Flow</h3>
+
+            <pre><code class="language-ovie">// Conditionals
+mut age = 18
+
+if age >= 18 {
+    seeAm "You are an adult"
+} else {
+    seeAm "You are a minor"
+}
+
+// Loops
+for i in 0..5 {
+    seeAm "Count: " + i
+}
+
+// While loops
+mut count = 0
+while count < 3 {
+    seeAm "Count: " + count
+    count = count + 1
+}</code></pre>
+
+            <h3>Data Structures</h3>
+
+            <pre><code class="language-ovie">// Structs
+struct Person {
+    name: String,
+    age: Number,
+    email: String,
+}
+
+// Creating and using structs
+mut person = Person {
+    name: "Alice Johnson",
+    age: 30,
+    email: "alice@example.com",
+}
+
+seeAm "Name: " + person.name
+seeAm "Age: " + person.age</code></pre>
+
+            <h3>Arrays and Collections</h3>
+
+            <pre><code class="language-ovie">// Arrays
+mut numbers = [1, 2, 3, 4, 5]
+mut names = ["Alice", "Bob", "Charlie"]
+
+// Accessing elements
+seeAm "First number: " + array_get(numbers, 0)
+seeAm "Array length: " + array_length(numbers)
+
+// Adding elements
+append(numbers, 6)
+seeAm "New length: " + array_length(numbers)</code></pre>
+
+            <div class="info-box">
+                <h4>💡 Natural Language Keywords</h4>
+                <p>Notice how Ovie uses natural language patterns:</p>
+                <ul>
+                    <li><code>seeAm</code> instead of <code>print</code> or <code>console.log</code></li>
+                    <li><code>mut</code> for mutable variables (clear and concise)</li>
+                    <li><code>array_get</code> and <code>array_length</code> for clear intent</li>
+                </ul>
+            </div>
+
+            <h2 id="next-steps">Next Steps</h2>
+
+            <p>Congratulations on completing your first steps with Ovie! Here's what you can explore next:</p>
+
+            <h3>📚 Learn More</h3>
+            <ul>
+                <li><a href="language-guide.html">Complete Language Guide</a> - Comprehensive reference</li>
+                <li><a href="tutorial.html">Tutorial Series</a> - Step-by-step learning path</li>
+                <li><a href="../index.html#examples">Code Examples</a> - Real-world examples</li>
+            </ul>
+
+            <h3>🛠️ Tools and Features</h3>
+            <ul>
+                <li><a href="cli.html">CLI Reference</a> - Master the command-line tools</li>
+                <li><a href="aproko.html">Aproko Assistant</a> - Built-in code assistant</li>
+                <li><a href="testing.html">Testing Framework</a> - Write reliable tests</li>
+            </ul>
+
+            <h3>🏗️ Advanced Topics</h3>
+            <ul>
+                <li><a href="self-hosting.html">Self-Hosting Journey</a> - How Ovie compiles itself</li>
+                <li><a href="internals.html">Compiler Internals</a> - Deep dive into the compiler</li>
+                <li><a href="ai-integration.html">AI Integration</a> - Using Ovie with AI systems</li>
+            </ul>
+
+            <h3>🤝 Community</h3>
+            <ul>
+                <li><a href="https://github.com/southwarridev/ovie">GitHub Repository</a> - Contribute to the project</li>
+                <li><a href="https://github.com/southwarridev/ovie/discussions">Discussions</a> - Ask questions and share ideas</li>
+                <li><a href="../index.html#community">Community Links</a> - Connect with other developers</li>
+            </ul>
+
+            <div class="info-box">
+                <h4>🏆 You're Part of History!</h4>
+                <p>By learning Ovie, you're part of a historic moment in programming language development. You're using a language that can compile itself - a true achievement in computer science!</p>
+            </div>
+
+            <div class="warning-box">
+                <h4>⚠️ Need Help?</h4>
+                <p>If you encounter any issues or have questions:</p>
+                <ul>
+                    <li>Check the <a href="troubleshooting.html">Troubleshooting Guide</a></li>
+                    <li>Visit our <a href="https://github.com/southwarridev/ovie/discussions">Community Discussions</a></li>
+                    <li>Report bugs on <a href="https://github.com/southwarridev/ovie/issues">GitHub Issues</a></li>
+                </ul>
+            </div>
+
+            <hr style="margin: var(--spacing-3xl) 0; border: none; border-top: 1px solid var(--border-primary);">
+
+            <div style="text-align: center; color: var(--text-muted);">
+                <p>Made with ❤️ by the Ovie community</p>
+                <p>Self-hosted since January 30, 2026 🎉</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/script.js"></script>
+</body>
+</html>

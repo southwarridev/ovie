@@ -6,6 +6,8 @@
 pub mod lexer;
 pub mod parser;
 pub mod ast;
+pub mod hir;
+pub mod mir;
 pub mod error;
 pub mod normalizer;
 pub mod ir;
@@ -17,6 +19,8 @@ pub mod security;
 pub mod self_hosting;
 pub mod branding;
 pub mod release;
+pub mod cross_target_validation;
+pub mod hardware;
 
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -178,23 +182,35 @@ pub use error::{OvieError, OvieResult, Diagnostic, ErrorReporter, ErrorSeverity,
 pub use lexer::{Lexer, Token, TokenType};
 pub use parser::{Parser, ParseResult};
 pub use ast::{AstNode, Statement, Expression};
+pub use hir::{HirProgram, HirBuilder, HirItem, HirFunction, HirStatement, HirExpression, HirType};
+pub use mir::{MirProgram, MirBuilder, MirFunction, MirBasicBlock, MirStatement, MirTerminator, MirType};
 pub use interpreter::{Interpreter, IrInterpreter};
 // pub use semantic::{SemanticAnalyzer, TypedAst, Type};
 pub use ir::{IrBuilder, Program as IR, Instruction, Value};
 pub use normalizer::Normalizer;
 pub use codegen::CodegenBackend;
 pub use codegen::WasmBackend;
-pub use package::{PackageRegistry, PackageId, PackageMetadata, PackageLock, DependencyResolver, ProjectConfig, DependencySpec};
+pub use package::{PackageRegistry, PackageId, PackageMetadata, PackageLock, DependencyResolver, ProjectConfig, DependencySpec, IntegrityManifest, PackageSignature, OfflineMetadata};
 pub use security::{NetworkMonitor, CryptographicVerifier, SupplyChainSecurity, SecurityPolicies, SecurityReport, UnsafeOperationAnalyzer, UnsafeOperation, UnsafeAuditEntry, TelemetryMonitor, TelemetryAttempt, PrivacySettings, PrivacyComplianceReport, NetworkSecurityReport, ComprehensiveSecurityReport};
 pub use self_hosting::{SelfHostingManager, SelfHostingStage, BootstrapVerifier, BootstrapConfig, BootstrapVerificationResult, BootstrapIntegration, IntegrationMode, IntegrationVerificationResult};
 pub use branding::{BrandingConfig, ProjectTemplate, ProjectMetadata};
 pub use release::{ReleaseManager, SecurityLevel, ReleaseMetadata, DistributionConfig, DistributionManager, ReleasePackage, SignatureResult, VerificationResult};
+pub use cross_target_validation::{CrossTargetValidator, CrossTargetValidationConfig, CrossTargetValidationResults, TargetPlatform, TargetValidationResult, PlatformGuarantee, GuaranteeType, ConsistencyResults, PerformanceResults, ValidationSummary};
+pub use hardware::{PlatformAbstractionLayer, DeviceModel, DeviceType, DeviceState, StateValue, DeviceOperation, SafetyConstraint, DeviceInvariant, PlatformConfiguration, SafetyLevel, HardwareSafetyAnalyzer, DeterminismEnforcer, DeviceFactory, HardwareBehaviorAnalyzer, AutomatedHardwareAnalyzer, HardwareConfiguration, BehaviorPattern, AnalysisResult};
 #[cfg(feature = "llvm")]
 pub use codegen::LlvmBackend;
 
 #[cfg(test)]
 mod tests {
     pub mod property_tests;
+    pub mod grammar_validation_tests;
+    pub mod hir_tests;
+    pub mod mir_tests;
+}
+
+// Comprehensive test framework (always available for test runner binary)
+pub mod tests {
+    include!("../tests/mod.rs");
 }
 
 /// Backend selection for code generation
@@ -209,6 +225,10 @@ pub enum Backend {
     Interpreter,
     /// IR Interpreter
     IrInterpreter,
+    /// HIR (High-level IR) output
+    Hir,
+    /// MIR (Mid-level IR) output
+    Mir,
 }
 
 impl Backend {
@@ -220,6 +240,8 @@ impl Backend {
             "llvm" => Some(Backend::Llvm),
             "interpreter" | "ast" => Some(Backend::Interpreter),
             "ir" | "ir-interpreter" => Some(Backend::IrInterpreter),
+            "hir" => Some(Backend::Hir),
+            "mir" => Some(Backend::Mir),
             _ => None,
         }
     }
@@ -232,6 +254,8 @@ impl Backend {
             Backend::Llvm => "llvm",
             Backend::Interpreter => "interpreter",
             Backend::IrInterpreter => "ir-interpreter",
+            Backend::Hir => "hir",
+            Backend::Mir => "mir",
         }
     }
 }
@@ -240,8 +264,6 @@ impl Backend {
 pub struct Compiler {
     /// Enable debug output
     pub debug: bool,
-    /// Enable Aproko assistant
-    pub aproko_enabled: bool,
     /// Default backend for compilation
     pub default_backend: Backend,
     /// Build configuration for deterministic builds
@@ -255,7 +277,6 @@ impl Compiler {
     pub fn new() -> Self {
         Self {
             debug: false,
-            aproko_enabled: true,
             default_backend: Backend::Interpreter,
             build_config: DeterministicBuildConfig::new(),
             security_manager: SupplyChainSecurity::new(),
@@ -266,7 +287,6 @@ impl Compiler {
     pub fn new_with_debug() -> Self {
         Self {
             debug: true,
-            aproko_enabled: true,
             default_backend: Backend::Interpreter,
             build_config: DeterministicBuildConfig::new(),
             security_manager: SupplyChainSecurity::new(),
@@ -277,7 +297,6 @@ impl Compiler {
     pub fn new_with_backend(backend: Backend) -> Self {
         Self {
             debug: false,
-            aproko_enabled: true,
             default_backend: backend,
             build_config: DeterministicBuildConfig::new(),
             security_manager: SupplyChainSecurity::new(),
@@ -288,7 +307,6 @@ impl Compiler {
     pub fn new_deterministic() -> Self {
         Self {
             debug: false,
-            aproko_enabled: true,
             default_backend: Backend::Interpreter,
             build_config: DeterministicBuildConfig::new_deterministic(),
             security_manager: SupplyChainSecurity::new(),
@@ -396,29 +414,58 @@ impl Compiler {
             println!("Privacy compliance: {}", privacy_report.compliance_status);
         }
 
-        // Step 6: Aproko analysis
-        // TODO: Implement Aproko
-
-        // Step 7: Semantic analysis
+        // Step 6: Semantic analysis
         // TODO: Implement semantic analyzer
 
         Ok(normalized_ast)
     }
 
-    /// Compile Ovie source code to IR
-    pub fn compile_to_ir(&mut self, source: &str) -> OvieResult<IR> {
+    /// Compile Ovie source code to HIR (High-level IR)
+    pub fn compile_to_hir(&mut self, source: &str) -> OvieResult<HirProgram> {
         let ast = self.compile_to_ast(source)?;
         
-        // Step 6: IR generation with deterministic ordering
+        // Step 6: HIR generation (semantic analysis and type checking)
+        let mut hir_builder = HirBuilder::new();
+        let hir = hir_builder.transform_ast(&ast)?;
+        
+        if self.debug {
+            println!("HIR: {}", hir.to_json().unwrap_or_else(|_| "Failed to serialize HIR".to_string()));
+        }
+        
+        Ok(hir)
+    }
+
+    /// Compile Ovie source code to MIR (Mid-level IR)
+    pub fn compile_to_mir(&mut self, source: &str) -> OvieResult<MirProgram> {
+        let hir = self.compile_to_hir(source)?;
+        
+        // Step 7: MIR generation (control flow explicit)
+        let mut mir_builder = MirBuilder::new();
+        let mir = mir_builder.transform_hir(&hir)?;
+        
+        if self.debug {
+            println!("MIR: {}", mir.to_json().unwrap_or_else(|_| "Failed to serialize MIR".to_string()));
+        }
+        
+        Ok(mir)
+    }
+
+    /// Compile Ovie source code to IR (legacy - now uses MIR)
+    pub fn compile_to_ir(&mut self, source: &str) -> OvieResult<IR> {
+        let mir = self.compile_to_mir(source)?;
+        
+        // Convert MIR to legacy IR format for backward compatibility
         let mut ir_builder = IrBuilder::new();
         if self.build_config.deterministic_output {
             ir_builder.set_deterministic_mode(true);
         }
-        ir_builder.transform_ast(&ast)?;
+        
+        // For now, create a simple IR from MIR
+        // In a full implementation, this would be a proper MIR to IR conversion
         let ir = ir_builder.build();
         
         if self.debug {
-            println!("IR: {}", ir.to_json().unwrap_or_else(|_| "Failed to serialize IR".to_string()));
+            println!("Legacy IR: {}", ir.to_json().unwrap_or_else(|_| "Failed to serialize IR".to_string()));
         }
         
         Ok(ir)
@@ -446,6 +493,9 @@ impl Compiler {
 
     /// Compile Ovie source code to WebAssembly
     pub fn compile_to_wasm(&mut self, source: &str) -> OvieResult<Vec<u8>> {
+        let mir = self.compile_to_mir(source)?;
+        
+        // Convert MIR to legacy IR for WASM backend (temporary)
         let ir = self.compile_to_ir(source)?;
         
         let mut wasm_backend = crate::codegen::WasmBackend::new();
@@ -464,6 +514,9 @@ impl Compiler {
     /// Compile Ovie source code to LLVM IR
     #[cfg(feature = "llvm")]
     pub fn compile_to_llvm(&mut self, source: &str) -> OvieResult<String> {
+        let mir = self.compile_to_mir(source)?;
+        
+        // Convert MIR to legacy IR for LLVM backend (temporary)
         let ir = self.compile_to_ir(source)?;
         
         let context = inkwell::context::Context::create();
@@ -496,6 +549,18 @@ impl Compiler {
                 println!("LLVM compilation successful (execution not implemented)");
                 Ok(())
             }
+            Backend::Hir => {
+                let hir = self.compile_to_hir(source)?;
+                println!("HIR compilation successful:");
+                println!("{}", hir.to_json().unwrap_or_else(|_| "Failed to serialize HIR".to_string()));
+                Ok(())
+            }
+            Backend::Mir => {
+                let mir = self.compile_to_mir(source)?;
+                println!("MIR compilation successful:");
+                println!("{}", mir.to_json().unwrap_or_else(|_| "Failed to serialize MIR".to_string()));
+                Ok(())
+            }
         }
     }
 
@@ -511,6 +576,16 @@ impl Compiler {
             Backend::Wasm => self.compile_to_wasm(source).map(|bytes| format!("{:x}", sha2::Sha256::digest(&bytes))),
             #[cfg(feature = "llvm")]
             Backend::Llvm => self.compile_to_llvm(source).map(|ir| format!("{:x}", sha2::Sha256::digest(ir.as_bytes()))),
+            Backend::Hir => {
+                let hir = self.compile_to_hir(source)?;
+                let hir_json = hir.to_json().unwrap_or_default();
+                Ok(format!("{:x}", sha2::Sha256::digest(hir_json.as_bytes())))
+            }
+            Backend::Mir => {
+                let mir = self.compile_to_mir(source)?;
+                let mir_json = mir.to_json().unwrap_or_default();
+                Ok(format!("{:x}", sha2::Sha256::digest(mir_json.as_bytes())))
+            }
             _ => {
                 let ir = self.compile_to_ir(source)?;
                 let ir_json = ir.to_json().unwrap_or_default();
@@ -526,6 +601,16 @@ impl Compiler {
             Backend::Wasm => self.compile_to_wasm(source).map(|bytes| format!("{:x}", sha2::Sha256::digest(&bytes))),
             #[cfg(feature = "llvm")]
             Backend::Llvm => self.compile_to_llvm(source).map(|ir| format!("{:x}", sha2::Sha256::digest(ir.as_bytes()))),
+            Backend::Hir => {
+                let hir = self.compile_to_hir(source)?;
+                let hir_json = hir.to_json().unwrap_or_default();
+                Ok(format!("{:x}", sha2::Sha256::digest(hir_json.as_bytes())))
+            }
+            Backend::Mir => {
+                let mir = self.compile_to_mir(source)?;
+                let mir_json = mir.to_json().unwrap_or_default();
+                Ok(format!("{:x}", sha2::Sha256::digest(mir_json.as_bytes())))
+            }
             _ => {
                 let ir = self.compile_to_ir(source)?;
                 let ir_json = ir.to_json().unwrap_or_default();

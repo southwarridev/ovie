@@ -1,0 +1,96 @@
+# Ovie Package Manifest Template
+# This file defines the package configuration for an Ovie project
+
+[project]
+name = "my-ovie-project"
+version = "1.0.0"
+authors = ["Your Name <your.email@example.com>"]
+description = "A brief description of your Ovie project"
+license = "MIT"
+repository = "https://github.com/username/my-ovie-project"
+homepage = "https://github.com/username/my-ovie-project"
+documentation = "https://docs.rs/my-ovie-project"
+keywords = ["ovie", "programming", "language"]
+categories = ["development-tools"]
+edition = "2024"
+
+# Regular dependencies - required for your project to run
+[dependencies]
+# Example: exact version pinning (recommended for security)
+# some-library = "1.2.3"
+
+# Example: version range (use with caution)
+# flexible-lib = { min = "1.0.0", max = "2.0.0" }
+
+# Example: hash-based dependency (maximum security)
+# secure-lib = { hash = "abc123def456..." }
+
+# Development dependencies - only needed during development/testing
+[dev-dependencies]
+# test-framework = "0.5.0"
+
+# Build dependencies - needed during the build process
+[build-dependencies]
+# build-tool = "2.1.0"
+
+# Build configuration
+[build]
+backend = "interpreter"  # Options: interpreter, wasm, llvm
+target = "native"        # Options: native, web, embedded
+optimization = "debug"   # Options: debug, release
+deterministic = true     # Ensure reproducible builds
+
+# Security configuration
+[security]
+# Enforce version pinning for all dependencies
+enforce_pinning = true
+# Allow only cryptographically verified packages
+require_signatures = false  # Set to true when signature system is ready
+# Offline-only mode - no network access during build
+offline_only = true
+# Maximum dependency depth to prevent supply chain attacks
+max_dependency_depth = 10
+
+# Vendor configuration
+[vendor]
+# Directory to store vendored dependencies
+directory = "vendor"
+# Include dev dependencies in vendor directory
+include_dev = false
+# Include build dependencies in vendor directory
+include_build = true
+# Verify checksums of vendored dependencies
+verify_checksums = true
+
+# Package metadata for publishing (optional)
+[package]
+# Include/exclude files when packaging
+include = ["src/**", "std/**", "README.md", "LICENSE"]
+exclude = ["target/**", ".git/**", "*.tmp"]
+# Minimum Ovie version required
+ovie_version = "1.0.0"
+
+# Custom build scripts (optional)
+[scripts]
+# pre-build = "echo 'Starting build...'"
+# post-build = "echo 'Build complete!'"
+# test = "ovie test"
+# format = "ovie fmt"
+
+# Feature flags (optional)
+[features]
+default = []
+# experimental = ["some-experimental-feature"]
+# web-support = ["wasm-backend"]
+
+# Platform-specific dependencies (optional)
+[target.'cfg(windows)'.dependencies]
+# windows-specific-lib = "1.0.0"
+
+[target.'cfg(unix)'.dependencies]
+# unix-specific-lib = "1.0.0"
+
+# Workspace configuration (for multi-package projects)
+[workspace]
+# members = ["package-a", "package-b"]
+# exclude = ["old-package"]

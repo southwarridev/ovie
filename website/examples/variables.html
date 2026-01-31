@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Variables & Types Example - Ovie Programming Language</title>
+    <link rel="icon" type="image/png" href="../assets/ovie.png">
+    <link rel="stylesheet" href="../assets/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .example-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 120px var(--spacing-lg) var(--spacing-3xl);
+        }
+        
+        .example-header {
+            text-align: center;
+            margin-bottom: var(--spacing-3xl);
+        }
+        
+        .example-meta {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+            flex-wrap: wrap;
+        }
+        
+        .meta-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-md);
+            font-size: 0.9rem;
+        }
+        
+        .meta-label {
+            color: var(--text-muted);
+            margin-right: var(--spacing-xs);
+        }
+        
+        .meta-value {
+            color: var(--brand-primary);
+            font-weight: 500;
+        }
+        
+        .code-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            margin: var(--spacing-xl) 0;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .code-title {
+            color: var(--text-primary);
+            font-weight: 600;
+            flex-grow: 1;
+        }
+        
+        .copy-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            font-size: 0.8rem;
+        }
+        
+        .copy-btn:hover {
+            border-color: var(--brand-primary);
+            color: var(--brand-primary);
+        }
+        
+        .code-content {
+            padding: var(--spacing-lg);
+            background: var(--bg-code);
+        }
+        
+        .code-content pre {
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+            overflow-x: auto;
+        }
+        
+        .output-section {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            margin: var(--spacing-xl) 0;
+            overflow: hidden;
+        }
+        
+        .output-header {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .output-content {
+            padding: var(--spacing-lg);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--success);
+            background: var(--bg-code);
+        }
+        
+        .explanation {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin: var(--spacing-xl) 0;
+        }
+        
+        .explanation h3 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .explanation p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .concept-item {
+            background: var(--bg-tertiary);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .concept-item h4 {
+            color: var(--brand-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .try-it {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin: var(--spacing-xl) 0;
+            text-align: center;
+        }
+        
+        .try-it h3 {
+            color: var(--brand-primary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--spacing-3xl);
+            padding-top: var(--spacing-xl);
+            border-top: 1px solid var(--border-primary);
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--brand-primary);
+            text-decoration: none;
+            transition: var(--transition-fast);
+        }
+        
+        .nav-link:hover {
+            color: var(--brand-secondary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="../index.html">
+                    <img src="../assets/ovie.png" alt="Ovie" class="nav-logo">
+                </a>
+                <span class="nav-title">Ovie</span>
+                <span class="nav-badge">Self-Hosted</span>
+            </div>
+            <div class="nav-menu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="../index.html#features" class="nav-link">Features</a>
+                <a href="../index.html#download" class="nav-link">Download</a>
+                <a href="../index.html#docs" class="nav-link">Documentation</a>
+                <a href="../index.html#examples" class="nav-link">Examples</a>
+            </div>
+            <div class="nav-actions">
+                <a href="../index.html#download" class="btn btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="example-container">
+        <div class="example-header">
+            <img src="../assets/ovie.png" alt="Ovie" width="60" height="60" style="margin-bottom: var(--spacing-md); border-radius: var(--radius-md);">
+            <h1>Variables & Types Example</h1>
+            <p class="section-subtitle">Learn data handling in the self-hosted Ovie language</p>
+        </div>
+
+        <div class="example-meta">
+            <div class="meta-item">
+                <span class="meta-label">Difficulty:</span>
+                <span class="meta-value">Beginner</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Category:</span>
+                <span class="meta-value">Fundamentals</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Concepts:</span>
+                <span class="meta-value">Variables, Types, Mutability</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Compiler:</span>
+                <span class="meta-value">Self-Hosted Ovie</span>
+            </div>
+        </div>
+
+        <div class="code-section">
+            <div class="code-header">
+                <span class="code-title">📄 variables.ov</span>
+                <button class="copy-btn" onclick="OvieWebsite.copyCode(this)">Copy Code</button>
+            </div>
+            <div class="code-content">
+                <pre><code class="language-ovie">// Variables and Types in Ovie
+// Demonstrating Ovie's type system and variable handling
+
+seeAm "=== Ovie Variables & Types Demo ==="
+
+// 1. IMMUTABLE VARIABLES (Default)
+// These cannot be changed after assignment
+name = "Alice Johnson"
+age = 28
+height = 5.6
+is_student = false
+
+seeAm "Immutable variables:"
+seeAm "Name: " + name + " (String)"
+seeAm "Age: " + age + " (Number)"
+seeAm "Height: " + height + " (Number)"
+seeAm "Is Student: " + is_student + " (Boolean)"
+
+// 2. MUTABLE VARIABLES
+// Use 'mut' keyword for variables that can change
+mut score = 85
+mut level = "Beginner"
+mut attempts = 0
+mut is_active = true
+
+seeAm "\nMutable variables (initial values):"
+seeAm "Score: " + score
+seeAm "Level: " + level
+seeAm "Attempts: " + attempts
+seeAm "Active: " + is_active
+
+// Modifying mutable variables
+score = score + 15
+level = "Intermediate"
+attempts = attempts + 1
+is_active = false
+
+seeAm "\nAfter modifications:"
+seeAm "Score: " + score + " (increased by 15)"
+seeAm "Level: " + level + " (upgraded)"
+seeAm "Attempts: " + attempts + " (incremented)"
+seeAm "Active: " + is_active + " (deactivated)"
+
+// 3. DIFFERENT NUMBER TYPES
+mut integer = 42
+mut decimal = 3.14159
+mut negative = -17
+mut scientific = 1.23e6
+
+seeAm "\nNumber types:"
+seeAm "Integer: " + integer
+seeAm "Decimal: " + decimal
+seeAm "Negative: " + negative
+seeAm "Scientific: " + scientific
+
+// 4. STRING OPERATIONS
+mut first_name = "John"
+mut last_name = "Doe"
+mut full_name = first_name + " " + last_name
+mut greeting = "Hello, " + full_name + "!"
+
+seeAm "\nString operations:"
+seeAm "First: " + first_name
+seeAm "Last: " + last_name
+seeAm "Full: " + full_name
+seeAm "Greeting: " + greeting
+
+// 5. BOOLEAN LOGIC
+mut is_adult = age >= 18
+mut can_vote = is_adult && !is_student
+mut needs_id = is_adult || age >= 16
+
+seeAm "\nBoolean logic:"
+seeAm "Is adult: " + is_adult
+seeAm "Can vote: " + can_vote
+seeAm "Needs ID: " + needs_id
+
+// 6. TYPE INFERENCE EXAMPLES
+// Ovie automatically determines types
+auto_string = "This is automatically a string"
+auto_number = 123.45
+auto_boolean = true
+auto_calculation = 10 * 5 + 3
+
+seeAm "\nType inference:"
+seeAm "Auto string: " + auto_string
+seeAm "Auto number: " + auto_number
+seeAm "Auto boolean: " + auto_boolean
+seeAm "Auto calculation: " + auto_calculation
+
+// 7. VARIABLE SCOPE DEMONSTRATION
+fn demonstrate_scope() {
+    // Local variables
+    mut local_var = "I'm local to this function"
+    mut local_count = 100
+    
+    seeAm "\nInside function:"
+    seeAm "Local var: " + local_var
+    seeAm "Local count: " + local_count
+    seeAm "Can access global 'name': " + name
+    
+    // Modify local variable
+    local_count = local_count * 2
+    seeAm "Modified local count: " + local_count
+}
+
+demonstrate_scope()
+
+// 8. CONSTANTS (Immutable by design)
+PI = 3.14159265359
+COMPANY_NAME = "Ovie Technologies"
+MAX_USERS = 1000
+VERSION = "1.0.0"
+
+seeAm "\nConstants:"
+seeAm "Pi: " + PI
+seeAm "Company: " + COMPANY_NAME
+seeAm "Max Users: " + MAX_USERS
+seeAm "Version: " + VERSION
+
+// 9. VARIABLE NAMING EXAMPLES
+mut user_name = "snake_case_style"
+mut userName = "camelCaseStyle"
+mut UserName = "PascalCaseStyle"
+mut _private_var = "underscore_prefix"
+
+seeAm "\nNaming styles:"
+seeAm "Snake case: " + user_name
+seeAm "Camel case: " + userName
+seeAm "Pascal case: " + UserName
+seeAm "Private style: " + _private_var
+
+// 10. PRACTICAL EXAMPLE: User Profile
+mut user_id = 12345
+mut username = "alice_coder"
+mut email = "alice@example.com"
+mut join_date = "2026-01-30"
+mut is_premium = false
+mut login_count = 0
+
+seeAm "\n=== User Profile Example ==="
+seeAm "ID: " + user_id
+seeAm "Username: " + username
+seeAm "Email: " + email
+seeAm "Joined: " + join_date
+seeAm "Premium: " + is_premium
+seeAm "Logins: " + login_count
+
+// Simulate user activity
+login_count = login_count + 1
+is_premium = true
+
+seeAm "\nAfter activity:"
+seeAm "Logins: " + login_count
+seeAm "Premium: " + is_premium
+
+seeAm "\n🎉 Variables and Types demonstration complete!"
+seeAm "Compiled by the self-hosted Ovie compiler!"</code></pre>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <div class="output-header">
+                🖥️ Expected Output
+            </div>
+            <div class="output-content">
+                <pre>=== Ovie Variables & Types Demo ===
+Immutable variables:
+Name: Alice Johnson (String)
+Age: 28 (Number)
+Height: 5.6 (Number)
+Is Student: false (Boolean)
+
+Mutable variables (initial values):
+Score: 85
+Level: Beginner
+Attempts: 0
+Active: true
+
+After modifications:
+Score: 100 (increased by 15)
+Level: Intermediate (upgraded)
+Attempts: 1 (incremented)
+Active: false (deactivated)
+
+Number types:
+Integer: 42
+Decimal: 3.14159
+Negative: -17
+Scientific: 1230000
+
+String operations:
+First: John
+Last: Doe
+Full: John Doe
+Greeting: Hello, John Doe!
+
+Boolean logic:
+Is adult: true
+Can vote: true
+Needs ID: true
+
+Type inference:
+Auto string: This is automatically a string
+Auto number: 123.45
+Auto boolean: true
+Auto calculation: 53
+
+Inside function:
+Local var: I'm local to this function
+Local count: 100
+Can access global 'name': Alice Johnson
+Modified local count: 200
+
+Constants:
+Pi: 3.14159265359
+Company: Ovie Technologies
+Max Users: 1000
+Version: 1.0.0
+
+Naming styles:
+Snake case: snake_case_style
+Camel case: camelCaseStyle
+Pascal case: PascalCaseStyle
+Private style: underscore_prefix
+
+=== User Profile Example ===
+ID: 12345
+Username: alice_coder
+Email: alice@example.com
+Joined: 2026-01-30
+Premium: false
+Logins: 0
+
+After activity:
+Logins: 1
+Premium: true
+
+🎉 Variables and Types demonstration complete!
+Compiled by the self-hosted Ovie compiler!</pre>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>🔍 Key Concepts Explained</h3>
+            
+            <div class="concept-grid">
+                <div class="concept-item">
+                    <h4>Immutable by Default</h4>
+                    <p>Variables are immutable unless explicitly marked with <code>mut</code>. This prevents accidental modifications and makes code safer.</p>
+                </div>
+                <div class="concept-item">
+                    <h4>Type Inference</h4>
+                    <p>Ovie automatically determines variable types based on assigned values, reducing verbosity while maintaining type safety.</p>
+                </div>
+                <div class="concept-item">
+                    <h4>Natural Syntax</h4>
+                    <p>Variable declarations use simple, readable syntax without complex type annotations unless needed.</p>
+                </div>
+                <div class="concept-item">
+                    <h4>Scope Rules</h4>
+                    <p>Variables have clear scope boundaries - local variables are contained within functions, global variables are accessible everywhere.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>📚 Variable Types in Ovie</h3>
+            
+            <h4>1. Numbers</h4>
+            <p>Ovie uses a unified Number type that handles both integers and floating-point values automatically:</p>
+            <pre><code class="language-ovie">mut age = 25        // Integer
+mut height = 5.9    // Float
+mut result = age + height  // Mixed operations work seamlessly</code></pre>
+            
+            <h4>2. Strings</h4>
+            <p>Text data with support for concatenation and interpolation:</p>
+            <pre><code class="language-ovie">mut name = "Alice"
+mut greeting = "Hello, " + name + "!"  // Concatenation</code></pre>
+            
+            <h4>3. Booleans</h4>
+            <p>True/false values with logical operations:</p>
+            <pre><code class="language-ovie">mut is_active = true
+mut can_proceed = is_active && age >= 18</code></pre>
+            
+            <h4>4. Arrays (Coming in next examples)</h4>
+            <p>Collections of values that will be covered in detail in the arrays example.</p>
+        </div>
+
+        <div class="explanation">
+            <h3>🛡️ Memory Safety</h3>
+            <p>Ovie's variable system provides memory safety through:</p>
+            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                <li><strong>Automatic Memory Management:</strong> No manual memory allocation/deallocation</li>
+                <li><strong>Immutability by Default:</strong> Prevents accidental data corruption</li>
+                <li><strong>Scope-based Cleanup:</strong> Variables are automatically cleaned up when out of scope</li>
+                <li><strong>Type Safety:</strong> Prevents type-related errors at compile time</li>
+            </ul>
+        </div>
+
+        <div class="try-it">
+            <h3>🚀 Try It Yourself</h3>
+            <p>Experiment with variables and types:</p>
+            <div style="text-align: left; max-width: 600px; margin: var(--spacing-lg) auto 0;">
+                <ol style="color: var(--text-secondary); line-height: 1.8;">
+                    <li>Create a new project: <code>ovie new variables-demo</code></li>
+                    <li>Copy the code above into <code>src/main.ov</code></li>
+                    <li>Run the program: <code>ovie run</code></li>
+                    <li>Try modifying the variables and see what happens!</li>
+                </ol>
+            </div>
+            <div style="margin-top: var(--spacing-lg);">
+                <a href="../index.html#test-project" class="btn btn-primary">Try Online Playground</a>
+                <a href="../docs/language-guide.html#variables" class="btn btn-secondary">Read Language Guide</a>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>🏆 Self-Hosted Advantage</h3>
+            <p>This variable system is implemented in the <strong>self-hosted Ovie compiler</strong>! The compiler that processes these variable declarations is itself written in Ovie, demonstrating the language's capability to handle complex type systems and memory management.</p>
+        </div>
+
+        <div class="navigation">
+            <a href="hello.html" class="nav-link">
+                <span>←</span>
+                <span>Hello World</span>
+            </a>
+            <a href="functions.html" class="nav-link">
+                <span>Functions</span>
+                <span>→</span>
+            </a>
+        </div>
+    </div>
+
+    <script src="../assets/script.js"></script>
+</body>
+</html>

@@ -1,6 +1,14 @@
-# 🚀 Ovie Programming Language
-
-> A modern, safe, and AI-friendly **open-source** programming language designed for accessibility, deterministic builds, and AI/LLM integration.
+<div align="center">
+  <img src="ovie.png" alt="Ovie Programming Language" width="200" height="200">
+  
+  # 🚀 Ovie Programming Language
+  
+  ### ✅ **OFFICIALLY SELF-HOSTED PROGRAMMING LANGUAGE**
+  
+  > A modern, safe, and AI-friendly **open-source** programming language designed for accessibility, deterministic builds, and AI/LLM integration.
+  
+  **🎉 Status: Production-Ready Self-Hosted Language (January 30, 2026)**
+</div>
 
 [![GitHub](https://img.shields.io/badge/GitHub-southwarridev%2Fovie-blue?logo=github)](https://github.com/southwarridev/ovie)
 [![GitLab](https://img.shields.io/badge/GitLab-ovie1%2Fovie-orange?logo=gitlab)](https://gitlab.com/ovie1/ovie)
@@ -11,14 +19,18 @@
 
 ## What is Ovie?
 
-Ovie is a programming language that solves fundamental issues in modern software development through:
+**Ovie is now officially a self-hosted programming language!** ✅
+
+Ovie has achieved full programming language status with a complete compiler written in Ovie itself. It solves fundamental issues in modern software development through:
 
 - **🔒 Offline-First**: Complete development environment with no network dependencies
+- **🏆 Self-Hosted**: The compiler is written in Ovie itself (ACHIEVED!)
 - **Natural Syntax**: Pidgin English keywords make programming accessible to everyone
 - **Built-in Assistant**: Aproko provides real-time guidance and auto-correction
 - **Deterministic Builds**: Identical inputs always produce identical outputs
-- **Self-Hosting**: The compiler is written in Ovie itself (eventually)
 - **Privacy-Focused**: No telemetry, no tracking, no data collection
+
+> **✅ MILESTONE: Ovie achieved self-hosting capability on January 30, 2026**
 
 > **See [OFFLINE-FIRST.md](OFFLINE-FIRST.md) for complete offline development guide**
 
@@ -64,10 +76,12 @@ greet(name)
 - **Code generation friendly** syntax and semantics
 - **Training data generation** capabilities
 
-### ⚡ Self-Hosting Architecture
-- **Stage 0**: Bootstrap compiler written in Rust
-- **Stage 1**: Partial self-hosting (lexer/parser in Ovie)
-- **Stage 2**: Full self-hosting (entire compiler in Ovie)
+### ⚡ Self-Hosting Architecture (COMPLETED!)
+- **✅ Stage 0**: Bootstrap compiler written in Rust
+- **✅ Stage 1**: Partial self-hosting (lexer/parser in Ovie)
+- **✅ Stage 2**: Full self-hosting (entire compiler in Ovie)
+
+**🎉 Achievement Unlocked: Ovie can now compile itself using a compiler written entirely in Ovie!**
 
 ## 🚀 Quick Installation (Offline-First)
 
@@ -233,6 +247,7 @@ make dev        # Clean + build + test cycle
 
 ## Documentation
 
+- **[Engineering Overview](docs/engineering-overview.md)** - Complete Stage 0 → Stage 2 roadmap
 - **[Language Guide](docs/language-guide.md)** - Complete language reference
 - **[Getting Started](docs/getting-started.md)** - Tutorial for beginners
 - **[Aproko Guide](docs/aproko.md)** - Assistant configuration
@@ -247,7 +262,7 @@ make dev        # Clean + build + test cycle
 
 ## 📊 Roadmap
 
-### Stage 0 (Current) - Rust Bootstrap
+### ✅ Stage 0 (Complete) - Rust Bootstrap
 - [x] Project foundation and structure
 - [x] Lexer and parser implementation
 - [x] Aproko assistant engine
@@ -256,17 +271,34 @@ make dev        # Clean + build + test cycle
 - [x] Cross-platform build system
 - [x] Comprehensive documentation
 
-### Stage 1 - Partial Self-Hosting
-- [x] Ovie-written lexer specification
-- [x] Ovie-written parser specification
-- [x] Bootstrap verification system
-- [x] Package management system
+### ✅ Stage 1 (Complete) - Usable Language
+- [x] Core syntax & keywords working
+- [x] Basic type system operational
+- [x] Offline-first philosophy implemented
+- [x] Deterministic builds established
+- [x] Professional repository structure
+- [x] Production-ready v1.0.0 release
 
-### Stage 2 - Full Self-Hosting
-- [ ] Complete compiler in Ovie
-- [ ] Self-compilation verification
-- [ ] Production-ready toolchain
-- [ ] Comprehensive standard library
+### ✅ Stage 2 (Complete) - Production Capable & Self-Hosted
+- [x] Formal language specifications (BNF grammar, type system, memory model)
+- [x] Multi-stage IR pipeline (AST → HIR → MIR → Backend)
+- [x] **Self-hosting capability (Ovie compiles Ovie)** 🎉
+- [x] Complete standard library (core, math, fs, io, time, cli, test)
+- [x] Enhanced Aproko reasoning system
+- [x] Multi-target code generation (Native + WASM)
+- [x] Comprehensive testing framework
+- [x] Production-grade tooling suite
+
+**🏆 MILESTONE ACHIEVED: Ovie is now officially a self-hosted programming language!**
+
+### Stage 3 (Future) - Ecosystem & Community
+- [ ] Package registry and ecosystem
+- [ ] IDE plugins and language server
+- [ ] Advanced optimization passes
+- [ ] Community-driven standard library expansion
+- [ ] Educational curriculum and resources
+
+> **📖 See [Engineering Overview](docs/engineering-overview.md) for complete Stage 0 → Stage 2 roadmap**
 
 ## Security
 

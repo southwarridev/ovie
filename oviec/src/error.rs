@@ -171,6 +171,9 @@ pub enum OvieError {
     Generic {
         message: String,
     },
+
+    #[error("Hardware error: {message}")]
+    HardwareError(String),
 }
 
 impl OvieError {

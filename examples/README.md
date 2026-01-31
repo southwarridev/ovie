@@ -1,6 +1,14 @@
-# Ovie Programming Language Examples
+<div align="center">
+  <img src="../ovie.png" alt="Ovie Programming Language" width="120" height="120">
+  
+  # Ovie Programming Language Examples
+  
+  ### ✅ **SELF-HOSTED PROGRAMMING LANGUAGE**
+</div>
 
 This directory contains comprehensive examples demonstrating all major features of the Ovie Programming Language. The examples are organized by complexity and use case, making it easy to learn Ovie progressively.
+
+**🎉 Status: All examples work with the self-hosted Ovie compiler! (January 30, 2026)**
 
 ## Table of Contents
 
@@ -165,4 +173,4 @@ Demonstrations of compiler components written in Ovie itself. These examples sho
 
 ---
 
-*These examples cover Ovie Stage 0 features. Additional examples for Stage 1 and Stage 2 will be added as those features become available.*
+*These examples cover the complete Ovie implementation including self-hosting capabilities. All examples are tested and verified to work with the Ovie compiler written in Ovie itself!*

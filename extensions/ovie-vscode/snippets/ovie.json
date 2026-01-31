@@ -1,0 +1,320 @@
+{
+    "Main Function": {
+        "prefix": "main",
+        "body": [
+            "fn main() {",
+            "    seeAm \"Hello, World!\"",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a main function"
+    },
+    "Function": {
+        "prefix": "fn",
+        "body": [
+            "fn ${1:function_name}(${2:params}) -> ${3:return_type} {",
+            "    ${4:// function body}",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a function"
+    },
+    "Simple Function": {
+        "prefix": "func",
+        "body": [
+            "fn ${1:function_name}(${2:params}) {",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a simple function without return type"
+    },
+    "Print Statement": {
+        "prefix": "seeAm",
+        "body": [
+            "seeAm \"${1:message}\"$0"
+        ],
+        "description": "Print a message to console"
+    },
+    "Print Variable": {
+        "prefix": "see",
+        "body": [
+            "seeAm ${1:variable}$0"
+        ],
+        "description": "Print a variable to console"
+    },
+    "Mutable Variable": {
+        "prefix": "mut",
+        "body": [
+            "mut ${1:variable_name} = ${2:value}$0"
+        ],
+        "description": "Create a mutable variable"
+    },
+    "Immutable Variable": {
+        "prefix": "let",
+        "body": [
+            "${1:variable_name} = ${2:value}$0"
+        ],
+        "description": "Create an immutable variable"
+    },
+    "If Statement": {
+        "prefix": "if",
+        "body": [
+            "if ${1:condition} {",
+            "    $0",
+            "}"
+        ],
+        "description": "Create an if statement"
+    },
+    "If-Else Statement": {
+        "prefix": "ifelse",
+        "body": [
+            "if ${1:condition} {",
+            "    ${2:// if body}",
+            "} else {",
+            "    ${3:// else body}",
+            "    $0",
+            "}"
+        ],
+        "description": "Create an if-else statement"
+    },
+    "For Loop": {
+        "prefix": "for",
+        "body": [
+            "for ${1:item} in ${2:items} {",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a for loop"
+    },
+    "For Range Loop": {
+        "prefix": "forrange",
+        "body": [
+            "for ${1:i} in ${2:0}..${3:10} {",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a for loop with range"
+    },
+    "While Loop": {
+        "prefix": "while",
+        "body": [
+            "while ${1:condition} {",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a while loop"
+    },
+    "Struct Definition": {
+        "prefix": "struct",
+        "body": [
+            "struct ${1:StructName} {",
+            "    ${2:field_name}: ${3:Type},",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a struct definition"
+    },
+    "Enum Definition": {
+        "prefix": "enum",
+        "body": [
+            "enum ${1:EnumName} {",
+            "    ${2:Variant1},",
+            "    ${3:Variant2},",
+            "    $0",
+            "}"
+        ],
+        "description": "Create an enum definition"
+    },
+    "Test Function": {
+        "prefix": "test",
+        "body": [
+            "test \"${1:test description}\" {",
+            "    ${2:// test body}",
+            "    assert_equal(${3:actual}, ${4:expected})",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a test function"
+    },
+    "Assert Equal": {
+        "prefix": "assert_eq",
+        "body": [
+            "assert_equal(${1:actual}, ${2:expected})$0"
+        ],
+        "description": "Assert that two values are equal"
+    },
+    "Assert True": {
+        "prefix": "assert_true",
+        "body": [
+            "assert_true(${1:condition})$0"
+        ],
+        "description": "Assert that a condition is true"
+    },
+    "Assert False": {
+        "prefix": "assert_false",
+        "body": [
+            "assert_false(${1:condition})$0"
+        ],
+        "description": "Assert that a condition is false"
+    },
+    "Match Statement": {
+        "prefix": "match",
+        "body": [
+            "match ${1:value} {",
+            "    ${2:pattern1} => ${3:result1},",
+            "    ${4:pattern2} => ${5:result2},",
+            "    _ => ${6:default_result},",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a match statement"
+    },
+    "Error Handling": {
+        "prefix": "error",
+        "body": [
+            "if ${1:result}.is_error() {",
+            "    seeAm \"Error: \" + ${1:result}.error()",
+            "    return",
+            "}",
+            "$0"
+        ],
+        "description": "Basic error handling pattern"
+    },
+    "String Interpolation": {
+        "prefix": "str",
+        "body": [
+            "\"${1:text} \" + ${2:variable} + \"${3: more text}\"$0"
+        ],
+        "description": "String concatenation pattern"
+    },
+    "Array Declaration": {
+        "prefix": "array",
+        "body": [
+            "mut ${1:array_name} = [${2:item1}, ${3:item2}]$0"
+        ],
+        "description": "Create an array"
+    },
+    "Object Declaration": {
+        "prefix": "object",
+        "body": [
+            "mut ${1:object_name} = {",
+            "    ${2:key}: ${3:value},",
+            "    $0",
+            "}"
+        ],
+        "description": "Create an object"
+    },
+    "Comment Block": {
+        "prefix": "comment",
+        "body": [
+            "// ${1:Description}",
+            "// ",
+            "// ${2:Details}",
+            "$0"
+        ],
+        "description": "Create a comment block"
+    },
+    "Module Import": {
+        "prefix": "use",
+        "body": [
+            "use ${1:module_name}$0"
+        ],
+        "description": "Import a module"
+    },
+    "Standard Library Import": {
+        "prefix": "std",
+        "body": [
+            "use std::${1:module}$0"
+        ],
+        "description": "Import from standard library"
+    },
+    "CLI Arguments": {
+        "prefix": "args",
+        "body": [
+            "use std::cli",
+            "",
+            "fn main() {",
+            "    mut args = cli::args()",
+            "    ",
+            "    if args.length() < ${1:2} {",
+            "        seeAm \"Usage: \" + args[0] + \" ${2:<arguments>}\"",
+            "        return",
+            "    }",
+            "    ",
+            "    $0",
+            "}"
+        ],
+        "description": "CLI application template with argument handling"
+    },
+    "HTTP Server": {
+        "prefix": "server",
+        "body": [
+            "use std::http",
+            "",
+            "fn main() {",
+            "    mut server = http::Server::new(\"${1:127.0.0.1}\", ${2:8080})",
+            "    ",
+            "    seeAm \"Starting server on http://${1:127.0.0.1}:${2:8080}\"",
+            "    ",
+            "    server.get(\"${3:/}\", ${4:handle_root})",
+            "    server.listen()",
+            "}",
+            "",
+            "fn ${4:handle_root}(request: http::Request) -> http::Response {",
+            "    return http::Response::ok(\"${5:Hello, World!}\")",
+            "    $0",
+            "}"
+        ],
+        "description": "HTTP server template"
+    },
+    "File Reading": {
+        "prefix": "readfile",
+        "body": [
+            "use std::fs",
+            "",
+            "mut content = fs::read_to_string(\"${1:filename.txt}\")",
+            "if content.is_error() {",
+            "    seeAm \"Error reading file: \" + content.error()",
+            "    return",
+            "}",
+            "",
+            "seeAm content.unwrap()",
+            "$0"
+        ],
+        "description": "File reading template"
+    },
+    "JSON Handling": {
+        "prefix": "json",
+        "body": [
+            "use std::json",
+            "",
+            "mut data = json::object()",
+            "data.set(\"${1:key}\", \"${2:value}\")",
+            "",
+            "mut json_string = json::stringify(data)",
+            "seeAm json_string",
+            "$0"
+        ],
+        "description": "JSON handling template"
+    },
+    "Database Query": {
+        "prefix": "db",
+        "body": [
+            "use std::db",
+            "",
+            "mut connection = db::connect(\"${1:database_url}\")",
+            "mut result = connection.query(\"${2:SELECT * FROM table}\")",
+            "",
+            "if result.is_error() {",
+            "    seeAm \"Database error: \" + result.error()",
+            "    return",
+            "}",
+            "",
+            "for row in result.unwrap() {",
+            "    seeAm row",
+            "}",
+            "$0"
+        ],
+        "description": "Database query template"
+    }
+}

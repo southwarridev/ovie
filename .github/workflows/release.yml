@@ -53,6 +53,14 @@ jobs:
         targets: ${{ matrix.target }}
         components: rustfmt, clippy
 
+    - name: Override toolchain for cross-compilation
+      run: |
+        # Override the rust-toolchain.toml for cross-compilation
+        echo '[toolchain]' > rust-toolchain.toml
+        echo 'channel = "stable"' >> rust-toolchain.toml
+        echo 'profile = "minimal"' >> rust-toolchain.toml
+        echo 'components = ["rustfmt", "clippy"]' >> rust-toolchain.toml
+
     - name: Install target
       run: rustup target add ${{ matrix.target }}
 

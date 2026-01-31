@@ -1,6 +1,14 @@
-# Contributing to Ovie
+<div align="center">
+  <img src="ovie.png" alt="Ovie Programming Language" width="120" height="120">
+  
+  # Contributing to Ovie
+  
+  ### ✅ **SELF-HOSTED PROGRAMMING LANGUAGE**
+</div>
 
 Thank you for your interest in contributing to the Ovie programming language! This document provides guidelines and information for contributors.
+
+**🎉 Status: You're contributing to a production-ready, self-hosted programming language!**
 
 ## Table of Contents
 
@@ -22,9 +30,11 @@ This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDU
 
 ### Prerequisites
 
-- Rust 1.70+ (managed via `rust-toolchain.toml`)
+- Ovie compiler (oviec) - download from releases or bootstrap from existing binary
 - Git
 - Basic understanding of compiler design (helpful but not required)
+
+**Note**: Ovie is now fully self-hosted! No Rust installation required.
 
 ### Repository Structure
 
@@ -46,20 +56,20 @@ ovie/
    cd ovie
    ```
 
-2. **Install Rust toolchain**:
+2. **Bootstrap Ovie compiler**:
    ```bash
-   rustup toolchain install stable
-   rustup override set stable
+   # Download oviec binary from releases or use existing one
+   make bootstrap
    ```
 
 3. **Build the project**:
    ```bash
-   cargo build
+   make build
    ```
 
 4. **Run tests**:
    ```bash
-   cargo test
+   make test
    ```
 
 ## Contributing Guidelines
@@ -219,13 +229,13 @@ mod tests {
 
 ```bash
 # All tests
-cargo test
+make test
 
 # Specific test
-cargo test test_tokenize_simple_print
+./ovie test test_tokenize_simple_print
 
 # Property tests with more iterations
-cargo test -- --test-threads=1 PROPTEST_CASES=1000
+./ovie test --property-cases=1000
 ```
 
 ## Documentation
@@ -250,7 +260,7 @@ cargo test -- --test-threads=1 PROPTEST_CASES=1000
 
 ```bash
 # API docs
-cargo doc --open
+./ovie doc --open
 
 # User documentation (if using mdbook)
 mdbook build docs/

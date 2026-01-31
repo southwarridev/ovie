@@ -3,6 +3,17 @@
 //! This module provides the infrastructure for transitioning from the Rust-based
 //! Stage 0 compiler to partial self-hosting (Stage 1) where critical components
 //! are implemented in Ovie itself.
+//!
+//! ## Documentation
+//! 
+//! The self-hosting system is documented in several key files:
+//! - `minimal_compiler_spec.md` - Defines the minimal language features required for self-hosting
+//! - `bootstrap_requirements.md` - Specifies the bootstrap system functional and technical requirements
+//! - `self_hosting_roadmap.md` - Provides the complete 8-week implementation roadmap
+//! - `integration_plan.md` - Details the lexer integration process
+//! - `lexer_spec.ov` - Complete Ovie lexer implementation
+//! - `parser_spec.ov` - Complete Ovie parser implementation
+//! - `stdlib_spec.ov` - Standard library functions required for self-hosting
 
 pub mod bootstrap_verification;
 pub mod bootstrap_integration;
@@ -125,6 +136,10 @@ impl SelfHostingManager {
                 report.push_str("- ✅ All property-based tests passing\n\n");
                 
                 report.push_str("## Next Steps for Stage 1 Transition\n");
+                report.push_str("- [x] Define minimal language features needed for self-hosting\n");
+                report.push_str("- [x] Document bootstrap compiler requirements\n");
+                report.push_str("- [x] Create self-hosting roadmap\n");
+                report.push_str("- [ ] Implement standard library functions\n");
                 report.push_str("- [ ] Implement Ovie lexer specification\n");
                 report.push_str("- [ ] Implement Ovie parser specification\n");
                 report.push_str("- [ ] Bootstrap verification system\n");

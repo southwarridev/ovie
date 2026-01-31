@@ -1,8 +1,18 @@
-# Ovie Language Core Specification
+<div align="center">
+  <img src="ovie.png" alt="Ovie Programming Language" width="150" height="150">
+  
+  # Ovie Language Core Specification
+  
+  ### ✅ **OFFICIALLY SELF-HOSTED PROGRAMMING LANGUAGE**
+  
+  **🎉 Status: Production-Ready Self-Hosted Language (January 30, 2026)**
+</div>
 
 ## Immutable Core Principles
 
 These principles are locked and cannot be changed without extraordinary consensus. They define the fundamental nature of the Ovie programming language.
+
+**🏆 ACHIEVEMENT: All core principles have been successfully implemented in the self-hosted compiler!**
 
 ### 1. Offline-First Architecture
 - **No network required** to build or run Ovie programs

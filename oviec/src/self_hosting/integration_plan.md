@@ -5,6 +5,12 @@
 
 This document outlines the plan for integrating the Ovie-in-Ovie lexer specification with the existing Rust-based Stage 0 compiler. This is the first step toward partial self-hosting (Stage 1) where critical compiler components are implemented in Ovie itself.
 
+**Note**: This document is part of a comprehensive self-hosting specification suite:
+- **Minimal Compiler Specification**: `minimal_compiler_spec.md` - Defines the minimal language features required
+- **Bootstrap Requirements**: `bootstrap_requirements.md` - Specifies the bootstrap system requirements
+- **Self-Hosting Roadmap**: `self_hosting_roadmap.md` - Provides the complete 8-week implementation plan
+- **Integration Plan**: This document - Details the lexer integration process
+
 ### Integration Strategy
 
 #### Phase 1: Ovie Lexer Implementation

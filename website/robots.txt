@@ -1,0 +1,32 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://ovie-lang.org/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Allow all search engines to index
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# Block access to sensitive files
+Disallow: /*.log$
+Disallow: /*.tmp$
+Disallow: /deployment-summary.md
+
+# Allow access to important files
+Allow: /sitemap.xml
+Allow: /assets/
+Allow: /docs/
+Allow: /examples/

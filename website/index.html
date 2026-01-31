@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ovie Programming Language - Self-Hosted & Production Ready</title>
+    <meta name="description" content="Ovie is a modern, self-hosted programming language with natural syntax, AI-friendly design, and offline-first development. Built for accessibility and production use.">
+    <meta name="keywords" content="ovie programming language, self-hosted compiler, natural syntax, AI-friendly, offline-first, memory safe, deterministic, accessible programming">
+    <meta name="author" content="Ovie Language Team">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://ovie-lang.org/">
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ovie-lang.org/">
+    <meta property="og:title" content="Ovie Programming Language - Self-Hosted & Production Ready">
+    <meta property="og:description" content="Modern, accessible programming language with natural syntax. Self-hosted compiler written in Ovie itself. AI-friendly, offline-first, memory safe.">
+    <meta property="og:image" content="https://ovie-lang.org/assets/ovie.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Ovie Programming Language">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://ovie-lang.org/">
+    <meta property="twitter:title" content="Ovie Programming Language - Self-Hosted & Production Ready">
+    <meta property="twitter:description" content="Modern, accessible programming language with natural syntax. Self-hosted compiler written in Ovie itself. AI-friendly, offline-first, memory safe.">
+    <meta property="twitter:image" content="https://ovie-lang.org/assets/ovie.png">
+    <meta property="twitter:creator" content="@ovielang">
+    <meta property="twitter:site" content="@ovielang">
+    
+    <!-- Additional SEO -->
+    <meta name="theme-color" content="#6366f1">
+    <meta name="msapplication-TileColor" content="#6366f1">
+    <meta name="application-name" content="Ovie Programming Language">
+    <meta name="apple-mobile-web-app-title" content="Ovie Lang">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    
+    <!-- Structured Data for Search Engines -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Ovie Programming Language",
+      "description": "Modern, self-hosted programming language with natural syntax, AI-friendly design, and offline-first development",
+      "url": "https://ovie-lang.org",
+      "logo": "https://ovie-lang.org/assets/ovie.png",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Windows, macOS, Linux",
+      "programmingLanguage": "Ovie",
+      "author": {
+        "@type": "Organization",
+        "name": "Ovie Language Team",
+        "url": "https://github.com/southwarridev/ovie"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "downloadUrl": "https://github.com/southwarridev/ovie/releases",
+      "softwareVersion": "2.0.0",
+      "datePublished": "2026-01-30",
+      "keywords": "programming language, compiler, self-hosted, AI-friendly, natural syntax, memory safe, offline-first",
+      "featureList": [
+        "Self-hosted compiler",
+        "Natural language syntax",
+        "AI-friendly design",
+        "Memory safety",
+        "Offline-first development",
+        "Cross-platform support",
+        "Deterministic compilation"
+      ]
+    }
+    </script>
+    
+    <link rel="icon" type="image/png" href="assets/ovie.png">
+    <link rel="apple-touch-icon" href="assets/ovie.png">
+    <link rel="stylesheet" href="assets/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="#home" style="display: flex; align-items: center; gap: var(--spacing-sm); text-decoration: none;">
+                    <img src="assets/ovie.png" alt="Ovie" class="nav-logo">
+                    <span class="nav-title">Ovie</span>
+                    <span class="nav-badge">Self-Hosted</span>
+                </a>
+            </div>
+            <div class="nav-menu">
+                <a href="#home" class="nav-link">Home</a>
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#download" class="nav-link">Download</a>
+                <a href="#docs" class="nav-link">Documentation</a>
+                <a href="#examples" class="nav-link">Examples</a>
+                <a href="#library" class="nav-link">Library</a>
+                <a href="#community" class="nav-link">Community</a>
+            </div>
+            <div class="nav-actions">
+                <a href="#download" class="btn btn-primary">Get Started</a>
+                <button class="mobile-menu-toggle" aria-label="Open mobile menu" type="button">☰</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu">
+        <div class="mobile-nav-links">
+            <a href="#home" class="mobile-nav-link">Home</a>
+            <a href="#features" class="mobile-nav-link">Features</a>
+            <a href="#download" class="mobile-nav-link">Download</a>
+            <a href="#docs" class="mobile-nav-link">Documentation</a>
+            <a href="#examples" class="mobile-nav-link">Examples</a>
+            <a href="#library" class="mobile-nav-link">Library</a>
+            <a href="#community" class="mobile-nav-link">Community</a>
+        </div>
+        <div class="mobile-nav-actions">
+            <a href="#download" class="btn btn-primary">
+                <span class="btn-icon">⬇️</span> Get Started
+            </a>
+            <a href="https://github.com/southwarridev/ovie" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+                <span class="btn-icon">📱</span> GitHub
+            </a>
+            <a href="https://gitlab.com/ovie1/ovie" class="btn btn-secondary" target="_blank" rel="noopener noreferrer">
+                <span class="btn-icon">🦊</span> GitLab
+            </a>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-icon">🏆</span>
+                    <span>OFFICIALLY SELF-HOSTED PROGRAMMING LANGUAGE</span>
+                </div>
+                <h1 class="hero-title">
+                    The <span class="gradient-text">Self-Hosted</span><br>
+                    Programming Language
+                </h1>
+                <p class="hero-subtitle">
+                    Ovie is a modern, accessible, and AI-friendly programming language that compiles itself. 
+                    Built for developers, designed for everyone, ready for production.
+                </p>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <div class="stat-number">✅</div>
+                        <div class="stat-label">Self-Hosted</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">160KB+</div>
+                        <div class="stat-label">Standard Library</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">22+</div>
+                        <div class="stat-label">Examples</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">MIT</div>
+                        <div class="stat-label">Open Source</div>
+                    </div>
+                </div>
+                <div class="hero-actions">
+                    <a href="#download" class="btn btn-primary btn-large">
+                        <span class="btn-icon">⬇️</span>
+                        Download Ovie
+                    </a>
+                    <a href="#examples" class="btn btn-secondary btn-large">
+                        <span class="btn-icon">👀</span>
+                        View Examples
+                    </a>
+                </div>
+            </div>
+            <div class="hero-code">
+                <div class="code-window">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <span class="code-title">hello.ov</span>
+                    </div>
+                    <div class="code-content">
+                        <pre><code class="language-ovie">// Hello World in Ovie - Self-Hosted!
+// Compiled by a compiler written in Ovie itself
+
+seeAm "Hello, World!"
+seeAm "Welcome to the future of programming!"
+
+// Natural language syntax
+mut name = "Developer"
+fn greet(person) {
+    seeAm "Hello, " + person + "!"
+}
+
+greet(name)</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Achievement Banner -->
+    <section class="achievement-banner">
+        <div class="container">
+            <div class="achievement-content">
+                <div class="achievement-icon">🎉</div>
+                <div class="achievement-text">
+                    <h3>Historic Milestone Achieved!</h3>
+                    <p>January 30, 2026 - Ovie became officially self-hosted. The compiler is now written in Ovie itself!</p>
+                </div>
+                <a href="#achievement" class="btn btn-outline">Learn More</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Why Choose Ovie?</h2>
+                <p class="section-subtitle">Built for the modern developer with enterprise-grade features</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🏆</div>
+                    <h3 class="feature-title">Self-Hosted</h3>
+                    <p class="feature-description">The Ovie compiler is written in Ovie itself, proving its maturity and stability.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌍</div>
+                    <h3 class="feature-title">Accessible Syntax</h3>
+                    <p class="feature-description">Natural language patterns make programming accessible to everyone.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3 class="feature-title">Offline-First</h3>
+                    <p class="feature-description">Complete development environment with no network dependencies required.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3 class="feature-title">AI-Friendly</h3>
+                    <p class="feature-description">Designed from the ground up for AI/LLM integration and code generation.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3 class="feature-title">Memory Safe</h3>
+                    <p class="feature-description">Built-in memory safety without garbage collection overhead.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3 class="feature-title">Deterministic</h3>
+                    <p class="feature-description">Identical inputs always produce identical outputs across all platforms.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="download">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Get Started with Ovie</h2>
+                <p class="section-subtitle">Choose your installation method</p>
+            </div>
+            <div class="download-options">
+                <div class="download-card primary">
+                    <div class="download-header">
+                        <h3>Quick Install</h3>
+                        <p>One-line installation for all platforms</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="code-block">
+                            <div class="code-tabs">
+                                <button class="tab-btn active" data-tab="unix">Unix/Linux/macOS</button>
+                                <button class="tab-btn" data-tab="windows">Windows</button>
+                            </div>
+                            <div class="tab-content active" id="unix">
+                                <pre><code>curl -sSL https://install.ovie-lang.org | sh</code></pre>
+                            </div>
+                            <div class="tab-content" id="windows">
+                                <pre><code>iwr -useb https://install.ovie-lang.org/install.ps1 | iex</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="download-card">
+                    <div class="download-header">
+                        <h3>Direct Downloads</h3>
+                        <p>Pre-built executables (no domain secured yet)</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="download-links">
+                            <a href="ovie_final_test.exe" class="btn btn-outline" download>
+                                <span class="btn-icon">⬇️</span> Ovie Final Test
+                            </a>
+                            <a href="test_simple.exe" class="btn btn-outline" download>
+                                <span class="btn-icon">⬇️</span> Simple Test Build
+                            </a>
+                            <a href="test_enhanced_cli.exe" class="btn btn-outline" download>
+                                <span class="btn-icon">⬇️</span> Enhanced CLI
+                            </a>
+                            <a href="test_comprehensive_system_integration.exe" class="btn btn-outline" download>
+                                <span class="btn-icon">⬇️</span> Full System
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="download-options">
+                <div class="download-card">
+                    <div class="download-header">
+                        <h3>Build from Source</h3>
+                        <p>Complete offline installation</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="code-block">
+                            <pre><code>git clone https://github.com/southwarridev/ovie.git
+cd ovie
+make build
+make install</code></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="download-card">
+                    <div class="download-header">
+                        <h3>GitLab Mirror</h3>
+                        <p>Alternative repository access</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="code-block">
+                            <pre><code>git clone https://gitlab.com/ovie1/ovie.git
+cd ovie
+make build
+make install</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="download-verify">
+                <h4>Verify Installation</h4>
+                <div class="code-block">
+                    <pre><code>ovie --version
+ovie new hello-world
+cd hello-world
+ovie run</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="docs" class="documentation">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Complete Documentation</h2>
+                <p class="section-subtitle">Everything you need to master Ovie</p>
+            </div>
+            <div class="docs-grid">
+                <div class="doc-category">
+                    <h3 class="doc-category-title">🚀 Getting Started</h3>
+                    <div class="doc-links">
+                        <a href="docs/installation.html" class="doc-link">
+                            <span class="doc-icon">📦</span>
+                            <div class="doc-info">
+                                <h4>Installation Guide</h4>
+                                <p>Install Ovie on your system</p>
+                            </div>
+                        </a>
+                        <a href="docs/getting-started.html" class="doc-link">
+                            <span class="doc-icon">🎯</span>
+                            <div class="doc-info">
+                                <h4>Getting Started</h4>
+                                <p>Your first Ovie program</p>
+                            </div>
+                        </a>
+                        <a href="docs/tutorial.html" class="doc-link">
+                            <span class="doc-icon">📚</span>
+                            <div class="doc-info">
+                                <h4>Tutorial Series</h4>
+                                <p>Step-by-step learning path</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <div class="doc-category">
+                    <h3 class="doc-category-title">📖 Language Reference</h3>
+                    <div class="doc-links">
+                        <a href="docs/language-guide.html" class="doc-link">
+                            <span class="doc-icon">📝</span>
+                            <div class="doc-info">
+                                <h4>Language Guide</h4>
+                                <p>Complete language reference</p>
+                            </div>
+                        </a>
+                        <a href="docs/syntax.html" class="doc-link">
+                            <span class="doc-icon">⚡</span>
+                            <div class="doc-info">
+                                <h4>Syntax Overview</h4>
+                                <p>Core syntax and keywords</p>
+                            </div>
+                        </a>
+                        <a href="docs/standard-library.html" class="doc-link">
+                            <span class="doc-icon">📚</span>
+                            <div class="doc-info">
+                                <h4>Standard Library</h4>
+                                <p>Built-in functions and modules</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <div class="doc-category">
+                    <h3 class="doc-category-title">🛠️ Tools & CLI</h3>
+                    <div class="doc-links">
+                        <a href="docs/cli.html" class="doc-link">
+                            <span class="doc-icon">💻</span>
+                            <div class="doc-info">
+                                <h4>CLI Reference</h4>
+                                <p>Command-line tools</p>
+                            </div>
+                        </a>
+                        <a href="docs/aproko.html" class="doc-link">
+                            <span class="doc-icon">🤖</span>
+                            <div class="doc-info">
+                                <h4>Aproko Assistant</h4>
+                                <p>Built-in code assistant</p>
+                            </div>
+                        </a>
+                        <a href="docs/testing.html" class="doc-link">
+                            <span class="doc-icon">🧪</span>
+                            <div class="doc-info">
+                                <h4>Testing Framework</h4>
+                                <p>Unit and property testing</p>
+                            </div>
+                        </a>
+                        <a href="docs/vscode-extension.html" class="doc-link">
+                            <span class="doc-icon">📝</span>
+                            <div class="doc-info">
+                                <h4>VS Code Extension</h4>
+                                <p>IDE integration (coming soon)</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <div class="doc-category">
+                    <h3 class="doc-category-title">🏗️ Advanced Topics</h3>
+                    <div class="doc-links">
+                        <a href="docs/self-hosting-achievement.html" class="doc-link">
+                            <span class="doc-icon">🏆</span>
+                            <div class="doc-info">
+                                <h4>Self-Hosting Journey</h4>
+                                <p>How Ovie compiles itself</p>
+                            </div>
+                        </a>
+                        <a href="docs/internals.html" class="doc-link">
+                            <span class="doc-icon">⚙️</span>
+                            <div class="doc-info">
+                                <h4>Compiler Internals</h4>
+                                <p>Architecture deep dive</p>
+                            </div>
+                        </a>
+                        <a href="docs/ai-integration.html" class="doc-link">
+                            <span class="doc-icon">🤖</span>
+                            <div class="doc-info">
+                                <h4>AI Integration</h4>
+                                <p>Using Ovie with AI systems</p>
+                            </div>
+                        </a>
+                        <a href="docs/aproko-ai-bridge.html" class="doc-link">
+                            <span class="doc-icon">🔗</span>
+                            <div class="doc-info">
+                                <h4>Aproko AI Bridge</h4>
+                                <p>LLM integration tool (coming soon)</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Examples Section -->
+    <section id="examples" class="examples">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Learn by Example</h2>
+                <p class="section-subtitle">Comprehensive code examples for every skill level</p>
+            </div>
+            <div class="examples-tabs">
+                <button class="tab-btn active" data-tab="basic">Basic</button>
+                <button class="tab-btn" data-tab="enterprise">Enterprise</button>
+                <button class="tab-btn" data-tab="ai">AI-Friendly</button>
+                <button class="tab-btn" data-tab="advanced">Advanced</button>
+            </div>
+            <div class="examples-content">
+                <div class="tab-content active" id="basic">
+                    <div class="examples-grid">
+                        <div class="example-card">
+                            <h4>Hello World</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">seeAm "Hello, World!"</code></pre>
+                            </div>
+                            <a href="examples/hello.html" class="example-link">View Example</a>
+                        </div>
+                        <div class="example-card">
+                            <h4>Variables & Types</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">mut name = "Ovie"
+mut age = 1
+seeAm name + " is " + age + " year old"</code></pre>
+                            </div>
+                            <a href="examples/variables.html" class="example-link">View Example</a>
+                        </div>
+                        <div class="example-card">
+                            <h4>Functions</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">fn greet(name) {
+    seeAm "Hello, " + name + "!"
+}
+greet("Developer")</code></pre>
+                            </div>
+                            <a href="examples/functions.html" class="example-link">View Example</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-content" id="enterprise">
+                    <div class="examples-grid">
+                        <div class="example-card">
+                            <h4>Banking System</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">struct BankAccount {
+    balance: Number,
+    owner: String,
+}
+
+fn deposit(account, amount) {
+    account.balance = account.balance + amount
+}</code></pre>
+                            </div>
+                            <a href="examples/bank-account.html" class="example-link">View Example</a>
+                        </div>
+                        <div class="example-card">
+                            <h4>Employee Management</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">struct Employee {
+    id: Number,
+    name: String,
+    department: String,
+    salary: Number,
+}</code></pre>
+                            </div>
+                            <a href="examples/employee-management.html" class="example-link">View Example</a>
+                        </div>
+                        <div class="example-card">
+                            <h4>Data Processing</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">fn process_data(data) {
+    mut result = []
+    for item in data {
+        append(result, transform(item))
+    }
+    return result
+}</code></pre>
+                            </div>
+                            <a href="examples/data-processing.html" class="example-link">View Example</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-content" id="ai">
+                    <div class="examples-grid">
+                        <div class="example-card">
+                            <h4>Natural Language Patterns</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">// Natural, readable code
+if user_is_authenticated {
+    show_dashboard()
+} else {
+    redirect_to_login()
+}</code></pre>
+                            </div>
+                            <a href="examples/natural-language.html" class="example-link">View Example</a>
+                        </div>
+                        <div class="example-card">
+                            <h4>AI Training Data</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">// Structured for AI learning
+fn calculate_total(items) {
+    mut total = 0
+    for item in items {
+        total = total + item.price
+    }
+    return total
+}</code></pre>
+                            </div>
+                            <a href="examples/ai-training.html" class="example-link">View Example</a>
+                        </div>
+                        <div class="example-card">
+                            <h4>LLM-Friendly Code</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">// Clear patterns for LLMs
+struct User {
+    name: String,
+    email: String,
+    active: Boolean,
+}</code></pre>
+                            </div>
+                            <a href="examples/llm-friendly.html" class="example-link">View Example</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-content" id="advanced">
+                    <div class="examples-grid">
+                        <div class="example-card">
+                            <h4>Memory Safety</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">// Safe memory management
+fn safe_access(data, index) {
+    if index < array_length(data) {
+        return array_get(data, index)
+    }
+    return error("Index out of bounds")
+}</code></pre>
+                            </div>
+                            <a href="examples/memory-safety.html" class="example-link">View Example</a>
+                        </div>
+                        <div class="example-card">
+                            <h4>Testing Framework</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">test "addition works correctly" {
+    assert_equal(add(2, 3), 5)
+    assert_equal(add(0, 0), 0)
+    assert_equal(add(-1, 1), 0)
+}</code></pre>
+                            </div>
+                            <a href="examples/testing.html" class="example-link">View Example</a>
+                        </div>
+                        <div class="example-card">
+                            <h4>Self-Hosting Demo</h4>
+                            <div class="code-preview">
+                                <pre><code class="language-ovie">// Compiler written in Ovie!
+fn compile_source(source) {
+    mut tokens = tokenize(source)
+    mut ast = parse(tokens)
+    return generate_code(ast)
+}</code></pre>
+                            </div>
+                            <a href="examples/self-hosting.html" class="example-link">View Example</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Standard Library Section -->
+    <section id="library" class="library">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Comprehensive Standard Library</h2>
+                <p class="section-subtitle">160KB+ of production-ready modules</p>
+            </div>
+            <div class="library-grid">
+                <div class="library-module">
+                    <div class="module-header">
+                        <h3>std/core</h3>
+                        <span class="module-size">17.5KB</span>
+                    </div>
+                    <p class="module-description">Core types, functions, and fundamental operations</p>
+                    <div class="module-functions">
+                        <span class="function-tag">Result</span>
+                        <span class="function-tag">Option</span>
+                        <span class="function-tag">Array</span>
+                        <span class="function-tag">String</span>
+                    </div>
+                    <a href="docs/std-core.html" class="module-link">View Documentation</a>
+                </div>
+                <div class="library-module">
+                    <div class="module-header">
+                        <h3>std/io</h3>
+                        <span class="module-size">16.6KB</span>
+                    </div>
+                    <p class="module-description">Input/output operations and stream handling</p>
+                    <div class="module-functions">
+                        <span class="function-tag">print</span>
+                        <span class="function-tag">println</span>
+                        <span class="function-tag">read_line</span>
+                        <span class="function-tag">seeAm</span>
+                    </div>
+                    <a href="docs/std-io.html" class="module-link">View Documentation</a>
+                </div>
+                <div class="library-module">
+                    <div class="module-header">
+                        <h3>std/fs</h3>
+                        <span class="module-size">19.7KB</span>
+                    </div>
+                    <p class="module-description">File system operations and path manipulation</p>
+                    <div class="module-functions">
+                        <span class="function-tag">read_file</span>
+                        <span class="function-tag">write_file</span>
+                        <span class="function-tag">exists</span>
+                        <span class="function-tag">create_dir</span>
+                    </div>
+                    <a href="docs/std-fs.html" class="module-link">View Documentation</a>
+                </div>
+                <div class="library-module">
+                    <div class="module-header">
+                        <h3>std/time</h3>
+                        <span class="module-size">23.7KB</span>
+                    </div>
+                    <p class="module-description">Time, duration, and date handling</p>
+                    <div class="module-functions">
+                        <span class="function-tag">now</span>
+                        <span class="function-tag">duration</span>
+                        <span class="function-tag">sleep</span>
+                        <span class="function-tag">format_time</span>
+                    </div>
+                    <a href="docs/std-time.html" class="module-link">View Documentation</a>
+                </div>
+                <div class="library-module">
+                    <div class="module-header">
+                        <h3>std/cli</h3>
+                        <span class="module-size">31.0KB</span>
+                    </div>
+                    <p class="module-description">Command-line interface utilities</p>
+                    <div class="module-functions">
+                        <span class="function-tag">args</span>
+                        <span class="function-tag">env_var</span>
+                        <span class="function-tag">exit</span>
+                        <span class="function-tag">parse_args</span>
+                    </div>
+                    <a href="docs/std-cli.html" class="module-link">View Documentation</a>
+                </div>
+                <div class="library-module">
+                    <div class="module-header">
+                        <h3>std/testing</h3>
+                        <span class="module-size">28.1KB</span>
+                    </div>
+                    <p class="module-description">Unit and property-based testing framework</p>
+                    <div class="module-functions">
+                        <span class="function-tag">assert</span>
+                        <span class="function-tag">test</span>
+                        <span class="function-tag">property</span>
+                        <span class="function-tag">benchmark</span>
+                    </div>
+                    <a href="docs/std-testing.html" class="module-link">View Documentation</a>
+                </div>
+                <div class="library-module">
+                    <div class="module-header">
+                        <h3>std/log</h3>
+                        <span class="module-size">24.4KB</span>
+                    </div>
+                    <p class="module-description">Structured logging and debugging</p>
+                    <div class="module-functions">
+                        <span class="function-tag">info</span>
+                        <span class="function-tag">warn</span>
+                        <span class="function-tag">error</span>
+                        <span class="function-tag">debug</span>
+                    </div>
+                    <a href="docs/std-log.html" class="module-link">View Documentation</a>
+                </div>
+                <div class="library-module">
+                    <div class="module-header">
+                        <h3>std/math</h3>
+                        <span class="module-size">Coming Soon</span>
+                    </div>
+                    <p class="module-description">Mathematical operations and constants</p>
+                    <div class="module-functions">
+                        <span class="function-tag">abs</span>
+                        <span class="function-tag">sqrt</span>
+                        <span class="function-tag">pow</span>
+                        <span class="function-tag">pi</span>
+                    </div>
+                    <a href="docs/std-math.html" class="module-link">View Documentation</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Test Project Section -->
+    <section id="test-project" class="test-project">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Try Ovie Online</h2>
+                <p class="section-subtitle">Interactive playground to test Ovie code</p>
+            </div>
+            <div class="playground">
+                <div class="playground-header">
+                    <div class="playground-tabs">
+                        <button class="tab-btn active" data-tab="editor">Editor</button>
+                        <button class="tab-btn" data-tab="output">Output</button>
+                        <button class="tab-btn" data-tab="examples">Examples</button>
+                    </div>
+                    <div class="playground-actions">
+                        <button class="btn btn-primary" id="runCode">Run Code</button>
+                        <button class="btn btn-secondary" id="shareCode">Share</button>
+                    </div>
+                </div>
+                <div class="playground-content">
+                    <div class="tab-content active" id="editor">
+                        <textarea id="codeEditor" class="code-editor" placeholder="// Write your Ovie code here
+seeAm &quot;Hello, World!&quot;
+
+mut name = &quot;Ovie Developer&quot;
+fn greet(person) {
+    seeAm &quot;Welcome, &quot; + person + &quot;!&quot;
+}
+
+greet(name)">// Write your Ovie code here
+seeAm "Hello, World!"
+
+mut name = "Ovie Developer"
+fn greet(person) {
+    seeAm "Welcome, " + person + "!"
+}
+
+greet(name)</textarea>
+                    </div>
+                    <div class="tab-content" id="output">
+                        <div class="output-console" id="outputConsole">
+                            <div class="console-line">Ready to run your Ovie code...</div>
+                        </div>
+                    </div>
+                    <div class="tab-content" id="examples">
+                        <div class="example-list">
+                            <button class="example-btn" data-example="hello">Hello World</button>
+                            <button class="example-btn" data-example="calculator">Calculator</button>
+                            <button class="example-btn" data-example="fibonacci">Fibonacci</button>
+                            <button class="example-btn" data-example="struct">Data Structures</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Community Section -->
+    <section id="community" class="community">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Join the Community</h2>
+                <p class="section-subtitle">Connect with developers worldwide</p>
+            </div>
+            <div class="community-grid">
+                <div class="community-card">
+                    <div class="community-icon">📱</div>
+                    <h3>GitHub</h3>
+                    <p>Contribute to the project, report issues, and collaborate with the core team.</p>
+                    <a href="https://github.com/southwarridev/ovie" class="community-link">Visit GitHub</a>
+                </div>
+                <div class="community-card">
+                    <div class="community-icon">🦊</div>
+                    <h3>GitLab</h3>
+                    <p>Alternative repository with full CI/CD pipeline and issue tracking.</p>
+                    <a href="https://gitlab.com/ovie1/ovie" class="community-link">Visit GitLab</a>
+                </div>
+                <div class="community-card">
+                    <div class="community-icon">💬</div>
+                    <h3>Discussions</h3>
+                    <p>Ask questions, share ideas, and get help from the community.</p>
+                    <a href="https://github.com/southwarridev/ovie/discussions" class="community-link">Join Discussions</a>
+                </div>
+                <div class="community-card">
+                    <div class="community-icon">📧</div>
+                    <h3>Newsletter</h3>
+                    <p>Stay updated with the latest Ovie news, releases, and tutorials.</p>
+                    <a href="#newsletter" class="community-link">Subscribe</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Achievement Section -->
+    <section id="achievement" class="achievement">
+        <div class="container">
+            <div class="achievement-content">
+                <div class="achievement-header">
+                    <img src="assets/ovie.png" alt="Ovie" class="achievement-logo">
+                    <h2>🏆 Historic Achievement</h2>
+                    <p class="achievement-date">January 30, 2026</p>
+                </div>
+                <div class="achievement-body">
+                    <h3>Ovie Becomes Self-Hosted!</h3>
+                    <p>After months of development, Ovie has achieved a historic milestone: the compiler is now written in Ovie itself. This proves the language's maturity, stability, and production readiness.</p>
+                    <div class="achievement-stats">
+                        <div class="stat">
+                            <div class="stat-number">✅</div>
+                            <div class="stat-label">Self-Hosted Compiler</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">8/8</div>
+                            <div class="stat-label">Language Criteria Met</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">100%</div>
+                            <div class="stat-label">Bootstrap Verification</div>
+                        </div>
+                    </div>
+                    <a href="docs/self-hosting-achievement.html" class="btn btn-primary">Read Full Report</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="assets/ovie.png" alt="Ovie" class="footer-logo">
+                    <h3>Ovie Programming Language</h3>
+                    <p>Making programming accessible to everyone, one line at a time. Self-hosted since January 30, 2026.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Documentation</h4>
+                    <a href="docs/getting-started.html">Getting Started</a>
+                    <a href="docs/language-guide.html">Language Guide</a>
+                    <a href="docs/standard-library.html">Standard Library</a>
+                    <a href="docs/cli.html">CLI Reference</a>
+                </div>
+                <div class="footer-section">
+                    <h4>Community</h4>
+                    <a href="https://github.com/southwarridev/ovie" target="_blank" rel="noopener noreferrer">GitHub</a>
+                    <a href="https://gitlab.com/ovie1/ovie" target="_blank" rel="noopener noreferrer">GitLab</a>
+                    <a href="https://github.com/southwarridev/ovie/discussions" target="_blank" rel="noopener noreferrer">Discussions</a>
+                    <a href="https://github.com/southwarridev/ovie/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+                </div>
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <a href="examples/">Examples</a>
+                    <a href="docs/ai-integration.html">AI Integration</a>
+                    <a href="docs/self-hosting-achievement.html">Self-Hosting</a>
+                    <a href="LICENSE">MIT License</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Ovie Programming Language. Licensed under MIT License.</p>
+                <p>Self-hosted since January 30, 2026 🎉</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="assets/script.js"></script>
+</body>
+</html>

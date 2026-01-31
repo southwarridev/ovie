@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standard Library - Ovie Programming Language</title>
+    <link rel="icon" type="image/png" href="../assets/ovie.png">
+    <link rel="stylesheet" href="../assets/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .doc-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 120px var(--spacing-lg) var(--spacing-3xl);
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: var(--spacing-3xl);
+        }
+        
+        .doc-sidebar {
+            position: sticky;
+            top: 120px;
+            height: fit-content;
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+        }
+        
+        .doc-sidebar h3 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-md);
+            font-size: 1rem;
+        }
+        
+        .doc-sidebar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .doc-sidebar li {
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .doc-sidebar a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: var(--transition-fast);
+            display: block;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+        }
+        
+        .doc-sidebar a:hover,
+        .doc-sidebar a.active {
+            color: var(--brand-primary);
+            background: rgba(0, 212, 255, 0.1);
+        }
+        
+        .doc-main {
+            min-width: 0;
+        }
+        
+        .doc-header {
+            text-align: center;
+            margin-bottom: var(--spacing-3xl);
+        }
+        
+        .stdlib-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-xl) 0;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--brand-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+        
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .doc-content {
+            line-height: 1.8;
+        }
+        
+        .doc-content h2 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-3xl);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--border-primary);
+            scroll-margin-top: 120px;
+        }
+        
+        .doc-content h3 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-xl);
+            margin-bottom: var(--spacing-md);
+            scroll-margin-top: 120px;
+        }
+        
+        .doc-content h4 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-lg);
+            margin-bottom: var(--spacing-sm);
+            scroll-margin-top: 120px;
+        }
+        
+        .doc-content p {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .doc-content code {
+            background: var(--bg-code);
+            color: var(--brand-primary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+        }
+        
+        .doc-content pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            overflow-x: auto;
+            margin: var(--spacing-md) 0;
+        }
+        
+        .doc-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+        
+        .module-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            margin: var(--spacing-lg) 0;
+            overflow: hidden;
+        }
+        
+        .module-header {
+            background: var(--bg-secondary);
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .module-title {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            margin: 0;
+        }
+        
+        .module-size {
+            background: var(--brand-gradient);
+            color: white;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .module-content {
+            padding: var(--spacing-lg);
+        }
+        
+        .module-description {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-lg);
+            font-size: 1.1rem;
+        }
+        
+        .function-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .function-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+        }
+        
+        .function-signature {
+            font-family: var(--font-mono);
+            color: var(--brand-primary);
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            font-size: 0.9rem;
+        }
+        
+        .function-description {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+            font-size: 0.9rem;
+        }
+        
+        .function-example {
+            background: var(--bg-code);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-sm);
+            padding: var(--spacing-sm);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-primary);
+        }
+        
+        .import-example {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .import-example h4 {
+            color: var(--brand-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .success-box {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .success-box h4 {
+            color: var(--success);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        @media (max-width: 1024px) {
+            .doc-container {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-xl);
+            }
+            
+            .doc-sidebar {
+                position: static;
+                order: 2;
+            }
+            
+            .function-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="../index.html">
+                    <img src="../assets/ovie.png" alt="Ovie" class="nav-logo">
+                </a>
+                <span class="nav-title">Ovie</span>
+                <span class="nav-badge">Self-Hosted</span>
+            </div>
+            <div class="nav-menu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="../index.html#features" class="nav-link">Features</a>
+                <a href="../index.html#download" class="nav-link">Download</a>
+                <a href="../index.html#docs" class="nav-link">Documentation</a>
+                <a href="../index.html#examples" class="nav-link">Examples</a>
+            </div>
+            <div class="nav-actions">
+                <a href="../index.html#download" class="btn btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="doc-container">
+        <div class="doc-sidebar">
+            <h3>📚 Modules</h3>
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#std-core">std/core</a></li>
+                <li><a href="#std-io">std/io</a></li>
+                <li><a href="#std-fs">std/fs</a></li>
+                <li><a href="#std-time">std/time</a></li>
+                <li><a href="#std-cli">std/cli</a></li>
+                <li><a href="#std-testing">std/testing</a></li>
+                <li><a href="#std-log">std/log</a></li>
+                <li><a href="#std-math">std/math</a></li>
+                <li><a href="#importing">Importing</a></li>
+            </ul>
+        </div>
+
+        <div class="doc-main">
+            <div class="doc-header">
+                <img src="../assets/ovie.png" alt="Ovie" width="80" height="80" style="margin-bottom: var(--spacing-md); border-radius: var(--radius-lg);">
+                <h1>Standard Library</h1>
+                <p class="section-subtitle">Comprehensive collection of production-ready modules</p>
+            </div>
+
+            <div class="stdlib-stats">
+                <div class="stat-card">
+                    <div class="stat-number">160KB+</div>
+                    <div class="stat-label">Total Size</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">Core Modules</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">100+</div>
+                    <div class="stat-label">Functions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Self-Hosted</div>
+                </div>
+            </div>
+
+            <div class="doc-content">
+                <div class="success-box">
+                    <h4>🏆 Self-Hosted Standard Library!</h4>
+                    <p>The Ovie standard library is implemented using the self-hosted Ovie compiler, demonstrating the language's capability to build complex, production-ready software.</p>
+                </div>
+
+                <h2 id="overview">Overview</h2>
+                
+                <p>The Ovie standard library provides a comprehensive set of modules for common programming tasks. All modules are designed with simplicity, safety, and performance in mind, following Ovie's philosophy of accessible programming.</p>
+
+                <div class="import-example">
+                    <h4>💡 Quick Start</h4>
+                    <p>Import any standard library module using the <code>use</code> statement:</p>
+                    <pre><code class="language-ovie">// Import entire module
+use std/io
+
+// Import specific functions
+use std/math { sqrt, pow, pi }
+
+// Import with alias
+use std/fs as file_system</code></pre>
+                </div>
+
+                <h2 id="std-core">std/core</h2>
+
+                <div class="module-section">
+                    <div class="module-header">
+                        <h3 class="module-title">std/core</h3>
+                        <span class="module-size">17.5KB</span>
+                    </div>
+                    <div class="module-content">
+                        <p class="module-description">Core types, functions, and fundamental operations that form the foundation of Ovie programming.</p>
+                        
+                        <div class="function-grid">
+                            <div class="function-card">
+                                <div class="function-signature">Result&lt;T&gt;</div>
+                                <div class="function-description">Type for handling operations that can succeed or fail.</div>
+                                <div class="function-example">ok(value) | error(message)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">Option&lt;T&gt;</div>
+                                <div class="function-description">Type for values that may or may not exist.</div>
+                                <div class="function-example">some(value) | none()</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">to_string(value) -> String</div>
+                                <div class="function-description">Convert any value to its string representation.</div>
+                                <div class="function-example">to_string(42) // "42"</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">to_number(str) -> Result&lt;Number&gt;</div>
+                                <div class="function-description">Parse a string into a number.</div>
+                                <div class="function-example">to_number("3.14") // ok(3.14)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">type_of(value) -> String</div>
+                                <div class="function-description">Get the type name of a value.</div>
+                                <div class="function-example">type_of(42) // "Number"</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">clone(value) -> T</div>
+                                <div class="function-description">Create a deep copy of a value.</div>
+                                <div class="function-example">mut copy = clone(original)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="std-io">std/io</h2>
+
+                <div class="module-section">
+                    <div class="module-header">
+                        <h3 class="module-title">std/io</h3>
+                        <span class="module-size">16.6KB</span>
+                    </div>
+                    <div class="module-content">
+                        <p class="module-description">Input/output operations and stream handling for console and file I/O.</p>
+                        
+                        <div class="function-grid">
+                            <div class="function-card">
+                                <div class="function-signature">seeAm(message)</div>
+                                <div class="function-description">Print a message to stdout (Ovie's signature function).</div>
+                                <div class="function-example">seeAm "Hello, World!"</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">print(message)</div>
+                                <div class="function-description">Print without newline.</div>
+                                <div class="function-example">print "Enter name: "</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">println(message)</div>
+                                <div class="function-description">Print with newline.</div>
+                                <div class="function-example">println "Debug info"</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">read_line() -> String</div>
+                                <div class="function-description">Read a line from stdin.</div>
+                                <div class="function-example">mut input = read_line()</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">eprint(message)</div>
+                                <div class="function-description">Print to stderr.</div>
+                                <div class="function-example">eprint "Error occurred"</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">flush()</div>
+                                <div class="function-description">Flush output buffers.</div>
+                                <div class="function-example">flush()</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="std-fs">std/fs</h2>
+
+                <div class="module-section">
+                    <div class="module-header">
+                        <h3 class="module-title">std/fs</h3>
+                        <span class="module-size">19.7KB</span>
+                    </div>
+                    <div class="module-content">
+                        <p class="module-description">File system operations and path manipulation for working with files and directories.</p>
+                        
+                        <div class="function-grid">
+                            <div class="function-card">
+                                <div class="function-signature">read_file(path) -> Result&lt;String&gt;</div>
+                                <div class="function-description">Read entire file contents as string.</div>
+                                <div class="function-example">mut content = read_file("data.txt")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">write_file(path, content) -> Result</div>
+                                <div class="function-description">Write string to file.</div>
+                                <div class="function-example">write_file("output.txt", data)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">append_file(path, content) -> Result</div>
+                                <div class="function-description">Append string to file.</div>
+                                <div class="function-example">append_file("log.txt", entry)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">exists(path) -> Boolean</div>
+                                <div class="function-description">Check if file or directory exists.</div>
+                                <div class="function-example">if exists("config.toml") { ... }</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">create_dir(path) -> Result</div>
+                                <div class="function-description">Create a directory.</div>
+                                <div class="function-example">create_dir("output")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">remove_file(path) -> Result</div>
+                                <div class="function-description">Delete a file.</div>
+                                <div class="function-example">remove_file("temp.txt")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">list_dir(path) -> Result&lt;Array&gt;</div>
+                                <div class="function-description">List directory contents.</div>
+                                <div class="function-example">mut files = list_dir(".")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">is_file(path) -> Boolean</div>
+                                <div class="function-description">Check if path is a file.</div>
+                                <div class="function-example">if is_file(path) { ... }</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="std-time">std/time</h2>
+
+                <div class="module-section">
+                    <div class="module-header">
+                        <h3 class="module-title">std/time</h3>
+                        <span class="module-size">23.7KB</span>
+                    </div>
+                    <div class="module-content">
+                        <p class="module-description">Time, duration, and date handling for temporal operations.</p>
+                        
+                        <div class="function-grid">
+                            <div class="function-card">
+                                <div class="function-signature">now() -> Timestamp</div>
+                                <div class="function-description">Get current timestamp.</div>
+                                <div class="function-example">mut current = now()</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">duration(seconds) -> Duration</div>
+                                <div class="function-description">Create duration from seconds.</div>
+                                <div class="function-example">mut timeout = duration(30)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">sleep(duration)</div>
+                                <div class="function-description">Pause execution for duration.</div>
+                                <div class="function-example">sleep(duration(1))</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">format_time(timestamp, format) -> String</div>
+                                <div class="function-description">Format timestamp as string.</div>
+                                <div class="function-example">format_time(now(), "%Y-%m-%d")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">parse_time(str, format) -> Result&lt;Timestamp&gt;</div>
+                                <div class="function-description">Parse string into timestamp.</div>
+                                <div class="function-example">parse_time("2026-01-30", "%Y-%m-%d")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">elapsed(start) -> Duration</div>
+                                <div class="function-description">Time elapsed since timestamp.</div>
+                                <div class="function-example">mut time_taken = elapsed(start)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="std-cli">std/cli</h2>
+
+                <div class="module-section">
+                    <div class="module-header">
+                        <h3 class="module-title">std/cli</h3>
+                        <span class="module-size">31.0KB</span>
+                    </div>
+                    <div class="module-content">
+                        <p class="module-description">Command-line interface utilities for building CLI applications.</p>
+                        
+                        <div class="function-grid">
+                            <div class="function-card">
+                                <div class="function-signature">args() -> Array&lt;String&gt;</div>
+                                <div class="function-description">Get command-line arguments.</div>
+                                <div class="function-example">mut arguments = args()</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">env_var(name) -> Option&lt;String&gt;</div>
+                                <div class="function-description">Get environment variable.</div>
+                                <div class="function-example">mut home = env_var("HOME")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">exit(code)</div>
+                                <div class="function-description">Exit program with code.</div>
+                                <div class="function-example">exit(0)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">parse_args(args, spec) -> Result&lt;ParsedArgs&gt;</div>
+                                <div class="function-description">Parse command-line arguments.</div>
+                                <div class="function-example">mut parsed = parse_args(args(), spec)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">prompt(message) -> String</div>
+                                <div class="function-description">Prompt user for input.</div>
+                                <div class="function-example">mut name = prompt("Enter name: ")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">confirm(message) -> Boolean</div>
+                                <div class="function-description">Ask for yes/no confirmation.</div>
+                                <div class="function-example">if confirm("Continue?") { ... }</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="std-testing">std/testing</h2>
+
+                <div class="module-section">
+                    <div class="module-header">
+                        <h3 class="module-title">std/testing</h3>
+                        <span class="module-size">28.1KB</span>
+                    </div>
+                    <div class="module-content">
+                        <p class="module-description">Unit and property-based testing framework for reliable software development.</p>
+                        
+                        <div class="function-grid">
+                            <div class="function-card">
+                                <div class="function-signature">assert(condition, message)</div>
+                                <div class="function-description">Assert that condition is true.</div>
+                                <div class="function-example">assert(result == 42, "Wrong result")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">assert_equal(actual, expected)</div>
+                                <div class="function-description">Assert values are equal.</div>
+                                <div class="function-example">assert_equal(add(2, 3), 5)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">test(name, test_fn)</div>
+                                <div class="function-description">Define a unit test.</div>
+                                <div class="function-example">test "addition" { assert_equal(1+1, 2) }</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">property(name, property_fn)</div>
+                                <div class="function-description">Define a property-based test.</div>
+                                <div class="function-example">property "commutative" { ... }</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">benchmark(name, bench_fn)</div>
+                                <div class="function-description">Define a benchmark test.</div>
+                                <div class="function-example">benchmark "sort" { sort(data) }</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">mock(object) -> Mock</div>
+                                <div class="function-description">Create a mock object for testing.</div>
+                                <div class="function-example">mut mock_db = mock(database)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="std-log">std/log</h2>
+
+                <div class="module-section">
+                    <div class="module-header">
+                        <h3 class="module-title">std/log</h3>
+                        <span class="module-size">24.4KB</span>
+                    </div>
+                    <div class="module-content">
+                        <p class="module-description">Structured logging and debugging utilities for application monitoring.</p>
+                        
+                        <div class="function-grid">
+                            <div class="function-card">
+                                <div class="function-signature">info(message)</div>
+                                <div class="function-description">Log informational message.</div>
+                                <div class="function-example">info("Application started")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">warn(message)</div>
+                                <div class="function-description">Log warning message.</div>
+                                <div class="function-example">warn("Deprecated function used")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">error(message)</div>
+                                <div class="function-description">Log error message.</div>
+                                <div class="function-example">error("Database connection failed")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">debug(message)</div>
+                                <div class="function-description">Log debug message.</div>
+                                <div class="function-example">debug("Variable value: " + value)</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">set_level(level)</div>
+                                <div class="function-description">Set minimum log level.</div>
+                                <div class="function-example">set_level("INFO")</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">log_to_file(path)</div>
+                                <div class="function-description">Direct logs to file.</div>
+                                <div class="function-example">log_to_file("app.log")</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="std-math">std/math</h2>
+
+                <div class="module-section">
+                    <div class="module-header">
+                        <h3 class="module-title">std/math</h3>
+                        <span class="module-size">Co</span>
+                    </div>
+                    <div class="module-content">
+                        <p class="module-description">Mathematical operations and constants for numerical computing.</p>
+                        
+                        <div class="function-grid">
+                            <div class="function-card">
+                                <div class="function-signature">abs(x) -> Number</div>
+                                <div class="function-description">Absolute value of a number.</div>
+                                <div class="function-example">abs(-5) // 5</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">sqrt(x) -> Number</div>
+                                <div class="function-description">Square root of a number.</div>
+                                <div class="function-example">sqrt(16) // 4</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">pow(base, exp) -> Number</div>
+                                <div class="function-description">Raise base to power of exponent.</div>
+                                <div class="function-example">pow(2, 3) // 8</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">pi</div>
+                                <div class="function-description">Mathematical constant π.</div>
+                                <div class="function-example">mut circumference = 2 * pi * radius</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">sin(x) -> Number</div>
+                                <div class="function-description">Sine of angle in radians.</div>
+                                <div class="function-example">sin(pi / 2) // 1</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">max(a, b) -> Number</div>
+                                <div class="function-description">Maximum of two numbers.</div>
+                                <div class="function-example">max(10, 5) // 10</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">min(a, b) -> Number</div>
+                                <div class="function-description">Minimum of two numbers.</div>
+                                <div class="function-example">min(10, 5) // 5</div>
+                            </div>
+                            <div class="function-card">
+                                <div class="function-signature">round(x) -> Number</div>
+                                <div class="function-description">Round to nearest integer.</div>
+                                <div class="function-example">round(3.7) // 4</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 id="importing">Importing Modules</h2>
+                
+                <p>The Ovie module system makes it easy to use standard library functionality:</p>
+
+                <pre><code class="language-ovie">// Import entire modules
+use std/io
+use std/fs
+use std/math
+
+// Use functions from imported modules
+seeAm "Hello, World!"
+mut content = read_file("data.txt")
+mut result = sqrt(16)
+
+// Import specific functions
+use std/math { sqrt, pow, pi, sin, cos }
+use std/time { now, duration, sleep }
+
+// Use imported functions directly
+mut hypotenuse = sqrt(pow(3, 2) + pow(4, 2))
+sleep(duration(1))
+
+// Import with aliases
+use std/fs as file_system
+use std/cli as command_line
+
+// Use aliased modules
+mut files = file_system.list_dir(".")
+mut args = command_line.args()</code></pre>
+
+                <div class="import-example">
+                    <h4>🚀 Complete Example</h4>
+                    <pre><code class="language-ovie">// Complete program using multiple standard library modules
+use std/io
+use std/fs
+use std/time { now, format_time }
+use std/cli { args }
+use std/log { info, error }
+
+fn main() {
+    // Get command line arguments
+    mut arguments = args()
+    
+    if array_length(arguments) < 2 {
+        error("Usage: program &lt;filename&gt;")
+        return
+    }
+    
+    mut filename = array_get(arguments, 1)
+    info("Processing file: " + filename)
+    
+    // Read file
+    mut content_result = read_file(filename)
+    if is_error(content_result) {
+        error("Failed to read file: " + error_message(content_result))
+        return
+    }
+    
+    mut content = unwrap(content_result)
+    mut timestamp = format_time(now(), "%Y-%m-%d %H:%M:%S")
+    
+    seeAm "File: " + filename
+    seeAm "Size: " + array_length(content) + " characters"
+    seeAm "Processed at: " + timestamp
+    
+    info("Processing completed successfully")
+}</code></pre>
+                </div>
+
+                <div class="success-box">
+                    <h4>🏆 Production Ready</h4>
+                    <p>The Ovie standard library is battle-tested and production-ready. All modules are implemented using the self-hosted Ovie compiler, proving the language's capability to build robust, reliable software.</p>
+                </div>
+
+                <hr style="margin: var(--spacing-3xl) 0; border: none; border-top: 1px solid var(--border-primary);">
+
+                <div style="text-align: center; color: var(--text-muted);">
+                    <p>Standard Library v1.0.0 - Self-hosted since January 30, 2026 🎉</p>
+                    <p>For examples using these modules, visit our <a href="../index.html#examples">Examples Gallery</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/script.js"></script>
+    <script>
+        // Sidebar navigation
+        document.addEventListener('DOMContentLoaded', function() {
+            const links = document.querySelectorAll('.doc-sidebar a');
+            const sections = document.querySelectorAll('.doc-content h2, .doc-content h3');
+            
+            // Highlight active section
+            function updateActiveLink() {
+                let current = '';
+                sections.forEach(section => {
+                    const rect = section.getBoundingClientRect();
+                    if (rect.top <= 150) {
+                        current = section.id;
+                    }
+                });
+                
+                links.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + current) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+            
+            window.addEventListener('scroll', updateActiveLink);
+            updateActiveLink();
+        });
+    </script>
+</body>
+</html>

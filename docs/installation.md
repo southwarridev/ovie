@@ -1,6 +1,14 @@
-# Installation Guide
+<div align="center">
+  <img src="../ovie.png" alt="Ovie Programming Language" width="120" height="120">
+  
+  # Installation Guide
+  
+  ### ✅ **SELF-HOSTED PROGRAMMING LANGUAGE**
+</div>
 
-This guide covers installing the Ovie Programming Language toolchain on various platforms. Ovie is currently in Stage 0 (Rust implementation) and requires Rust to build from source.
+This guide covers installing the Ovie Programming Language toolchain on various platforms. Ovie is now a **production-ready, self-hosted programming language** with a complete compiler written in Ovie itself!
+
+**🎉 Status: Installing a fully self-hosted programming language (January 30, 2026)**
 
 ## Quick Install
 

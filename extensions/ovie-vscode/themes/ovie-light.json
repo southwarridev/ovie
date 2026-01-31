@@ -1,0 +1,207 @@
+{
+    "name": "Ovie Light",
+    "type": "light",
+    "colors": {
+        "editor.background": "#ffffff",
+        "editor.foreground": "#24292f",
+        "editorCursor.foreground": "#d97706",
+        "editor.lineHighlightBackground": "#f6f8fa",
+        "editor.selectionBackground": "#0969da20",
+        "editor.selectionHighlightBackground": "#f6f8fa",
+        "editor.findMatchBackground": "#d9770640",
+        "editor.findMatchHighlightBackground": "#d9770620",
+        "editorLineNumber.foreground": "#656d76",
+        "editorLineNumber.activeForeground": "#d97706",
+        "editorIndentGuide.background": "#d0d7de",
+        "editorIndentGuide.activeBackground": "#d97706",
+        "editorBracketMatch.background": "#d9770640",
+        "editorBracketMatch.border": "#d97706",
+        "editorError.foreground": "#cf222e",
+        "editorWarning.foreground": "#bf8700",
+        "editorInfo.foreground": "#0969da",
+        "editorHint.foreground": "#1a7f37",
+        "activityBar.background": "#ffffff",
+        "activityBar.foreground": "#24292f",
+        "activityBar.activeBorder": "#d97706",
+        "activityBarBadge.background": "#d97706",
+        "activityBarBadge.foreground": "#ffffff",
+        "sideBar.background": "#f6f8fa",
+        "sideBar.foreground": "#24292f",
+        "sideBarTitle.foreground": "#d97706",
+        "statusBar.background": "#ffffff",
+        "statusBar.foreground": "#24292f",
+        "statusBar.debuggingBackground": "#d97706",
+        "statusBar.debuggingForeground": "#ffffff",
+        "titleBar.activeBackground": "#ffffff",
+        "titleBar.activeForeground": "#24292f",
+        "titleBar.inactiveBackground": "#ffffff",
+        "titleBar.inactiveForeground": "#656d76",
+        "tab.activeBackground": "#ffffff",
+        "tab.activeForeground": "#d97706",
+        "tab.inactiveBackground": "#f6f8fa",
+        "tab.inactiveForeground": "#656d76",
+        "tab.border": "#d0d7de",
+        "panel.background": "#f6f8fa",
+        "panel.border": "#d0d7de",
+        "panelTitle.activeForeground": "#d97706",
+        "panelTitle.inactiveForeground": "#656d76",
+        "terminal.background": "#ffffff",
+        "terminal.foreground": "#24292f",
+        "terminal.ansiBlack": "#24292f",
+        "terminal.ansiRed": "#cf222e",
+        "terminal.ansiGreen": "#1a7f37",
+        "terminal.ansiYellow": "#bf8700",
+        "terminal.ansiBlue": "#0969da",
+        "terminal.ansiMagenta": "#8250df",
+        "terminal.ansiCyan": "#1b7c83",
+        "terminal.ansiWhite": "#f6f8fa",
+        "terminal.ansiBrightBlack": "#656d76",
+        "terminal.ansiBrightRed": "#a40e26",
+        "terminal.ansiBrightGreen": "#2da44e",
+        "terminal.ansiBrightYellow": "#f59e0b",
+        "terminal.ansiBrightBlue": "#218bff",
+        "terminal.ansiBrightMagenta": "#a475f9",
+        "terminal.ansiBrightCyan": "#3192aa",
+        "terminal.ansiBrightWhite": "#ffffff"
+    },
+    "tokenColors": [
+        {
+            "name": "Comment",
+            "scope": [
+                "comment",
+                "punctuation.definition.comment"
+            ],
+            "settings": {
+                "fontStyle": "italic",
+                "foreground": "#656d76"
+            }
+        },
+        {
+            "name": "String",
+            "scope": [
+                "string.quoted.double.ovie",
+                "string.quoted.single.ovie"
+            ],
+            "settings": {
+                "foreground": "#1a7f37"
+            }
+        },
+        {
+            "name": "Number",
+            "scope": [
+                "constant.numeric.decimal.ovie",
+                "constant.numeric.hex.ovie",
+                "constant.numeric.binary.ovie"
+            ],
+            "settings": {
+                "foreground": "#bf8700"
+            }
+        },
+        {
+            "name": "Keyword",
+            "scope": [
+                "keyword.control.ovie",
+                "keyword.declaration.ovie",
+                "keyword.other.ovie"
+            ],
+            "settings": {
+                "foreground": "#f59e0b",
+                "fontStyle": "bold"
+            }
+        },
+        {
+            "name": "Ovie seeAm",
+            "scope": [
+                "keyword.other.ovie.seeam"
+            ],
+            "settings": {
+                "foreground": "#d97706",
+                "fontStyle": "bold"
+            }
+        },
+        {
+            "name": "Ovie test",
+            "scope": [
+                "keyword.other.ovie.test"
+            ],
+            "settings": {
+                "foreground": "#0969da",
+                "fontStyle": "bold"
+            }
+        },
+        {
+            "name": "Function name",
+            "scope": [
+                "entity.name.function.ovie",
+                "entity.name.function.definition.ovie"
+            ],
+            "settings": {
+                "foreground": "#1b7c83"
+            }
+        },
+        {
+            "name": "Type",
+            "scope": [
+                "storage.type.primitive.ovie",
+                "storage.type.custom.ovie"
+            ],
+            "settings": {
+                "foreground": "#0969da"
+            }
+        },
+        {
+            "name": "Constant",
+            "scope": [
+                "constant.language.ovie"
+            ],
+            "settings": {
+                "foreground": "#cf222e"
+            }
+        },
+        {
+            "name": "Operator",
+            "scope": [
+                "keyword.operator.arithmetic.ovie",
+                "keyword.operator.comparison.ovie",
+                "keyword.operator.logical.ovie",
+                "keyword.operator.assignment.ovie",
+                "keyword.operator.range.ovie",
+                "keyword.operator.access.ovie"
+            ],
+            "settings": {
+                "foreground": "#24292f"
+            }
+        },
+        {
+            "name": "Punctuation",
+            "scope": [
+                "punctuation.separator.comma.ovie",
+                "punctuation.terminator.semicolon.ovie",
+                "punctuation.section.braces.ovie",
+                "punctuation.section.brackets.ovie",
+                "punctuation.section.parens.ovie"
+            ],
+            "settings": {
+                "foreground": "#656d76"
+            }
+        },
+        {
+            "name": "Variable parameter",
+            "scope": [
+                "variable.parameter.ovie"
+            ],
+            "settings": {
+                "foreground": "#8250df"
+            }
+        },
+        {
+            "name": "Escape character",
+            "scope": [
+                "constant.character.escape.ovie"
+            ],
+            "settings": {
+                "foreground": "#1b7c83"
+            }
+        }
+    ]
+}

@@ -1,6 +1,9 @@
 # Ovie Programming Language - Offline-First .gitignore
 # This file ensures no sensitive data or build artifacts go online
 
+# ShedyDev - Internal development files (PROTECTED)
+shedydev/
+
 # Kiro development artifacts (should not be deployed)
 .kiro/
 
@@ -146,3 +149,14 @@ output.*
 *-remotes.txt
 network-*.json
 remote-*.toml
+# VS Code extension artifacts
+extensions/*/out/
+extensions/*/*.vsix
+extensions/*/node_modules/
+extensions/*/.vscode-test/
+
+# Additional test artifacts that might be generated
+test_*.exe
+test_*.o
+test_*.rcgu.o
+*.long-type-*.txt

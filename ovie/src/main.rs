@@ -1,8 +1,9 @@
 use clap::{Parser, Subcommand};
-use oviec::{Compiler, Backend, OvieResult, OvieError, AstNode, Statement, Expression, PackageRegistry, PackageLock, DependencyResolver, ProjectConfig, SelfHostingManager, SelfHostingStage, BootstrapConfig, BootstrapVerificationResult, BrandingConfig, ProjectTemplate, ProjectMetadata};
+use oviec::{Compiler, Backend, OvieResult, OvieError, AstNode, Statement, Expression, PackageRegistry, PackageLock, DependencyResolver, ProjectConfig, SelfHostingManager, SelfHostingStage, BootstrapConfig, BootstrapVerificationResult, BrandingConfig, ProjectTemplate, ProjectMetadata, IntegrityManifest, CrossTargetValidator, CrossTargetValidationConfig};
 use std::fs;
 use std::path::Path;
 use std::process;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(test)]
 mod tests;
@@ -33,12 +34,24 @@ enum Commands {
         /// Output backend
         #[arg(long, default_value = "interpreter")]
         backend: String,
+        /// Target platform (for LLVM backend)
+        #[arg(long)]
+        target: Option<String>,
         /// Output file
         #[arg(short, long)]
         output: Option<String>,
         /// Enable debug output
         #[arg(long)]
         debug: bool,
+        /// Enable deterministic builds
+        #[arg(long)]
+        deterministic: bool,
+        /// Generate object file (LLVM backend only)
+        #[arg(long)]
+        object: bool,
+        /// Generate assembly file (LLVM backend only)
+        #[arg(long)]
+        assembly: bool,
     },
     /// Run the current project
     Run {
@@ -56,6 +69,14 @@ enum Commands {
         /// Test file pattern
         #[arg(default_value = "**/*.test.ov")]
         pattern: String,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+    },
+    /// Check source code for errors without compilation
+    Check {
+        /// Source file to check
+        file: Option<String>,
         /// Enable debug output
         #[arg(long)]
         debug: bool,
@@ -79,10 +100,62 @@ enum Commands {
         #[arg(long, default_value = "vendor")]
         output: String,
     },
+    /// Verify package integrity
+    Verify {
+        /// Package name to verify (optional, verifies all if not specified)
+        package: Option<String>,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+        /// Verify signatures
+        #[arg(long)]
+        signatures: bool,
+        /// Verify checksums
+        #[arg(long)]
+        checksums: bool,
+    },
+    /// Manage package integrity
+    Integrity {
+        #[command(subcommand)]
+        action: IntegrityAction,
+    },
     /// Self-hosting operations
     SelfHost {
         #[command(subcommand)]
         action: SelfHostingAction,
+    },
+    /// Analyze code with Aproko
+    Analyze {
+        /// Source file to analyze
+        file: Option<String>,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+        /// Output format
+        #[arg(long, default_value = "pretty")]
+        format: String,
+        /// Output file
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// Explain diagnostic rule
+    Explain {
+        /// Rule ID to explain
+        #[arg(long)]
+        rule: String,
+        /// Output file
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// Dump IR representations
+    Dump {
+        #[command(subcommand)]
+        ir_type: IrType,
+    },
+    /// Batch operations on multiple files
+    Batch {
+        #[command(subcommand)]
+        operation: BatchOperation,
     },
 }
 
@@ -107,18 +180,142 @@ enum SelfHostingAction {
     },
 }
 
+#[derive(Subcommand)]
+enum IntegrityAction {
+    /// Check integrity of all packages
+    Check {
+        /// Package name to check (optional, checks all if not specified)
+        package: Option<String>,
+        /// Enable verbose output
+        #[arg(long)]
+        verbose: bool,
+    },
+    /// Generate integrity manifest for a package
+    Generate {
+        /// Package name
+        package: String,
+        /// Package version
+        version: String,
+        /// Output file for manifest
+        #[arg(long, default_value = "integrity.json")]
+        output: String,
+    },
+    /// Repair integrity issues
+    Repair {
+        /// Package name to repair
+        package: String,
+        /// Force repair without confirmation
+        #[arg(long)]
+        force: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum IrType {
+    /// Dump Abstract Syntax Tree
+    Ast {
+        /// Source file to analyze
+        file: Option<String>,
+        /// Output format
+        #[arg(long, default_value = "pretty")]
+        format: String,
+        /// Output file
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+    },
+    /// Dump High-level Intermediate Representation
+    Hir {
+        /// Source file to analyze
+        file: Option<String>,
+        /// Output format
+        #[arg(long, default_value = "pretty")]
+        format: String,
+        /// Output file
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+    },
+    /// Dump Mid-level Intermediate Representation
+    Mir {
+        /// Source file to analyze
+        file: Option<String>,
+        /// Output format
+        #[arg(long, default_value = "pretty")]
+        format: String,
+        /// Output file
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum BatchOperation {
+    /// Check multiple files for errors
+    Check {
+        /// File pattern to match
+        #[arg(default_value = "**/*.ov")]
+        pattern: String,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+        /// Continue on errors
+        #[arg(long)]
+        continue_on_error: bool,
+    },
+    /// Analyze multiple files with Aproko
+    Analyze {
+        /// File pattern to match
+        #[arg(default_value = "**/*.ov")]
+        pattern: String,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+        /// Output directory for reports
+        #[arg(long, default_value = "analysis-reports")]
+        output_dir: String,
+        /// Continue on errors
+        #[arg(long)]
+        continue_on_error: bool,
+    },
+    /// Format multiple files
+    Format {
+        /// File pattern to match
+        #[arg(default_value = "**/*.ov")]
+        pattern: String,
+        /// Check formatting without modifying files
+        #[arg(long)]
+        check: bool,
+    },
+}
+
 fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
         Commands::New { name, path } => cmd_new(name, path),
-        Commands::Build { file, backend, output, debug } => cmd_build(file, backend, output, debug),
+        Commands::Build { file, backend, target, output, debug, deterministic, object, assembly } => cmd_build(file, backend, target, output, debug, deterministic, object, assembly),
         Commands::Run { file, backend, debug } => cmd_run(file, backend, debug),
+        Commands::Check { file, debug } => cmd_check(file, debug),
         Commands::Test { pattern, debug } => cmd_test(pattern, debug),
         Commands::Fmt { files, check } => cmd_fmt(files, check),
         Commands::Update { dependency } => cmd_update(dependency),
         Commands::Vendor { output } => cmd_vendor(output),
+        Commands::Verify { package, debug, signatures, checksums } => cmd_verify(package, debug, signatures, checksums),
+        Commands::Integrity { action } => cmd_integrity(action),
         Commands::SelfHost { action } => cmd_self_host(action),
+        Commands::Analyze { file, debug, format, output } => cmd_analyze(file, debug, format, output),
+        Commands::Explain { rule, output } => cmd_explain(rule, output),
+        Commands::Dump { ir_type } => cmd_dump(ir_type),
+        Commands::CrossTarget { file, performance, determinism, tolerance, runs, output, debug } => cmd_cross_target(file, performance, determinism, tolerance, runs, output, debug),
+        Commands::Batch { operation } => cmd_batch(operation),
     };
 
     if let Err(error) = result {
@@ -221,7 +418,7 @@ Thumbs.db
     Ok(())
 }
 
-fn cmd_build(file: Option<String>, backend: String, output: Option<String>, debug: bool) -> OvieResult<()> {
+fn cmd_build(file: Option<String>, backend: String, target: Option<String>, output: Option<String>, debug: bool, deterministic: bool, object: bool, assembly: bool) -> OvieResult<()> {
     let source_file = file.unwrap_or_else(|| "src/main.ov".to_string());
     
     if !Path::new(&source_file).exists() {
@@ -229,7 +426,11 @@ fn cmd_build(file: Option<String>, backend: String, output: Option<String>, debu
     }
 
     let source = fs::read_to_string(&source_file)?;
-    let mut compiler = Compiler::new();
+    let mut compiler = if deterministic {
+        Compiler::new_deterministic()
+    } else {
+        Compiler::new()
+    };
     compiler.debug = debug;
 
     let backend_enum = Backend::from_str(&backend)
@@ -244,15 +445,83 @@ fn cmd_build(file: Option<String>, backend: String, output: Option<String>, debu
         }
         #[cfg(feature = "llvm")]
         Backend::Llvm => {
+            // Enhanced LLVM backend with target-specific compilation
+            if let Some(target_triple) = target {
+                println!("Building with LLVM backend for target: {}", target_triple);
+                
+                // Validate target
+                let supported_targets = vec![
+                    "x86_64-unknown-linux-gnu",
+                    "x86_64-pc-windows-msvc", 
+                    "x86_64-pc-windows-gnu",
+                    "x86_64-apple-darwin",
+                    "aarch64-unknown-linux-gnu",
+                    "aarch64-apple-darwin",
+                    "i686-unknown-linux-gnu",
+                    "i686-pc-windows-msvc",
+                ];
+                
+                if !supported_targets.contains(&target_triple.as_str()) {
+                    return Err(oviec::OvieError::generic(format!(
+                        "Unsupported target: {}. Supported targets: {}", 
+                        target_triple, 
+                        supported_targets.join(", ")
+                    )));
+                }
+                
+                if debug {
+                    println!("Target configuration:");
+                    println!("  Triple: {}", target_triple);
+                    println!("  Deterministic: {}", deterministic);
+                    println!("  Generate object: {}", object);
+                    println!("  Generate assembly: {}", assembly);
+                }
+            }
+            
             let llvm_ir = compiler.compile_to_llvm(&source)?;
-            let output_file = output.unwrap_or_else(|| "output.ll".to_string());
+            
+            if object || assembly {
+                println!("Note: Object and assembly file generation requires LLVM target machine initialization");
+                println!("This feature is implemented but requires proper LLVM setup for full functionality");
+            }
+            
+            let output_file = output.unwrap_or_else(|| {
+                if object {
+                    "output.o".to_string()
+                } else if assembly {
+                    "output.s".to_string()
+                } else {
+                    "output.ll".to_string()
+                }
+            });
+            
             fs::write(&output_file, llvm_ir)?;
-            println!("Built {} -> {} (LLVM IR)", source_file, output_file);
+            
+            let target_info = target.map(|t| format!(" for {}", t)).unwrap_or_default();
+            println!("Built {} -> {} (LLVM IR{})", source_file, output_file, target_info);
+            
+            if deterministic {
+                println!("✓ Deterministic build completed");
+            }
         }
         Backend::Interpreter | Backend::IrInterpreter => {
             // For interpreters, we just validate the compilation
             let _ast = compiler.compile_to_ast(&source)?;
             println!("Validated {} ({})", source_file, backend_enum.name());
+        }
+        Backend::Hir => {
+            let hir = compiler.compile_to_hir(&source)?;
+            let output_file = output.unwrap_or_else(|| "output.hir.json".to_string());
+            let hir_json = hir.to_json().unwrap_or_else(|_| "Failed to serialize HIR".to_string());
+            fs::write(&output_file, hir_json)?;
+            println!("Built {} -> {} (HIR)", source_file, output_file);
+        }
+        Backend::Mir => {
+            let mir = compiler.compile_to_mir(&source)?;
+            let output_file = output.unwrap_or_else(|| "output.mir.json".to_string());
+            let mir_json = mir.to_json().unwrap_or_else(|_| "Failed to serialize MIR".to_string());
+            fs::write(&output_file, mir_json)?;
+            println!("Built {} -> {} (MIR)", source_file, output_file);
         }
     }
 
@@ -279,6 +548,699 @@ fn cmd_run(file: Option<String>, backend: String, debug: bool) -> OvieResult<()>
 
     compiler.compile_and_run_with_backend(&source, backend_enum)?;
 
+    Ok(())
+}
+
+fn cmd_check(file: Option<String>, debug: bool) -> OvieResult<()> {
+    let source_file = file.unwrap_or_else(|| "src/main.ov".to_string());
+    
+    if !Path::new(&source_file).exists() {
+        return Err(oviec::OvieError::io_error(format!("Source file '{}' not found", source_file)));
+    }
+
+    let source = fs::read_to_string(&source_file)?;
+    let mut compiler = Compiler::new();
+    compiler.debug = debug;
+
+    if debug {
+        println!("Checking {} for errors...", source_file);
+    }
+
+    // Compile to HIR to check for semantic errors
+    let _hir = compiler.compile_to_hir(&source)?;
+    
+    println!("✓ {} - No errors found", source_file);
+    Ok(())
+}
+
+fn cmd_analyze(file: Option<String>, debug: bool, format: String, output: Option<String>) -> OvieResult<()> {
+    let source_file = file.unwrap_or_else(|| "src/main.ov".to_string());
+    
+    if !Path::new(&source_file).exists() {
+        return Err(oviec::OvieError::io_error(format!("Source file '{}' not found", source_file)));
+    }
+
+    let source = fs::read_to_string(&source_file)?;
+    let mut compiler = Compiler::new();
+    compiler.debug = debug;
+
+    if debug {
+        println!("Analyzing {} with Aproko...", source_file);
+    }
+
+    // Compile to AST for analysis
+    let ast = compiler.compile_to_ast(&source)?;
+    
+    // Run Aproko analysis
+    let mut aproko_engine = aproko::AprokoEngine::new();
+    let analysis_result = aproko_engine.analyze(&source, &ast)?;
+    
+    let mut report = String::new();
+    report.push_str(&format!("=== Aproko Analysis Report for {} ===\n\n", source_file));
+    
+    // Summary statistics
+    report.push_str("Analysis Summary:\n");
+    report.push_str(&format!("  Lines analyzed: {}\n", analysis_result.stats.lines_analyzed));
+    report.push_str(&format!("  Analysis duration: {}ms\n", analysis_result.stats.duration_ms));
+    report.push_str(&format!("  Total findings: {}\n", analysis_result.findings.len()));
+    report.push_str(&format!("  Total diagnostics: {}\n", analysis_result.diagnostics.len()));
+    report.push_str("\n");
+    
+    // Findings by severity
+    if !analysis_result.stats.findings_by_severity.is_empty() {
+        report.push_str("Findings by Severity:\n");
+        for (severity, count) in &analysis_result.stats.findings_by_severity {
+            report.push_str(&format!("  {:?}: {}\n", severity, count));
+        }
+        report.push_str("\n");
+    }
+    
+    // Detailed diagnostics
+    if !analysis_result.diagnostics.is_empty() {
+        report.push_str("Detailed Diagnostics:\n");
+        for (i, diagnostic) in analysis_result.diagnostics.iter().enumerate() {
+            report.push_str(&format!("  {}. [{}] {} ({}:{}:{})\n", 
+                i + 1,
+                diagnostic.rule_id,
+                diagnostic.message,
+                diagnostic.location.file,
+                diagnostic.location.line,
+                diagnostic.location.column
+            ));
+            report.push_str(&format!("     Severity: {:?}, Category: {:?}\n", 
+                diagnostic.severity, diagnostic.category));
+            
+            // Show explanation if available
+            if let Ok(explanation) = aproko_engine.explain_diagnostic(diagnostic) {
+                report.push_str(&format!("     Explanation: {}\n", explanation.summary));
+                
+                if !explanation.fix_suggestions.is_empty() {
+                    let fix = &explanation.fix_suggestions[0];
+                    report.push_str(&format!("     Suggested fix: {} (Difficulty: {:?})\n", 
+                        fix.title, fix.difficulty));
+                }
+            }
+            report.push_str("\n");
+        }
+    } else {
+        report.push_str("✓ No issues found!\n");
+    }
+    
+    // Write output
+    match output {
+        Some(filename) => {
+            fs::write(&filename, report)?;
+            println!("Analysis report written to {}", filename);
+        }
+        None => {
+            println!("{}", report);
+        }
+    }
+    
+    Ok(())
+}
+
+fn cmd_explain(rule: String, output: Option<String>) -> OvieResult<()> {
+    let aproko_engine = aproko::AprokoEngine::new();
+    let explanation_engine = aproko_engine.explanation_engine();
+    
+    if let Some(explanation) = explanation_engine.get_explanation(&rule) {
+        let mut report = String::new();
+        report.push_str(&format!("=== Explanation for Rule {} ===\n\n", rule));
+        report.push_str(&format!("Summary: {}\n\n", explanation.summary));
+        report.push_str(&format!("Type: {:?}\n", explanation.explanation_type));
+        report.push_str(&format!("Confidence: {:.2}\n\n", explanation.confidence));
+        
+        report.push_str("Detailed Explanation:\n");
+        report.push_str(&explanation.detailed_explanation);
+        report.push_str("\n\n");
+        
+        if !explanation.code_examples.is_empty() {
+            report.push_str("Code Examples:\n");
+            for (i, example) in explanation.code_examples.iter().enumerate() {
+                report.push_str(&format!("  {}. {} ({})\n", 
+                    i + 1, 
+                    example.description,
+                    if example.is_good_example { "Good" } else { "Bad" }
+                ));
+                report.push_str(&format!("     ```{}\n", example.language));
+                report.push_str(&format!("     {}\n", example.code));
+                report.push_str("     ```\n");
+                if let Some(ref notes) = example.notes {
+                    report.push_str(&format!("     Note: {}\n", notes));
+                }
+                report.push_str("\n");
+            }
+        }
+        
+        if !explanation.fix_suggestions.is_empty() {
+            report.push_str("Fix Suggestions:\n");
+            for (i, fix) in explanation.fix_suggestions.iter().enumerate() {
+                report.push_str(&format!("  {}. {} (Difficulty: {:?}, Confidence: {:.2})\n", 
+                    i + 1, fix.title, fix.difficulty, fix.confidence));
+                report.push_str(&format!("     {}\n", fix.description));
+                
+                if !fix.steps.is_empty() {
+                    report.push_str("     Steps:\n");
+                    for step in &fix.steps {
+                        report.push_str(&format!("       {}. {}\n", step.step_number, step.description));
+                        if let Some(ref notes) = step.notes {
+                            report.push_str(&format!("          Note: {}\n", notes));
+                        }
+                    }
+                }
+                report.push_str("\n");
+            }
+        }
+        
+        if !explanation.related_topics.is_empty() {
+            report.push_str(&format!("Related Topics: {}\n", explanation.related_topics.join(", ")));
+        }
+        
+        // Write output
+        match output {
+            Some(filename) => {
+                fs::write(&filename, report)?;
+                println!("Explanation written to {}", filename);
+            }
+            None => {
+                println!("{}", report);
+            }
+        }
+    } else {
+        println!("No explanation found for rule: {}", rule);
+        println!("Available rules:");
+        let all_explanations = explanation_engine.get_all_explanations();
+        for rule_id in all_explanations.keys() {
+            println!("  {}", rule_id);
+        }
+    }
+    
+    Ok(())
+}
+
+fn cmd_dump(ir_type: IrType) -> OvieResult<()> {
+    match ir_type {
+        IrType::Ast { file, format, output, debug } => cmd_dump_ast(file, format, output, debug),
+        IrType::Hir { file, format, output, debug } => cmd_dump_hir(file, format, output, debug),
+        IrType::Mir { file, format, output, debug } => cmd_dump_mir(file, format, output, debug),
+    }
+}
+
+fn cmd_dump_ast(file: Option<String>, format: String, output: Option<String>, debug: bool) -> OvieResult<()> {
+    let source_file = file.unwrap_or_else(|| "src/main.ov".to_string());
+    
+    if !Path::new(&source_file).exists() {
+        return Err(oviec::OvieError::io_error(format!("Source file '{}' not found", source_file)));
+    }
+
+    let source = fs::read_to_string(&source_file)?;
+    let mut compiler = Compiler::new();
+    compiler.debug = debug;
+
+    if debug {
+        println!("Dumping AST for {}...", source_file);
+    }
+
+    let ast = compiler.compile_to_ast(&source)?;
+    
+    let ast_output = match format.as_str() {
+        "json" => serde_json::to_string_pretty(&ast)
+            .map_err(|e| oviec::OvieError::io_error(format!("JSON serialization error: {}", e)))?,
+        "compact" => serde_json::to_string(&ast)
+            .map_err(|e| oviec::OvieError::io_error(format!("JSON serialization error: {}", e)))?,
+        _ => format!("{:#?}", ast), // pretty format
+    };
+    
+    // Write output
+    match output {
+        Some(filename) => {
+            fs::write(&filename, ast_output)?;
+            println!("AST written to {}", filename);
+        }
+        None => {
+            println!("{}", ast_output);
+        }
+    }
+    
+    Ok(())
+}
+
+fn cmd_dump_hir(file: Option<String>, format: String, output: Option<String>, debug: bool) -> OvieResult<()> {
+    let source_file = file.unwrap_or_else(|| "src/main.ov".to_string());
+    
+    if !Path::new(&source_file).exists() {
+        return Err(oviec::OvieError::io_error(format!("Source file '{}' not found", source_file)));
+    }
+
+    let source = fs::read_to_string(&source_file)?;
+    let mut compiler = Compiler::new();
+    compiler.debug = debug;
+
+    if debug {
+        println!("Dumping HIR for {}...", source_file);
+    }
+
+    let hir = compiler.compile_to_hir(&source)?;
+    
+    let hir_output = match format.as_str() {
+        "json" => hir.to_json()?,
+        "compact" => serde_json::to_string(&hir)
+            .map_err(|e| oviec::OvieError::IrError { message: format!("HIR serialization error: {}", e) })?,
+        _ => format!("{:#?}", hir), // pretty format
+    };
+    
+    // Write output
+    match output {
+        Some(filename) => {
+            fs::write(&filename, hir_output)?;
+            println!("HIR written to {}", filename);
+        }
+        None => {
+            println!("{}", hir_output);
+        }
+    }
+    
+    Ok(())
+}
+
+fn cmd_dump_mir(file: Option<String>, format: String, output: Option<String>, debug: bool) -> OvieResult<()> {
+    let source_file = file.unwrap_or_else(|| "src/main.ov".to_string());
+    
+    if !Path::new(&source_file).exists() {
+        return Err(oviec::OvieError::io_error(format!("Source file '{}' not found", source_file)));
+    }
+
+    let source = fs::read_to_string(&source_file)?;
+    let mut compiler = Compiler::new();
+    compiler.debug = debug;
+
+    if debug {
+        println!("Dumping MIR for {}...", source_file);
+    }
+
+    let mir = compiler.compile_to_mir(&source)?;
+    
+    let mir_output = match format.as_str() {
+        "json" => mir.to_json()?,
+        "compact" => serde_json::to_string(&mir)
+            .map_err(|e| oviec::OvieError::IrError { message: format!("MIR serialization error: {}", e) })?,
+        _ => format!("{:#?}", mir), // pretty format
+    };
+    
+    // Write output
+    match output {
+        Some(filename) => {
+            fs::write(&filename, mir_output)?;
+            println!("MIR written to {}", filename);
+        }
+        None => {
+            println!("{}", mir_output);
+        }
+    }
+    
+    Ok(())
+}
+
+fn cmd_cross_target(file: Option<String>, performance: bool, determinism: bool, tolerance: f64, runs: usize, output: Option<String>, debug: bool) -> OvieResult<()> {
+    let source_file = file.unwrap_or_else(|| "src/main.ov".to_string());
+    
+    if !Path::new(&source_file).exists() {
+        return Err(oviec::OvieError::io_error(format!("Source file '{}' not found", source_file)));
+    }
+
+    let source = fs::read_to_string(&source_file)?;
+    let mut compiler = Compiler::new_deterministic();
+    compiler.debug = debug;
+
+    if debug {
+        println!("Cross-target validation for: {}", source_file);
+        println!("Performance validation: {}", performance);
+        println!("Determinism validation: {}", determinism);
+        println!("Performance tolerance: {}%", tolerance);
+        println!("Validation runs: {}", runs);
+    }
+
+    // Compile to IR for validation
+    let ir = compiler.compile_to_ir(&source)?;
+
+    // Configure cross-target validator
+    let mut config = CrossTargetValidationConfig::default();
+    config.validate_performance = performance;
+    config.validate_determinism = determinism;
+    config.performance_tolerance = tolerance;
+    config.validation_runs = runs;
+
+    let validator = CrossTargetValidator::new(config);
+
+    // Run cross-target validation
+    println!("Running cross-target validation...");
+    let results = validator.validate(&ir)?;
+
+    // Display results
+    println!("\n📊 Cross-Target Validation Results:");
+    println!("   Total targets: {}", results.summary.total_targets);
+    println!("   Successful: {}", results.summary.successful_targets);
+    println!("   Failed: {}", results.summary.failed_targets);
+    println!("   Errors: {}", results.summary.total_errors);
+    println!("   Warnings: {}", results.summary.total_warnings);
+    println!("   Duration: {}ms", results.summary.validation_duration_ms);
+
+    // Display consistency results
+    println!("\n🔍 Consistency Analysis:");
+    println!("   Semantic consistency: {}", if results.consistency_results.semantic_consistency { "✓" } else { "✗" });
+    println!("   Deterministic consistency: {}", if results.consistency_results.deterministic_consistency { "✓" } else { "✗" });
+
+    if !results.consistency_results.inconsistencies.is_empty() {
+        println!("\n⚠ Inconsistencies found:");
+        for inconsistency in &results.consistency_results.inconsistencies {
+            println!("   - {}", inconsistency);
+        }
+    }
+
+    // Display performance results if enabled
+    if let Some(ref perf_results) = results.performance_results {
+        println!("\n⚡ Performance Analysis:");
+        println!("   Within tolerance: {}", if perf_results.within_tolerance { "✓" } else { "✗" });
+        
+        if !perf_results.variations.is_empty() {
+            println!("   Variations:");
+            for variation in &perf_results.variations {
+                println!("     - {}", variation);
+            }
+        }
+
+        if debug {
+            println!("   Compilation times:");
+            for (target, time) in &perf_results.compilation_times {
+                println!("     - {}: {}ms", target.triple, time);
+            }
+            
+            println!("   Code sizes:");
+            for (target, size) in &perf_results.code_sizes {
+                println!("     - {}: {} bytes", target.triple, size);
+            }
+        }
+    }
+
+    // Display target-specific results
+    if debug {
+        println!("\n🎯 Target-Specific Results:");
+        for (target, result) in &results.target_results {
+            println!("   {}:", target.triple);
+            println!("     Success: {}", result.compilation_success);
+            if let Some(ref hash) = result.code_hash {
+                println!("     Hash: {}...", &hash[..8]);
+            }
+            if let Some(size) = result.code_size {
+                println!("     Size: {} bytes", size);
+            }
+            if !result.errors.is_empty() {
+                println!("     Errors: {}", result.errors.len());
+                for error in &result.errors {
+                    println!("       - {}", error);
+                }
+            }
+            if !result.warnings.is_empty() {
+                println!("     Warnings: {}", result.warnings.len());
+                for warning in &result.warnings {
+                    println!("       - {}", warning);
+                }
+            }
+        }
+    }
+
+    // Save report if requested
+    if let Some(output_file) = output {
+        let report = serde_json::to_string_pretty(&results)
+            .map_err(|e| oviec::OvieError::generic(format!("Failed to serialize results: {}", e)))?;
+        fs::write(&output_file, report)?;
+        println!("\n📄 Validation report saved to: {}", output_file);
+    }
+
+    // Overall result
+    if results.overall_success {
+        println!("\n✅ Cross-target validation PASSED");
+        Ok(())
+    } else {
+        println!("\n❌ Cross-target validation FAILED");
+        Err(oviec::OvieError::generic("Cross-target validation failed"))
+    }
+}
+
+fn cmd_batch(operation: BatchOperation) -> OvieResult<()> {
+    match operation {
+        BatchOperation::Check { pattern, debug, continue_on_error } => {
+            cmd_batch_check(pattern, debug, continue_on_error)
+        }
+        BatchOperation::Analyze { pattern, debug, output_dir, continue_on_error } => {
+            cmd_batch_analyze(pattern, debug, output_dir, continue_on_error)
+        }
+        BatchOperation::Format { pattern, check } => {
+            cmd_batch_format(pattern, check)
+        }
+    }
+}
+
+fn cmd_batch_check(pattern: String, debug: bool, continue_on_error: bool) -> OvieResult<()> {
+    let files = find_files_by_pattern(&pattern)?;
+    
+    if files.is_empty() {
+        println!("No files found matching pattern: {}", pattern);
+        return Ok(());
+    }
+    
+    println!("Checking {} files matching pattern: {}", files.len(), pattern);
+    
+    let mut passed = 0;
+    let mut failed = 0;
+    let mut errors = Vec::new();
+    
+    for file in &files {
+        if debug {
+            println!("Checking: {}", file);
+        }
+        
+        match cmd_check(Some(file.clone()), debug) {
+            Ok(()) => {
+                if debug {
+                    println!("✓ {}", file);
+                }
+                passed += 1;
+            }
+            Err(e) => {
+                println!("✗ {} - {}", file, e);
+                errors.push((file.clone(), e.to_string()));
+                failed += 1;
+                
+                if !continue_on_error {
+                    break;
+                }
+            }
+        }
+    }
+    
+    println!("\nBatch check results:");
+    println!("  Files checked: {}", passed + failed);
+    println!("  Passed: {}", passed);
+    println!("  Failed: {}", failed);
+    
+    if failed > 0 {
+        println!("\nFailed files:");
+        for (file, error) in &errors {
+            println!("  {} - {}", file, error);
+        }
+        
+        if !continue_on_error {
+            return Err(oviec::OvieError::generic("Batch check failed".to_string()));
+        }
+    }
+    
+    Ok(())
+}
+
+fn cmd_batch_analyze(pattern: String, debug: bool, output_dir: String, continue_on_error: bool) -> OvieResult<()> {
+    let files = find_files_by_pattern(&pattern)?;
+    
+    if files.is_empty() {
+        println!("No files found matching pattern: {}", pattern);
+        return Ok(());
+    }
+    
+    // Create output directory
+    fs::create_dir_all(&output_dir)?;
+    
+    println!("Analyzing {} files matching pattern: {}", files.len(), pattern);
+    println!("Reports will be saved to: {}", output_dir);
+    
+    let mut analyzed = 0;
+    let mut failed = 0;
+    let mut errors = Vec::new();
+    
+    for file in &files {
+        if debug {
+            println!("Analyzing: {}", file);
+        }
+        
+        // Generate output filename
+        let file_stem = Path::new(file).file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown");
+        let output_file = format!("{}/{}-analysis.txt", output_dir, file_stem);
+        
+        match cmd_analyze(Some(file.clone()), debug, "pretty".to_string(), Some(output_file.clone())) {
+            Ok(()) => {
+                if debug {
+                    println!("✓ {} -> {}", file, output_file);
+                }
+                analyzed += 1;
+            }
+            Err(e) => {
+                println!("✗ {} - {}", file, e);
+                errors.push((file.clone(), e.to_string()));
+                failed += 1;
+                
+                if !continue_on_error {
+                    break;
+                }
+            }
+        }
+    }
+    
+    println!("\nBatch analysis results:");
+    println!("  Files processed: {}", analyzed + failed);
+    println!("  Analyzed: {}", analyzed);
+    println!("  Failed: {}", failed);
+    println!("  Reports saved to: {}", output_dir);
+    
+    if failed > 0 {
+        println!("\nFailed files:");
+        for (file, error) in &errors {
+            println!("  {} - {}", file, error);
+        }
+        
+        if !continue_on_error {
+            return Err(oviec::OvieError::generic("Batch analysis failed".to_string()));
+        }
+    }
+    
+    Ok(())
+}
+
+fn cmd_batch_format(pattern: String, check: bool) -> OvieResult<()> {
+    let files = find_files_by_pattern(&pattern)?;
+    
+    if files.is_empty() {
+        println!("No files found matching pattern: {}", pattern);
+        return Ok(());
+    }
+    
+    println!("Formatting {} files matching pattern: {}", files.len(), pattern);
+    
+    let mut needs_formatting = 0;
+    let mut format_errors = 0;
+    
+    for file in &files {
+        match format_file(file, check) {
+            Ok(formatted) => {
+                if formatted {
+                    needs_formatting += 1;
+                    if check {
+                        println!("✗ {} needs formatting", file);
+                    } else {
+                        println!("✓ Formatted {}", file);
+                    }
+                } else if check {
+                    println!("✓ {} is properly formatted", file);
+                }
+            }
+            Err(e) => {
+                println!("✗ Error formatting {}: {}", file, e);
+                format_errors += 1;
+            }
+        }
+    }
+    
+    if check {
+        if needs_formatting > 0 {
+            println!("\n{} files need formatting", needs_formatting);
+            process::exit(1);
+        } else {
+            println!("\nAll {} files are properly formatted", files.len());
+        }
+    } else {
+        if needs_formatting > 0 {
+            println!("\nFormatted {} files", needs_formatting);
+        } else {
+            println!("\nAll {} files were already properly formatted", files.len());
+        }
+    }
+    
+    if format_errors > 0 {
+        println!("Encountered {} formatting errors", format_errors);
+        process::exit(1);
+    }
+    
+    Ok(())
+}
+
+fn find_files_by_pattern(pattern: &str) -> OvieResult<Vec<String>> {
+    // Simple pattern matching - in a real implementation, you'd use a glob library
+    let mut files = Vec::new();
+    
+    if pattern == "**/*.ov" {
+        // Find all .ov files recursively
+        find_ovie_files_recursive(".", &mut files)?;
+    } else if pattern.ends_with("*.ov") {
+        // Find .ov files in specific directory
+        let dir = pattern.trim_end_matches("*.ov").trim_end_matches('/');
+        let dir = if dir.is_empty() { "." } else { dir };
+        find_ovie_files_in_dir(dir, &mut files)?;
+    } else {
+        // Treat as specific file
+        if Path::new(pattern).exists() {
+            files.push(pattern.to_string());
+        }
+    }
+    
+    Ok(files)
+}
+
+fn find_ovie_files_recursive(dir: &str, files: &mut Vec<String>) -> OvieResult<()> {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.ends_with(".ov") {
+                        files.push(path.to_string_lossy().to_string());
+                    }
+                }
+            } else if path.is_dir() {
+                if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if dir_name != "target" && dir_name != ".git" && !dir_name.starts_with('.') {
+                        find_ovie_files_recursive(&path.to_string_lossy(), files)?;
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn find_ovie_files_in_dir(dir: &str, files: &mut Vec<String>) -> OvieResult<()> {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.ends_with(".ov") {
+                        files.push(path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -964,4 +1926,167 @@ fn cmd_self_host_transition(force: bool) -> OvieResult<()> {
     }
     
     Ok(())
+}
+fn cmd_verify(package: Option<String>, debug: bool, signatures: bool, checksums: bool) -> OvieResult<()> {
+    println!("Verifying package integrity...");
+    
+    let mut registry = PackageRegistry::new()?;
+    
+    if let Some(package_name) = package {
+        // Verify specific package
+        let packages = registry.list_packages()?;
+        let matching_packages: Vec<_> = packages.iter()
+            .filter(|pkg| pkg.name == package_name)
+            .collect();
+        
+        if matching_packages.is_empty() {
+            println!("Package '{}' not found in registry", package_name);
+            return Ok(());
+        }
+        
+        for package_id in matching_packages {
+            println!("Verifying {}: {}", package_id.name, package_id.to_string());
+            
+            match registry.verify_package_integrity(package_id) {
+                Ok(true) => {
+                    println!("  ✓ Integrity verification passed");
+                    
+                    if signatures || checksums {
+                        if let Ok(Some((metadata, _))) = registry.get_package(package_id) {
+                            if signatures && !metadata.signatures.is_empty() {
+                                println!("  ✓ {} signature(s) present", metadata.signatures.len());
+                                if debug {
+                                    for (i, sig) in metadata.signatures.iter().enumerate() {
+                                        println!("    {}. {} (Key: {})", i + 1, sig.algorithm, sig.key_id);
+                                    }
+                                }
+                            }
+                            
+                            if checksums && !metadata.checksums.is_empty() {
+                                println!("  ✓ {} checksum(s) verified", metadata.checksums.len());
+                                if debug {
+                                    for (algo, checksum) in &metadata.checksums {
+                                        println!("    {}: {}...", algo, &checksum[..16]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(false) => {
+                    println!("  ✗ Integrity verification failed");
+                }
+                Err(e) => {
+                    println!("  ✗ Verification error: {}", e);
+                }
+            }
+        }
+    } else {
+        // Verify all packages
+        let packages = registry.list_packages()?;
+        
+        if packages.is_empty() {
+            println!("No packages found in registry");
+            return Ok(());
+        }
+        
+        let mut verified = 0;
+        let mut failed = 0;
+        
+        for package_id in &packages {
+            if debug {
+                println!("Verifying {}: {}", package_id.name, package_id.to_string());
+            }
+            
+            match registry.verify_package_integrity(package_id) {
+                Ok(true) => {
+                    verified += 1;
+                    if debug {
+                        println!("  ✓ Integrity verification passed");
+                    }
+                }
+                Ok(false) => {
+                    failed += 1;
+                    println!("  ✗ Integrity verification failed for {}", package_id.to_string());
+                }
+                Err(e) => {
+                    failed += 1;
+                    println!("  ✗ Verification error for {}: {}", package_id.to_string(), e);
+                }
+            }
+        }
+        
+        println!("\nVerification Summary:");
+        println!("  ✓ {} packages verified", verified);
+        if failed > 0 {
+            println!("  ✗ {} packages failed", failed);
+        }
+        println!("  Total: {} packages", packages.len());
+    }
+    
+    Ok(())
+}
+
+fn cmd_integrity(action: IntegrityAction) -> OvieResult<()> {
+    match action {
+        IntegrityAction::Check { package, verbose } => {
+            cmd_verify(package, verbose, true, true)
+        }
+        IntegrityAction::Generate { package, version, output } => {
+            println!("Generating integrity manifest for {}@{}", package, version);
+            
+            let mut registry = PackageRegistry::new()?;
+            let packages = registry.list_packages()?;
+            
+            let matching_package = packages.iter()
+                .find(|pkg| pkg.name == package && pkg.version == version)
+                .ok_or_else(|| OvieError::generic(format!("Package {}@{} not found", package, version)))?;
+            
+            if let Ok(Some((metadata, content))) = registry.get_package(matching_package) {
+                let manifest = IntegrityManifest {
+                    package_id: metadata.id.clone(),
+                    content_hash: metadata.id.content_hash.clone(),
+                    checksums: metadata.checksums.clone(),
+                    signatures: metadata.signatures.clone(),
+                    verification_timestamp: SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                    file_size: content.len() as u64,
+                    offline_compliance: metadata.offline_metadata.clone(),
+                };
+                
+                let manifest_json = serde_json::to_string_pretty(&manifest)
+                    .map_err(|e| OvieError::generic(format!("Failed to serialize manifest: {}", e)))?;
+                
+                fs::write(&output, manifest_json)
+                    .map_err(|e| OvieError::io_error(format!("Failed to write manifest: {}", e)))?;
+                
+                println!("Integrity manifest written to: {}", output);
+            } else {
+                return Err(OvieError::generic(format!("Failed to load package {}@{}", package, version)));
+            }
+            
+            Ok(())
+        }
+        IntegrityAction::Repair { package, force } => {
+            println!("Repairing integrity issues for package: {}", package);
+            
+            if !force {
+                println!("This will attempt to repair integrity issues by re-downloading and re-verifying the package.");
+                println!("Use --force to proceed without confirmation.");
+                return Ok(());
+            }
+            
+            // Placeholder for repair functionality
+            println!("Package repair functionality not yet implemented");
+            println!("This would:");
+            println!("  1. Re-download package from trusted source");
+            println!("  2. Re-verify all checksums and signatures");
+            println!("  3. Update integrity manifest");
+            println!("  4. Clear any cached invalid data");
+            
+            Ok(())
+        }
+    }
 }

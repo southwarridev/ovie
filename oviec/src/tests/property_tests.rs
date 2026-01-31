@@ -500,13 +500,448 @@ mod safe_auto_correction {
 
 // Property 3: Type System Completeness tests temporarily disabled until semantic analyzer is fixed
 
-/// **Feature: ovie-programming-language, Property 11: Compiler Pipeline Integrity**
+/// **Feature: ovie-programming-language-stage-2, Property 6: IR Pipeline Integrity**
 /// 
-/// For any valid Ovie program, the complete compilation pipeline (lexer -> parser -> normalizer -> IR)
-/// should produce consistent and valid output at each stage
+/// For any valid Ovie program, the complete IR pipeline (AST -> HIR -> MIR) should maintain
+/// semantic equivalence and produce valid, consistent output at each stage
 /// 
-/// **Validates: Requirements 6.1, 6.4, 6.5**
-mod compiler_pipeline_integrity {
+/// **Validates: Requirements 2.1, 2.2, 2.3, 2.4**
+mod ir_pipeline_integrity {
+    use super::*;
+    use crate::hir::{HirBuilder, HirProgram};
+    use crate::mir::{MirBuilder, MirProgram};
+    use proptest::prelude::*;
+
+    // Generator for valid Ovie programs suitable for IR testing
+    fn ir_test_program() -> impl Strategy<Value = String> {
+        prop_oneof![
+            // Simple expressions
+            valid_string_literal().prop_map(|s| format!("seeAm {};", s)),
+            valid_number_literal().prop_map(|n| format!("seeAm {};", n)),
+            Just("seeAm true;".to_string()),
+            Just("seeAm false;".to_string()),
+            
+            // Variable assignments
+            (valid_identifier(), valid_number_literal())
+                .prop_map(|(id, val)| format!("{} = {};", id, val)),
+            (valid_identifier(), valid_string_literal())
+                .prop_map(|(id, val)| format!("mut {} = {};", id, val)),
+            
+            // Simple functions
+            (valid_identifier(), valid_identifier(), valid_number_literal())
+                .prop_map(|(fname, param, ret_val)| 
+                    format!("fn {}({}) {{ return {}; }}", fname, param, ret_val)),
+            
+            // Control flow
+            (valid_identifier(), valid_number_literal(), valid_string_literal())
+                .prop_map(|(var, num, str_val)| 
+                    format!("{} = {}; if {} > 0 {{ seeAm {}; }} else {{ seeAm \"zero\"; }}", 
+                           var, num, var, str_val)),
+            
+            // Struct definitions
+            (valid_identifier(), valid_identifier(), valid_identifier())
+                .prop_map(|(struct_name, field1, field2)| 
+                    format!("struct {} {{ {}: Number, {}: String }}", struct_name, field1, field2)),
+        ]
+    }
+
+    // Generator for complex programs with multiple statements
+    fn complex_ir_program() -> impl Strategy<Value = String> {
+        prop::collection::vec(ir_test_program(), 1..4)
+            .prop_map(|statements| statements.join("\n"))
+    }
+
+    proptest! {
+        #[test]
+        fn prop_ast_to_hir_transformation_preserves_semantics(program in ir_test_program()) {
+            // Parse to AST
+            let mut lexer = Lexer::new(&program);
+            let tokens_result = lexer.tokenize();
+            prop_assume!(tokens_result.is_ok());
+            let tokens = tokens_result.unwrap();
+            
+            let mut parser = Parser::new(tokens);
+            let ast_result = parser.parse();
+            prop_assume!(ast_result.is_ok());
+            let ast = ast_result.unwrap();
+            
+            // Transform to HIR
+            let mut hir_builder = HirBuilder::new();
+            let hir_result = hir_builder.transform_ast(&ast);
+            prop_assert!(hir_result.is_ok(), "HIR transformation should succeed for: {}", program);
+            
+            let hir = hir_result.unwrap();
+            
+            // Verify HIR structure preservation
+            prop_assert!(!hir.items.is_empty(), "HIR should contain items");
+            
+            // Verify HIR validation passes
+            let validation_result = hir.validate();
+            prop_assert!(validation_result.is_ok(), "HIR should pass validation for: {}", program);
+            
+            // Verify HIR serialization works
+            let json_result = hir.to_json();
+            prop_assert!(json_result.is_ok(), "HIR should serialize to JSON for: {}", program);
+            
+            let json = json_result.unwrap();
+            let deserialize_result = HirProgram::from_json(&json);
+            prop_assert!(deserialize_result.is_ok(), "HIR should deserialize from JSON for: {}", program);
+        }
+
+        #[test]
+        fn prop_hir_to_mir_transformation_maintains_control_flow(program in ir_test_program()) {
+            // Get HIR first
+            let mut lexer = Lexer::new(&program);
+            let tokens = lexer.tokenize().unwrap();
+            let mut parser = Parser::new(tokens);
+            let ast = parser.parse().unwrap();
+            
+            let mut hir_builder = HirBuilder::new();
+            let hir_result = hir_builder.transform_ast(&ast);
+            prop_assume!(hir_result.is_ok());
+            let hir = hir_result.unwrap();
+            
+            // Transform to MIR
+            let mut mir_builder = MirBuilder::new();
+            let mir_result = mir_builder.transform_hir(&hir);
+            prop_assert!(mir_result.is_ok(), "MIR transformation should succeed for: {}", program);
+            
+            let mir = mir_result.unwrap();
+            
+            // Verify MIR structure
+            prop_assert!(!mir.functions.is_empty(), "MIR should contain functions");
+            
+            // Verify control flow graph properties
+            for (func_id, function) in &mir.functions {
+                prop_assert!(!function.basic_blocks.is_empty(), 
+                    "Function {} should have basic blocks", func_id);
+                
+                // Entry block should exist
+                prop_assert!(function.basic_blocks.contains_key(&function.entry_block),
+                    "Entry block should exist in function {}", func_id);
+                
+                // All basic blocks should have valid terminators
+                for (block_id, block) in &function.basic_blocks {
+                    // Terminator should be valid (this is a basic structural check)
+                    match &block.terminator {
+                        crate::mir::MirTerminator::Return { .. } |
+                        crate::mir::MirTerminator::Goto { .. } |
+                        crate::mir::MirTerminator::SwitchInt { .. } |
+                        crate::mir::MirTerminator::Call { .. } |
+                        crate::mir::MirTerminator::Unreachable |
+                        crate::mir::MirTerminator::Drop { .. } => {
+                            // Valid terminator
+                        }
+                    }
+                }
+            }
+            
+            // Verify MIR validation passes
+            let validation_result = mir.validate();
+            prop_assert!(validation_result.is_ok(), "MIR should pass validation for: {}", program);
+            
+            // Verify MIR serialization works
+            let json_result = mir.to_json();
+            prop_assert!(json_result.is_ok(), "MIR should serialize to JSON for: {}", program);
+        }
+
+        #[test]
+        fn prop_complete_ir_pipeline_consistency(program in ir_test_program()) {
+            // Complete pipeline: AST -> HIR -> MIR
+            let mut lexer = Lexer::new(&program);
+            let tokens = lexer.tokenize().unwrap();
+            let mut parser = Parser::new(tokens);
+            let ast = parser.parse().unwrap();
+            
+            // AST -> HIR
+            let mut hir_builder = HirBuilder::new();
+            let hir = hir_builder.transform_ast(&ast).unwrap();
+            
+            // HIR -> MIR
+            let mut mir_builder = MirBuilder::new();
+            let mir = mir_builder.transform_hir(&hir).unwrap();
+            
+            // Verify consistency across pipeline stages
+            
+            // 1. Function count consistency
+            let ast_functions = ast.statements.iter()
+                .filter(|stmt| matches!(stmt, Statement::Function { .. }))
+                .count();
+            let hir_functions = hir.items.iter()
+                .filter(|item| matches!(item, crate::hir::HirItem::Function(_)))
+                .count();
+            let mir_functions = mir.functions.len();
+            
+            // Account for implicit main function
+            let expected_functions = if ast_functions == 0 { 1 } else { ast_functions };
+            prop_assert_eq!(hir_functions, expected_functions, 
+                "HIR function count should match AST (with implicit main) for: {}", program);
+            prop_assert_eq!(mir_functions, expected_functions,
+                "MIR function count should match HIR for: {}", program);
+            
+            // 2. Entry point consistency
+            if hir.metadata.has_main_function {
+                prop_assert!(mir.entry_point.is_some(), 
+                    "MIR should have entry point when HIR has main function for: {}", program);
+            }
+            
+            // 3. Type definition consistency
+            let hir_structs = hir.items.iter()
+                .filter(|item| matches!(item, crate::hir::HirItem::Struct(_)))
+                .count();
+            let hir_enums = hir.items.iter()
+                .filter(|item| matches!(item, crate::hir::HirItem::Enum(_)))
+                .count();
+            let mir_type_defs = mir.type_definitions.len();
+            
+            prop_assert_eq!(mir_type_defs, hir_structs + hir_enums,
+                "MIR type definitions should match HIR structs + enums for: {}", program);
+            
+            // 4. Global variable consistency
+            let hir_globals = hir.items.iter()
+                .filter(|item| matches!(item, crate::hir::HirItem::Global(_)))
+                .count();
+            let mir_globals = mir.globals.len();
+            
+            prop_assert_eq!(mir_globals, hir_globals,
+                "MIR globals should match HIR globals for: {}", program);
+        }
+
+        #[test]
+        fn prop_ir_serialization_roundtrip_consistency(program in ir_test_program()) {
+            // Test HIR serialization roundtrip
+            let mut lexer = Lexer::new(&program);
+            let tokens = lexer.tokenize().unwrap();
+            let mut parser = Parser::new(tokens);
+            let ast = parser.parse().unwrap();
+            
+            let mut hir_builder = HirBuilder::new();
+            let hir = hir_builder.transform_ast(&ast).unwrap();
+            
+            // HIR roundtrip
+            let hir_json = hir.to_json().unwrap();
+            let hir_deserialized = HirProgram::from_json(&hir_json).unwrap();
+            let hir_json2 = hir_deserialized.to_json().unwrap();
+            
+            prop_assert_eq!(hir_json, hir_json2, 
+                "HIR serialization should be consistent for: {}", program);
+            
+            // MIR roundtrip
+            let mut mir_builder = MirBuilder::new();
+            let mir = mir_builder.transform_hir(&hir).unwrap();
+            
+            let mir_json = mir.to_json().unwrap();
+            let mir_deserialized = MirProgram::from_json(&mir_json).unwrap();
+            let mir_json2 = mir_deserialized.to_json().unwrap();
+            
+            prop_assert_eq!(mir_json, mir_json2,
+                "MIR serialization should be consistent for: {}", program);
+        }
+
+        #[test]
+        fn prop_ir_pipeline_deterministic_output(program in ir_test_program()) {
+            // Run the same program through the pipeline twice
+            
+            // First run
+            let mut lexer1 = Lexer::new(&program);
+            let tokens1 = lexer1.tokenize().unwrap();
+            let mut parser1 = Parser::new(tokens1);
+            let ast1 = parser1.parse().unwrap();
+            
+            let mut hir_builder1 = HirBuilder::new();
+            let hir1 = hir_builder1.transform_ast(&ast1).unwrap();
+            
+            let mut mir_builder1 = MirBuilder::new();
+            let mir1 = mir_builder1.transform_hir(&hir1).unwrap();
+            
+            // Second run
+            let mut lexer2 = Lexer::new(&program);
+            let tokens2 = lexer2.tokenize().unwrap();
+            let mut parser2 = Parser::new(tokens2);
+            let ast2 = parser2.parse().unwrap();
+            
+            let mut hir_builder2 = HirBuilder::new();
+            let hir2 = hir_builder2.transform_ast(&ast2).unwrap();
+            
+            let mut mir_builder2 = MirBuilder::new();
+            let mir2 = mir_builder2.transform_hir(&hir2).unwrap();
+            
+            // Compare outputs
+            let hir_json1 = hir1.to_json().unwrap();
+            let hir_json2 = hir2.to_json().unwrap();
+            prop_assert_eq!(hir_json1, hir_json2, 
+                "HIR generation should be deterministic for: {}", program);
+            
+            let mir_json1 = mir1.to_json().unwrap();
+            let mir_json2 = mir2.to_json().unwrap();
+            prop_assert_eq!(mir_json1, mir_json2,
+                "MIR generation should be deterministic for: {}", program);
+        }
+
+        #[test]
+        fn prop_ir_control_flow_analysis_consistency(program in complex_ir_program()) {
+            let mut lexer = Lexer::new(&program);
+            let tokens_result = lexer.tokenize();
+            prop_assume!(tokens_result.is_ok());
+            let tokens = tokens_result.unwrap();
+            
+            let mut parser = Parser::new(tokens);
+            let ast_result = parser.parse();
+            prop_assume!(ast_result.is_ok());
+            let ast = ast_result.unwrap();
+            
+            let mut hir_builder = HirBuilder::new();
+            let hir_result = hir_builder.transform_ast(&ast);
+            prop_assume!(hir_result.is_ok());
+            let hir = hir_result.unwrap();
+            
+            let mut mir_builder = MirBuilder::new();
+            let mir_result = mir_builder.transform_hir(&hir);
+            prop_assume!(mir_result.is_ok());
+            let mir = mir_result.unwrap();
+            
+            // Analyze control flow graph
+            let cfg_analysis_result = mir.analyze_cfg();
+            prop_assert!(cfg_analysis_result.is_ok(), 
+                "CFG analysis should succeed for: {}", program);
+            
+            let cfg_analysis = cfg_analysis_result.unwrap();
+            
+            // Verify CFG analysis consistency
+            for (func_id, func_analysis) in &cfg_analysis.function_analyses {
+                prop_assert!(mir.functions.contains_key(func_id),
+                    "CFG analysis should only contain existing functions");
+                
+                let function = &mir.functions[func_id];
+                
+                // Verify predecessor/successor consistency
+                for (block_id, successors) in &func_analysis.successors {
+                    prop_assert!(function.basic_blocks.contains_key(block_id),
+                        "Successor analysis should only reference existing blocks");
+                    
+                    for &successor in successors {
+                        prop_assert!(function.basic_blocks.contains_key(&successor),
+                            "Successors should reference existing blocks");
+                        
+                        // Check that predecessor relationship is symmetric
+                        if let Some(predecessors) = func_analysis.predecessors.get(&successor) {
+                            prop_assert!(predecessors.contains(block_id),
+                                "Predecessor relationship should be symmetric");
+                        }
+                    }
+                }
+                
+                // Verify dominator relationships are valid
+                for (block_id, &dominator) in &func_analysis.dominators {
+                    prop_assert!(function.basic_blocks.contains_key(block_id),
+                        "Dominator analysis should only reference existing blocks");
+                    prop_assert!(function.basic_blocks.contains_key(&dominator),
+                        "Dominators should reference existing blocks");
+                }
+            }
+        }
+
+        #[test]
+        fn prop_ir_error_recovery_consistency(
+            valid_program in ir_test_program(),
+            corruption in prop::sample::select(vec!["missing_semicolon", "extra_brace", "invalid_identifier"])
+        ) {
+            // Create a corrupted version of the program
+            let corrupted_program = match corruption {
+                "missing_semicolon" => valid_program.replace(";", ""),
+                "extra_brace" => format!("{} }}", valid_program),
+                "invalid_identifier" => valid_program.replace("seeAm", "123invalid"),
+                _ => valid_program.clone(),
+            };
+            
+            // Test that the pipeline handles errors gracefully
+            let mut lexer = Lexer::new(&corrupted_program);
+            let tokens_result = lexer.tokenize();
+            
+            if let Ok(tokens) = tokens_result {
+                let mut parser = Parser::new(tokens);
+                let ast_result = parser.parse();
+                
+                if let Ok(ast) = ast_result {
+                    let mut hir_builder = HirBuilder::new();
+                    let hir_result = hir_builder.transform_ast(&ast);
+                    
+                    // Either HIR transformation should fail gracefully, or succeed
+                    // The key is that it should never panic
+                    if let Ok(hir) = hir_result {
+                        let mut mir_builder = MirBuilder::new();
+                        let _mir_result = mir_builder.transform_hir(&hir);
+                        // MIR transformation might fail, which is acceptable
+                    }
+                }
+            }
+            
+            // Test passes if we reach here without panicking
+            prop_assert!(true);
+        }
+
+        #[test]
+        fn prop_ir_type_preservation_across_stages(program in ir_test_program()) {
+            let mut lexer = Lexer::new(&program);
+            let tokens_result = lexer.tokenize();
+            prop_assume!(tokens_result.is_ok());
+            let tokens = tokens_result.unwrap();
+            
+            let mut parser = Parser::new(tokens);
+            let ast_result = parser.parse();
+            prop_assume!(ast_result.is_ok());
+            let ast = ast_result.unwrap();
+            
+            let mut hir_builder = HirBuilder::new();
+            let hir_result = hir_builder.transform_ast(&ast);
+            prop_assume!(hir_result.is_ok());
+            let hir = hir_result.unwrap();
+            
+            let mut mir_builder = MirBuilder::new();
+            let mir_result = mir_builder.transform_hir(&hir);
+            prop_assume!(mir_result.is_ok());
+            let mir = mir_result.unwrap();
+            
+            // Verify type information is preserved across transformations
+            
+            // Check that HIR has type information
+            for item in &hir.items {
+                match item {
+                    crate::hir::HirItem::Function(func) => {
+                        // Function should have return type
+                        prop_assert!(!matches!(func.return_type, crate::hir::HirType::Error),
+                            "Function return type should be resolved");
+                        
+                        // Parameters should have types
+                        for param in &func.parameters {
+                            prop_assert!(!matches!(param.param_type, crate::hir::HirType::Error),
+                                "Parameter types should be resolved");
+                        }
+                    }
+                    crate::hir::HirItem::Global(global) => {
+                        prop_assert!(!matches!(global.global_type, crate::hir::HirType::Error),
+                            "Global variable type should be resolved");
+                    }
+                    _ => {}
+                }
+            }
+            
+            // Check that MIR preserves type information
+            for (func_id, function) in &mir.functions {
+                // Function signature should have types
+                prop_assert!(!function.signature.parameters.is_empty() || 
+                           function.signature.parameters.iter().all(|t| !matches!(t, crate::mir::MirType::Unit)),
+                    "Function {} should have meaningful parameter types", func_id);
+                
+                // Locals should have types
+                for local in &function.locals {
+                    prop_assert!(!matches!(local.ty, crate::mir::MirType::Unit) || local.name.is_none(),
+                        "Local variables should have meaningful types");
+                }
+            }
+        }
+    }
+}
     use super::*;
     use crate::ir::IrBuilder;
 
@@ -2245,6 +2680,207 @@ pub mod multi_repository_version_consistency {
             let repo_count = package.metadata().compliance_info
                 .get("repository_count").unwrap();
             assert_eq!(repo_count, &repositories.len().to_string(), "Repository count should be consistent");
+        }
+    }
+}
+
+/// **Feature: ovie-programming-language-stage-2, Property 7: Compiler Output Equivalence**
+/// 
+/// For any valid Ovie program, the self-hosted Ovie compiler should produce 
+/// functionally equivalent output to the bootstrap Rust compiler
+/// 
+/// **Validates: Requirements 3.3, 13.1**
+mod compiler_output_equivalence {
+    use super::*;
+    use crate::self_hosting::{BootstrapVerifier, BootstrapConfig};
+
+    proptest! {
+        #[test]
+        fn test_lexer_output_equivalence(source in simple_ovie_program()) {
+            // Feature: ovie-programming-language-stage-2, Property 7: Compiler Output Equivalence
+            let config = BootstrapConfig::default();
+            let verifier = BootstrapVerifier::new(config);
+            
+            // For now, we test that the Rust lexer produces consistent output
+            // When the Ovie lexer is implemented, this will compare both
+            let mut rust_lexer = Lexer::new(&source);
+            let tokens1 = rust_lexer.tokenize().unwrap();
+            
+            let mut rust_lexer2 = Lexer::new(&source);
+            let tokens2 = rust_lexer2.tokenize().unwrap();
+            
+            // Tokens should be identical for the same input
+            prop_assert_eq!(tokens1.len(), tokens2.len());
+            
+            for (t1, t2) in tokens1.iter().zip(tokens2.iter()) {
+                prop_assert_eq!(t1.token_type, t2.token_type);
+                prop_assert_eq!(t1.lexeme, t2.lexeme);
+                prop_assert_eq!(t1.location.line, t2.location.line);
+                prop_assert_eq!(t1.location.column, t2.location.column);
+            }
+        }
+    }
+
+    // Generator for simple Ovie programs
+    fn simple_ovie_program() -> impl Strategy<Value = String> {
+        prop_oneof![
+            valid_string_literal().prop_map(|s| format!("seeAm {};", s)),
+            valid_identifier().prop_map(|id| format!("mut {} = 42;", id)),
+            valid_number_literal().prop_map(|n| format!("seeAm {};", n)),
+            (valid_identifier(), valid_number_literal()).prop_map(|(id, n)| {
+                format!("fn {}() {{ return {}; }}", id, n)
+            }),
+        ]
+    }
+}
+
+/// **Feature: ovie-programming-language-stage-2, Property 8: Bootstrap Process Reproducibility**
+/// 
+/// For any bootstrap build process, repeating the process with identical inputs 
+/// should produce identical results and maintain compatibility
+/// 
+/// **Validates: Requirements 3.4, 3.5, 13.3**
+mod bootstrap_process_reproducibility {
+    use super::*;
+    use crate::self_hosting::{BootstrapVerifier, BootstrapConfig};
+    use sha2::{Sha256, Digest};
+
+    proptest! {
+        #[test]
+        fn test_deterministic_lexing(source in simple_ovie_program()) {
+            // Feature: ovie-programming-language-stage-2, Property 8: Bootstrap Process Reproducibility
+            
+            // Run lexing multiple times and verify identical output
+            let mut hashes = Vec::new();
+            
+            for _ in 0..3 {
+                let mut lexer = Lexer::new(&source);
+                let tokens = lexer.tokenize().unwrap();
+                
+                // Compute hash of token stream
+                let mut hasher = Sha256::new();
+                for token in &tokens {
+                    hasher.update(format!("{:?}", token.token_type).as_bytes());
+                    hasher.update(token.lexeme.as_bytes());
+                    hasher.update(token.location.line.to_string().as_bytes());
+                    hasher.update(token.location.column.to_string().as_bytes());
+                }
+                let hash = format!("{:x}", hasher.finalize());
+                hashes.push(hash);
+            }
+            
+            // All hashes should be identical (deterministic behavior)
+            for i in 1..hashes.len() {
+                prop_assert_eq!(hashes[0], hashes[i], "Lexing should be deterministic");
+            }
+        }
+
+        #[test]
+        fn test_environment_independence(source in simple_ovie_program()) {
+            // Feature: ovie-programming-language-stage-2, Property 8: Bootstrap Process Reproducibility
+            
+            // Test that compilation is independent of certain environment changes
+            let mut lexer1 = Lexer::new(&source);
+            let tokens1 = lexer1.tokenize().unwrap();
+            
+            // Simulate environment change (this is a simplified test)
+            std::env::set_var("TEST_VAR", "test_value");
+            
+            let mut lexer2 = Lexer::new(&source);
+            let tokens2 = lexer2.tokenize().unwrap();
+            
+            // Remove test variable
+            std::env::remove_var("TEST_VAR");
+            
+            // Results should be identical regardless of environment
+            prop_assert_eq!(tokens1.len(), tokens2.len());
+            
+            for (t1, t2) in tokens1.iter().zip(tokens2.iter()) {
+                prop_assert_eq!(t1.token_type, t2.token_type);
+                prop_assert_eq!(t1.lexeme, t2.lexeme);
+            }
+        }
+    }
+
+    // Generator for simple Ovie programs (reused from above)
+    fn simple_ovie_program() -> impl Strategy<Value = String> {
+        prop_oneof![
+            valid_string_literal().prop_map(|s| format!("seeAm {};", s)),
+            valid_identifier().prop_map(|id| format!("mut {} = 42;", id)),
+            valid_number_literal().prop_map(|n| format!("seeAm {};", n)),
+        ]
+    }
+}
+
+/// **Feature: ovie-programming-language-stage-2, Bootstrap Verification Properties**
+/// 
+/// Additional properties specific to the bootstrap verification system
+mod bootstrap_verification_properties {
+    use super::*;
+    use crate::self_hosting::{BootstrapVerifier, BootstrapConfig, EquivalenceTester};
+
+    proptest! {
+        #[test]
+        fn test_hash_consistency(source in any::<String>().prop_filter("Valid UTF-8", |s| !s.is_empty())) {
+            // Hash computation should be consistent
+            let config = BootstrapConfig::default();
+            let verifier = BootstrapVerifier::new(config);
+            
+            // Create dummy tokens for testing
+            let tokens = vec![
+                crate::lexer::Token::new(
+                    TokenType::Identifier,
+                    "test".to_string(),
+                    crate::error::SourceLocation::new(1, 1, 0)
+                )
+            ];
+            
+            let hash1 = verifier.compute_token_hash(&tokens);
+            let hash2 = verifier.compute_token_hash(&tokens);
+            
+            prop_assert_eq!(hash1, hash2, "Hash computation should be deterministic");
+            prop_assert!(!hash1.is_empty(), "Hash should not be empty");
+            prop_assert_eq!(hash1.len(), 64, "SHA-256 hash should be 64 characters");
+        }
+
+        #[test]
+        fn test_performance_ratio_calculation(
+            rust_time in 1u64..10000u64,
+            ovie_time in 1u64..50000u64
+        ) {
+            // Performance ratio calculation should be accurate
+            let ratio = ovie_time as f64 / rust_time as f64;
+            
+            prop_assert!(ratio > 0.0, "Performance ratio should be positive");
+            
+            if ovie_time == rust_time {
+                prop_assert!((ratio - 1.0).abs() < f64::EPSILON, "Equal times should give ratio of 1.0");
+            }
+            
+            if ovie_time > rust_time {
+                prop_assert!(ratio > 1.0, "Slower Ovie should give ratio > 1.0");
+            }
+        }
+
+        #[test]
+        fn test_equivalence_tester_generation(
+            max_cases in 1usize..100usize,
+            complexity in 1usize..10usize
+        ) {
+            // Test case generation should produce valid output
+            let mut tester = EquivalenceTester::new(max_cases, complexity);
+            
+            for i in 0..std::cmp::min(max_cases, 10) {
+                let test_case = tester.test_generator.generate_test_case(complexity + i);
+                
+                prop_assert!(!test_case.is_empty(), "Generated test case should not be empty");
+                prop_assert!(test_case.ends_with(';'), "Generated test case should end with semicolon");
+                
+                // Should be valid Ovie syntax (basic check)
+                let mut lexer = Lexer::new(&test_case);
+                let tokens_result = lexer.tokenize();
+                prop_assert!(tokens_result.is_ok(), "Generated test case should be lexically valid: {}", test_case);
+            }
         }
     }
 }

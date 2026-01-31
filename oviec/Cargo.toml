@@ -11,6 +11,10 @@ description = "The Ovie programming language compiler"
 keywords = ["compiler", "programming-language", "ovie"]
 categories = ["compilers", "development-tools"]
 
+[[bin]]
+name = "test_runner"
+path = "src/bin/test_runner.rs"
+
 [dependencies]
 # Lexer and parsing
 logos.workspace = true

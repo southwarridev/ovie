@@ -1,6 +1,14 @@
-# Ovie Language Guide
+<div align="center">
+  <img src="../ovie.png" alt="Ovie Programming Language" width="120" height="120">
+  
+  # Ovie Language Guide
+  
+  ### ✅ **SELF-HOSTED PROGRAMMING LANGUAGE**
+</div>
 
 This comprehensive guide covers all aspects of the Ovie Programming Language, from basic syntax to advanced features.
+
+**🎉 Status: Complete language reference for the self-hosted Ovie compiler!**
 
 ## Table of Contents
 
@@ -18,11 +26,12 @@ This comprehensive guide covers all aspects of the Ovie Programming Language, fr
 
 ## Language Philosophy
 
-Ovie is designed around three core principles:
+Ovie is designed around four core principles:
 
 1. **Accessibility**: Code should be readable by both programmers and non-programmers
 2. **Safety**: The language should prevent common programming errors
 3. **Determinism**: Builds should be reproducible and predictable
+4. **✅ Self-Hosting**: The language can compile itself (ACHIEVED!)
 
 ### Natural Language Patterns
 

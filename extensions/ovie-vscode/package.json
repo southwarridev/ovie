@@ -1,0 +1,330 @@
+{
+  "name": "ovie-lang",
+  "displayName": "Ovie Programming Language",
+  "description": "Official VS Code extension for the Ovie self-hosted programming language with AI integration",
+  "version": "1.0.0",
+  "publisher": "ovie-lang",
+  "icon": "assets/ovie-icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/southwarridev/ovie"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Debuggers",
+    "Formatters",
+    "Linters",
+    "Snippets",
+    "Themes"
+  ],
+  "keywords": [
+    "ovie",
+    "programming language",
+    "self-hosted",
+    "ai-friendly",
+    "aproko",
+    "compiler",
+    "natural language"
+  ],
+  "activationEvents": [
+    "onLanguage:ovie",
+    "workspaceContains:**/*.ov",
+    "workspaceContains:ovie.toml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "ovie",
+        "aliases": [
+          "Ovie",
+          "ovie"
+        ],
+        "extensions": [
+          ".ov"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./assets/ovie-file-light.png",
+          "dark": "./assets/ovie-file-dark.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ovie",
+        "scopeName": "source.ovie",
+        "path": "./syntaxes/ovie.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "Ovie Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/ovie-dark.json"
+      },
+      {
+        "label": "Ovie Light",
+        "uiTheme": "vs",
+        "path": "./themes/ovie-light.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "ovie",
+        "path": "./snippets/ovie.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "ovie.compile",
+        "title": "Compile Ovie File",
+        "category": "Ovie"
+      },
+      {
+        "command": "ovie.run",
+        "title": "Run Ovie File",
+        "category": "Ovie"
+      },
+      {
+        "command": "ovie.test",
+        "title": "Run Ovie Tests",
+        "category": "Ovie"
+      },
+      {
+        "command": "ovie.compile.web",
+        "title": "Compile to WebAssembly",
+        "category": "Ovie Web"
+      },
+      {
+        "command": "ovie.project.web",
+        "title": "New Web Project",
+        "category": "Ovie Web"
+      },
+      {
+        "command": "ovie.compile.android",
+        "title": "Compile for Android",
+        "category": "Ovie Mobile"
+      },
+      {
+        "command": "ovie.compile.ios",
+        "title": "Compile for iOS",
+        "category": "Ovie Mobile"
+      },
+      {
+        "command": "ovie.project.mobile",
+        "title": "New Mobile Project",
+        "category": "Ovie Mobile"
+      },
+      {
+        "command": "ovie.aproko.analyze",
+        "title": "Run Aproko Analysis",
+        "category": "Ovie"
+      },
+      {
+        "command": "ovie.aproko.fix",
+        "title": "Apply Aproko Fixes",
+        "category": "Ovie"
+      },
+      {
+        "command": "ovie.aproko.explain",
+        "title": "Explain with Aproko",
+        "category": "Ovie"
+      },
+      {
+        "command": "ovie.ai.complete",
+        "title": "AI Code Completion",
+        "category": "Ovie AI"
+      },
+      {
+        "command": "ovie.ai.explain",
+        "title": "AI Explain Code",
+        "category": "Ovie AI"
+      },
+      {
+        "command": "ovie.ai.translate",
+        "title": "Translate to Ovie",
+        "category": "Ovie AI"
+      },
+      {
+        "command": "ovie.project.new",
+        "title": "New Ovie Project",
+        "category": "Ovie"
+      },
+      {
+        "command": "ovie.project.build",
+        "title": "Build Project",
+        "category": "Ovie"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "ovie.compile",
+        "key": "ctrl+shift+b",
+        "when": "editorLangId == ovie"
+      },
+      {
+        "command": "ovie.run",
+        "key": "ctrl+f5",
+        "when": "editorLangId == ovie"
+      },
+      {
+        "command": "ovie.compile.web",
+        "key": "ctrl+shift+w",
+        "when": "editorLangId == ovie"
+      },
+      {
+        "command": "ovie.aproko.analyze",
+        "key": "ctrl+shift+a",
+        "when": "editorLangId == ovie"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorLangId == ovie",
+          "command": "ovie.aproko.explain",
+          "group": "ovie@1"
+        },
+        {
+          "when": "editorLangId == ovie",
+          "command": "ovie.ai.explain",
+          "group": "ovie@2"
+        },
+        {
+          "when": "editorLangId == ovie",
+          "command": "ovie.compile.web",
+          "group": "ovie@3"
+        },
+        {
+          "when": "editorLangId == ovie",
+          "command": "ovie.compile.android",
+          "group": "ovie@4"
+        },
+        {
+          "when": "editorLangId == ovie",
+          "command": "ovie.compile.ios",
+          "group": "ovie@5"
+        }
+      ],
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .ov",
+          "command": "ovie.compile",
+          "group": "ovie@1"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Ovie Configuration",
+      "properties": {
+        "ovie.compiler.path": {
+          "type": "string",
+          "default": "ovie",
+          "description": "Path to the Ovie compiler"
+        },
+        "ovie.aproko.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Aproko analysis"
+        },
+        "ovie.aproko.autoFix": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically apply Aproko fixes"
+        },
+        "ovie.ai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI features"
+        },
+        "ovie.ai.provider": {
+          "type": "string",
+          "enum": [
+            "openai",
+            "anthropic",
+            "github-copilot",
+            "local"
+          ],
+          "default": "github-copilot",
+          "description": "AI provider for code completion"
+        },
+        "ovie.formatting.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic formatting"
+        },
+        "ovie.linting.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable linting"
+        }
+      }
+    },
+    "problemMatchers": [
+      {
+        "name": "ovie",
+        "owner": "ovie",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "ovie",
+        "required": [
+          "task"
+        ],
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "The Ovie task to execute"
+          },
+          "file": {
+            "type": "string",
+            "description": "The file to process"
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "@vscode/test-electron": "^2.2.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "vscode-languageclient": "^9.0.1",
+    "ws": "^8.14.0"
+  }
+}

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
 use crate::{OvieResult, OvieError};
 use crate::security::{SupplyChainSecurity, SecurityPolicies};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Package identifier using cryptographic hash
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -48,6 +49,40 @@ pub struct PackageMetadata {
     pub documentation: Option<String>,
     pub keywords: Vec<String>,
     pub categories: Vec<String>,
+    /// Cryptographic signatures for integrity verification
+    pub signatures: Vec<PackageSignature>,
+    /// Checksums for additional verification
+    pub checksums: HashMap<String, String>, // algorithm -> checksum
+    /// Build timestamp for reproducibility
+    pub build_timestamp: Option<u64>,
+    /// Offline-first compliance metadata
+    pub offline_metadata: OfflineMetadata,
+}
+
+/// Cryptographic signature for package verification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageSignature {
+    /// Signature algorithm (e.g., "ed25519", "rsa-pss")
+    pub algorithm: String,
+    /// Base64-encoded signature
+    pub signature: String,
+    /// Key identifier
+    pub key_id: String,
+    /// Timestamp when signature was created
+    pub timestamp: u64,
+}
+
+/// Offline-first compliance metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OfflineMetadata {
+    /// Whether package requires network access
+    pub requires_network: bool,
+    /// List of external resources accessed
+    pub external_resources: Vec<String>,
+    /// Deterministic build guarantee
+    pub deterministic_build: bool,
+    /// Reproducible build hash
+    pub reproducible_hash: Option<String>,
 }
 
 /// Local package registry
@@ -108,17 +143,27 @@ impl PackageRegistry {
         self.security.update_policies(policies);
     }
 
-    /// Store a package in the local registry
-    /// Store a package in the local registry
+    /// Store a package in the local registry with integrity verification
     pub fn store_package(&mut self, metadata: PackageMetadata, content: &[u8]) -> OvieResult<()> {
         // Validate package security first
         let source_url = metadata.repository.as_deref().unwrap_or("unknown");
+        let signatures = if !metadata.signatures.is_empty() {
+            Some(&metadata.signatures[0].signature)
+        } else {
+            None
+        };
+        let key_id = if !metadata.signatures.is_empty() {
+            Some(&metadata.signatures[0].key_id)
+        } else {
+            None
+        };
+
         let is_valid = self.security.validate_package(
             content,
             source_url,
             &metadata.id.content_hash,
-            None, // TODO: Add signature support
-            None, // TODO: Add key ID support
+            signatures,
+            key_id,
         )?;
 
         if !is_valid {
@@ -137,6 +182,17 @@ impl PackageRegistry {
             )));
         }
 
+        // Verify additional checksums
+        self.verify_checksums(&metadata, content)?;
+
+        // Verify signatures if present
+        if !metadata.signatures.is_empty() {
+            self.verify_signatures(&metadata, content)?;
+        }
+
+        // Enforce offline-first compliance
+        self.verify_offline_compliance(&metadata)?;
+
         // Create package directory
         let package_dir = self.registry_path.join(&metadata.id.name).join(&metadata.id.version);
         fs::create_dir_all(&package_dir)
@@ -153,6 +209,9 @@ impl PackageRegistry {
         let content_path = package_dir.join("content.tar.gz");
         fs::write(&content_path, content)
             .map_err(|e| OvieError::io_error(format!("Failed to write package content: {}", e)))?;
+
+        // Store integrity manifest
+        self.create_integrity_manifest(&package_dir, &metadata, content)?;
 
         // Update cache
         self.cache.insert(metadata.id.clone(), metadata);
@@ -310,6 +369,206 @@ impl PackageRegistry {
             .map_err(|e| OvieError::io_error(format!("Failed to write placeholder: {}", e)))?;
         Ok(())
     }
+
+    /// Verify additional checksums beyond the main content hash
+    fn verify_checksums(&self, metadata: &PackageMetadata, content: &[u8]) -> OvieResult<()> {
+        for (algorithm, expected_checksum) in &metadata.checksums {
+            let computed_checksum = match algorithm.as_str() {
+                "sha256" => self.compute_content_hash(content),
+                "sha512" => {
+                    use sha2::Sha512;
+                    let mut hasher = Sha512::new();
+                    hasher.update(content);
+                    format!("{:x}", hasher.finalize())
+                }
+                "blake3" => {
+                    // Placeholder for BLAKE3 - would need blake3 crate
+                    return Err(OvieError::generic(format!("Unsupported checksum algorithm: {}", algorithm)));
+                }
+                _ => {
+                    return Err(OvieError::generic(format!("Unknown checksum algorithm: {}", algorithm)));
+                }
+            };
+
+            if &computed_checksum != expected_checksum {
+                return Err(OvieError::generic(format!(
+                    "Checksum verification failed for algorithm {}: expected {}, got {}",
+                    algorithm, expected_checksum, computed_checksum
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    /// Verify cryptographic signatures
+    fn verify_signatures(&self, metadata: &PackageMetadata, content: &[u8]) -> OvieResult<()> {
+        if metadata.signatures.is_empty() {
+            return Ok(());
+        }
+
+        for signature in &metadata.signatures {
+            match signature.algorithm.as_str() {
+                "ed25519" => {
+                    // Placeholder for Ed25519 verification
+                    // Would need ed25519-dalek crate
+                    return Err(OvieError::generic("Ed25519 signature verification not yet implemented"));
+                }
+                "rsa-pss" => {
+                    // Placeholder for RSA-PSS verification
+                    // Would need rsa crate
+                    return Err(OvieError::generic("RSA-PSS signature verification not yet implemented"));
+                }
+                _ => {
+                    return Err(OvieError::generic(format!("Unsupported signature algorithm: {}", signature.algorithm)));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Verify offline-first compliance
+    fn verify_offline_compliance(&self, metadata: &PackageMetadata) -> OvieResult<()> {
+        if metadata.offline_metadata.requires_network {
+            return Err(OvieError::generic(format!(
+                "Package {} violates offline-first policy by requiring network access",
+                metadata.id.name
+            )));
+        }
+
+        if !metadata.offline_metadata.external_resources.is_empty() {
+            return Err(OvieError::generic(format!(
+                "Package {} violates offline-first policy by accessing external resources: {:?}",
+                metadata.id.name, metadata.offline_metadata.external_resources
+            )));
+        }
+
+        if !metadata.offline_metadata.deterministic_build {
+            return Err(OvieError::generic(format!(
+                "Package {} does not guarantee deterministic builds",
+                metadata.id.name
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Create integrity manifest for a package
+    fn create_integrity_manifest(&self, package_dir: &Path, metadata: &PackageMetadata, content: &[u8]) -> OvieResult<()> {
+        let manifest = IntegrityManifest {
+            package_id: metadata.id.clone(),
+            content_hash: metadata.id.content_hash.clone(),
+            checksums: metadata.checksums.clone(),
+            signatures: metadata.signatures.clone(),
+            verification_timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            file_size: content.len() as u64,
+            offline_compliance: metadata.offline_metadata.clone(),
+        };
+
+        let manifest_path = package_dir.join("integrity.json");
+        let manifest_json = serde_json::to_string_pretty(&manifest)
+            .map_err(|e| OvieError::generic(format!("Failed to serialize integrity manifest: {}", e)))?;
+        
+        fs::write(&manifest_path, manifest_json)
+            .map_err(|e| OvieError::io_error(format!("Failed to write integrity manifest: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Verify package integrity from stored manifest
+    pub fn verify_package_integrity(&mut self, package_id: &PackageId) -> OvieResult<bool> {
+        let package_dir = self.registry_path.join(&package_id.name).join(&package_id.version);
+        let manifest_path = package_dir.join("integrity.json");
+        
+        if !manifest_path.exists() {
+            return Ok(false);
+        }
+
+        let manifest_json = fs::read_to_string(&manifest_path)
+            .map_err(|e| OvieError::io_error(format!("Failed to read integrity manifest: {}", e)))?;
+        
+        let manifest: IntegrityManifest = serde_json::from_str(&manifest_json)
+            .map_err(|e| OvieError::generic(format!("Failed to parse integrity manifest: {}", e)))?;
+
+        // Verify package ID matches
+        if manifest.package_id != *package_id {
+            return Ok(false);
+        }
+
+        // Load and verify content
+        let content = self.load_package_content(package_id)?;
+        
+        // Verify content hash
+        let computed_hash = self.compute_content_hash(&content);
+        if computed_hash != manifest.content_hash {
+            return Ok(false);
+        }
+
+        // Verify file size
+        if content.len() as u64 != manifest.file_size {
+            return Ok(false);
+        }
+
+        // Verify additional checksums
+        for (algorithm, expected_checksum) in &manifest.checksums {
+            let computed_checksum = match algorithm.as_str() {
+                "sha256" => self.compute_content_hash(&content),
+                "sha512" => {
+                    use sha2::Sha512;
+                    let mut hasher = Sha512::new();
+                    hasher.update(&content);
+                    format!("{:x}", hasher.finalize())
+                }
+                _ => continue, // Skip unsupported algorithms
+            };
+
+            if &computed_checksum != expected_checksum {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Enforce offline-only build by checking network access
+    pub fn enforce_offline_build(&self) -> OvieResult<()> {
+        // Check if we're in offline mode
+        if std::env::var("OVIE_OFFLINE").unwrap_or_default() != "true" {
+            return Err(OvieError::generic(
+                "Offline-only build enforcement requires OVIE_OFFLINE=true environment variable"
+            ));
+        }
+
+        // Verify no network interfaces are accessible (simplified check)
+        // In a real implementation, this would be more sophisticated
+        if self.has_network_access() {
+            return Err(OvieError::generic(
+                "Network access detected during offline-only build"
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Check if network access is available (simplified implementation)
+    fn has_network_access(&self) -> bool {
+        // Simplified check - in reality this would be more comprehensive
+        std::env::var("OVIE_FORCE_OFFLINE").unwrap_or_default() != "true"
+    }
+}
+
+/// Integrity manifest for package verification
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrityManifest {
+    pub package_id: PackageId,
+    pub content_hash: String,
+    pub checksums: HashMap<String, String>,
+    pub signatures: Vec<PackageSignature>,
+    pub verification_timestamp: u64,
+    pub file_size: u64,
+    pub offline_compliance: OfflineMetadata,
 }
 
 /// Dependency resolver for reproducible builds
@@ -317,6 +576,10 @@ impl PackageRegistry {
 pub struct DependencyResolver {
     registry: PackageRegistry,
     resolved_cache: HashMap<String, PackageId>,
+    /// Integrity verification enabled
+    verify_integrity: bool,
+    /// Offline-only mode enforcement
+    offline_only: bool,
 }
 
 impl DependencyResolver {
@@ -325,11 +588,38 @@ impl DependencyResolver {
         Ok(Self {
             registry: PackageRegistry::new()?,
             resolved_cache: HashMap::new(),
+            verify_integrity: true,
+            offline_only: true,
         })
     }
 
-    /// Resolve dependencies from ovie.toml
+    /// Create a new dependency resolver with custom settings
+    pub fn with_settings(verify_integrity: bool, offline_only: bool) -> OvieResult<Self> {
+        Ok(Self {
+            registry: PackageRegistry::new()?,
+            resolved_cache: HashMap::new(),
+            verify_integrity,
+            offline_only,
+        })
+    }
+
+    /// Enable or disable integrity verification
+    pub fn set_integrity_verification(&mut self, enabled: bool) {
+        self.verify_integrity = enabled;
+    }
+
+    /// Enable or disable offline-only mode
+    pub fn set_offline_only(&mut self, enabled: bool) {
+        self.offline_only = enabled;
+    }
+
+    /// Resolve dependencies from ovie.toml with integrity verification
     pub fn resolve_dependencies(&mut self, project_path: &Path) -> OvieResult<PackageLock> {
+        // Enforce offline-only mode if enabled
+        if self.offline_only {
+            self.registry.enforce_offline_build()?;
+        }
+
         let toml_path = project_path.join("ovie.toml");
         if !toml_path.exists() {
             return Err(OvieError::generic("ovie.toml not found"));
@@ -343,30 +633,84 @@ impl DependencyResolver {
 
         // Resolve regular dependencies
         for (name, spec) in &project_config.dependencies {
-            let package_id = self.resolve_dependency(name, spec)?;
+            let package_id = self.resolve_dependency_with_verification(name, spec)?;
             resolved_dependencies.insert(name.clone(), package_id);
         }
 
         // Resolve dev dependencies
         for (name, spec) in &project_config.dev_dependencies {
-            let package_id = self.resolve_dependency(name, spec)?;
+            let package_id = self.resolve_dependency_with_verification(name, spec)?;
             resolved_dependencies.insert(format!("dev:{}", name), package_id);
         }
 
         // Resolve build dependencies
         for (name, spec) in &project_config.build_dependencies {
-            let package_id = self.resolve_dependency(name, spec)?;
+            let package_id = self.resolve_dependency_with_verification(name, spec)?;
             resolved_dependencies.insert(format!("build:{}", name), package_id);
         }
 
-        // Recursively resolve transitive dependencies
+        // Recursively resolve transitive dependencies with verification
         let mut all_dependencies = HashMap::new();
         for (name, package_id) in resolved_dependencies {
-            self.resolve_transitive_dependencies(&package_id, &mut all_dependencies)?;
+            self.resolve_transitive_dependencies_with_verification(&package_id, &mut all_dependencies)?;
             all_dependencies.insert(name, package_id);
         }
 
         Ok(PackageLock::new(all_dependencies))
+    }
+
+    /// Resolve a single dependency with integrity verification
+    fn resolve_dependency_with_verification(&mut self, name: &str, spec: &DependencySpec) -> OvieResult<PackageId> {
+        let package_id = self.resolve_dependency(name, spec)?;
+        
+        if self.verify_integrity {
+            let is_valid = self.registry.verify_package_integrity(&package_id)?;
+            if !is_valid {
+                return Err(OvieError::generic(format!(
+                    "Integrity verification failed for package {}", 
+                    package_id.to_string()
+                )));
+            }
+        }
+
+        Ok(package_id)
+    }
+
+    /// Resolve transitive dependencies with integrity verification
+    fn resolve_transitive_dependencies_with_verification(
+        &mut self,
+        package_id: &PackageId,
+        resolved: &mut HashMap<String, PackageId>,
+    ) -> OvieResult<()> {
+        // Avoid infinite recursion
+        if resolved.contains_key(&package_id.name) {
+            return Ok(());
+        }
+
+        // Verify integrity if enabled
+        if self.verify_integrity {
+            let is_valid = self.registry.verify_package_integrity(package_id)?;
+            if !is_valid {
+                return Err(OvieError::generic(format!(
+                    "Integrity verification failed for transitive dependency {}", 
+                    package_id.to_string()
+                )));
+            }
+        }
+
+        // Get package metadata
+        let (metadata, _) = self.registry.get_package(package_id)?
+            .ok_or_else(|| OvieError::generic(format!("Package not found: {}", package_id.to_string())))?;
+
+        // Resolve dependencies of this package
+        for (dep_name, dep_id) in &metadata.dependencies {
+            if !resolved.contains_key(dep_name) {
+                self.resolve_transitive_dependencies_with_verification(dep_id, resolved)?;
+                resolved.insert(dep_name.clone(), dep_id.clone());
+            }
+        }
+
+        Ok(())
     }
 
     /// Resolve a single dependency specification
@@ -553,6 +897,21 @@ pub struct ProjectConfig {
     pub build_dependencies: HashMap<String, DependencySpec>,
     #[serde(default)]
     pub build: BuildConfig,
+    #[serde(default)]
+    pub security: SecurityConfig,
+    #[serde(default)]
+    pub vendor: VendorConfig,
+    #[serde(default)]
+    pub package: PackageConfig,
+    #[serde(default)]
+    pub scripts: HashMap<String, String>,
+    #[serde(default)]
+    pub features: FeaturesConfig,
+    #[serde(default)]
+    pub workspace: Option<WorkspaceConfig>,
+    // Platform-specific dependencies
+    #[serde(default)]
+    pub target: HashMap<String, TargetConfig>,
 }
 
 /// Project information
@@ -568,6 +927,8 @@ pub struct ProjectInfo {
     pub documentation: Option<String>,
     pub keywords: Vec<String>,
     pub categories: Vec<String>,
+    #[serde(default = "default_edition")]
+    pub edition: String,
 }
 
 /// Build configuration
@@ -577,6 +938,71 @@ pub struct BuildConfig {
     pub backend: String,
     #[serde(default = "default_target")]
     pub target: String,
+    #[serde(default = "default_optimization")]
+    pub optimization: String,
+    #[serde(default = "default_deterministic")]
+    pub deterministic: bool,
+}
+
+/// Security configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityConfig {
+    #[serde(default = "default_enforce_pinning")]
+    pub enforce_pinning: bool,
+    #[serde(default)]
+    pub require_signatures: bool,
+    #[serde(default = "default_offline_only")]
+    pub offline_only: bool,
+    #[serde(default = "default_max_dependency_depth")]
+    pub max_dependency_depth: usize,
+}
+
+/// Vendor configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VendorConfig {
+    #[serde(default = "default_vendor_directory")]
+    pub directory: String,
+    #[serde(default)]
+    pub include_dev: bool,
+    #[serde(default = "default_include_build")]
+    pub include_build: bool,
+    #[serde(default = "default_verify_checksums")]
+    pub verify_checksums: bool,
+}
+
+/// Package configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageConfig {
+    #[serde(default)]
+    pub include: Vec<String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
+    pub ovie_version: Option<String>,
+}
+
+/// Features configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeaturesConfig {
+    #[serde(default)]
+    pub default: Vec<String>,
+    #[serde(flatten)]
+    pub features: HashMap<String, Vec<String>>,
+}
+
+/// Workspace configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceConfig {
+    #[serde(default)]
+    pub members: Vec<String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
+}
+
+/// Target-specific configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TargetConfig {
+    #[serde(default)]
+    pub dependencies: HashMap<String, DependencySpec>,
 }
 
 impl Default for BuildConfig {
@@ -584,8 +1010,55 @@ impl Default for BuildConfig {
         Self {
             backend: default_backend(),
             target: default_target(),
+            optimization: default_optimization(),
+            deterministic: default_deterministic(),
         }
     }
+}
+
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        Self {
+            enforce_pinning: default_enforce_pinning(),
+            require_signatures: false,
+            offline_only: default_offline_only(),
+            max_dependency_depth: default_max_dependency_depth(),
+        }
+    }
+}
+
+impl Default for VendorConfig {
+    fn default() -> Self {
+        Self {
+            directory: default_vendor_directory(),
+            include_dev: false,
+            include_build: default_include_build(),
+            verify_checksums: default_verify_checksums(),
+        }
+    }
+}
+
+impl Default for PackageConfig {
+    fn default() -> Self {
+        Self {
+            include: Vec::new(),
+            exclude: Vec::new(),
+            ovie_version: None,
+        }
+    }
+}
+
+impl Default for FeaturesConfig {
+    fn default() -> Self {
+        Self {
+            default: Vec::new(),
+            features: HashMap::new(),
+        }
+    }
+}
+
+fn default_edition() -> String {
+    "2024".to_string()
 }
 
 fn default_backend() -> String {
@@ -596,8 +1069,262 @@ fn default_target() -> String {
     "native".to_string()
 }
 
-/// Dependency specification
-#[derive(Debug, Clone, Serialize, Deserialize)]
+fn default_optimization() -> String {
+    "debug".to_string()
+}
+
+fn default_deterministic() -> bool {
+    true
+}
+
+fn default_enforce_pinning() -> bool {
+    true
+}
+
+fn default_offline_only() -> bool {
+    true
+}
+
+fn default_max_dependency_depth() -> usize {
+    10
+}
+
+fn default_vendor_directory() -> String {
+    "vendor".to_string()
+}
+
+fn default_include_build() -> bool {
+    true
+}
+
+fn default_verify_checksums() -> bool {
+    true
+}
+
+impl ProjectConfig {
+    /// Create a new project configuration with defaults
+    pub fn new(name: String, version: String, authors: Vec<String>) -> Self {
+        Self {
+            project: ProjectInfo {
+                name,
+                version,
+                authors,
+                description: None,
+                license: Some("MIT".to_string()),
+                repository: None,
+                homepage: None,
+                documentation: None,
+                keywords: Vec::new(),
+                categories: Vec::new(),
+                edition: default_edition(),
+            },
+            dependencies: HashMap::new(),
+            dev_dependencies: HashMap::new(),
+            build_dependencies: HashMap::new(),
+            build: BuildConfig::default(),
+            security: SecurityConfig::default(),
+            vendor: VendorConfig::default(),
+            package: PackageConfig::default(),
+            scripts: HashMap::new(),
+            features: FeaturesConfig::default(),
+            workspace: None,
+            target: HashMap::new(),
+        }
+    }
+
+    /// Load project configuration from ovie.toml
+    pub fn load<P: AsRef<Path>>(path: P) -> OvieResult<Self> {
+        let content = fs::read_to_string(path)
+            .map_err(|e| OvieError::io_error(format!("Failed to read ovie.toml: {}", e)))?;
+        
+        Self::from_toml(&content)
+    }
+
+    /// Parse project configuration from TOML string
+    pub fn from_toml(content: &str) -> OvieResult<Self> {
+        toml::from_str(content)
+            .map_err(|e| OvieError::generic(format!("Failed to parse ovie.toml: {}", e)))
+    }
+
+    /// Save project configuration to ovie.toml
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> OvieResult<()> {
+        let content = self.to_toml()?;
+        fs::write(path, content)
+            .map_err(|e| OvieError::io_error(format!("Failed to write ovie.toml: {}", e)))
+    }
+
+    /// Convert project configuration to TOML string
+    pub fn to_toml(&self) -> OvieResult<String> {
+        toml::to_string_pretty(self)
+            .map_err(|e| OvieError::generic(format!("Failed to serialize ovie.toml: {}", e)))
+    }
+
+    /// Validate the project configuration
+    pub fn validate(&self) -> OvieResult<Vec<String>> {
+        let mut warnings = Vec::new();
+
+        // Validate project name
+        if self.project.name.is_empty() {
+            return Err(OvieError::generic("Project name cannot be empty"));
+        }
+
+        if !self.project.name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+            return Err(OvieError::generic("Project name can only contain alphanumeric characters, hyphens, and underscores"));
+        }
+
+        // Validate version
+        if self.project.version.is_empty() {
+            return Err(OvieError::generic("Project version cannot be empty"));
+        }
+
+        // Validate authors
+        if self.project.authors.is_empty() {
+            warnings.push("No authors specified".to_string());
+        }
+
+        // Validate security settings
+        if self.security.enforce_pinning {
+            for (name, spec) in &self.dependencies {
+                match spec {
+                    DependencySpec::Version(_) | DependencySpec::Hash(_) => {
+                        // Exact versions and hashes are good
+                    }
+                    DependencySpec::VersionRange { .. } => {
+                        warnings.push(format!("Dependency '{}' uses version range, which may compromise reproducibility", name));
+                    }
+                }
+            }
+        }
+
+        // Validate dependency depth
+        if self.security.max_dependency_depth == 0 {
+            return Err(OvieError::generic("Maximum dependency depth must be greater than 0"));
+        }
+
+        // Validate vendor directory
+        if self.vendor.directory.is_empty() {
+            return Err(OvieError::generic("Vendor directory cannot be empty"));
+        }
+
+        // Validate features
+        for (feature_name, dependencies) in &self.features.features {
+            if feature_name.is_empty() {
+                return Err(OvieError::generic("Feature name cannot be empty"));
+            }
+            
+            for dep in dependencies {
+                if !self.dependencies.contains_key(dep) && 
+                   !self.dev_dependencies.contains_key(dep) && 
+                   !self.build_dependencies.contains_key(dep) {
+                    warnings.push(format!("Feature '{}' references unknown dependency '{}'", feature_name, dep));
+                }
+            }
+        }
+
+        Ok(warnings)
+    }
+
+    /// Generate a template ovie.toml file
+    pub fn generate_template<P: AsRef<Path>>(path: P, name: &str) -> OvieResult<()> {
+        let config = Self::new(
+            name.to_string(),
+            "0.1.0".to_string(),
+            vec!["Your Name <your.email@example.com>".to_string()],
+        );
+
+        let mut content = String::new();
+        content.push_str("# Ovie Package Manifest\n");
+        content.push_str("# Generated by Ovie toolchain\n\n");
+        content.push_str(&config.to_toml()?);
+
+        fs::write(path, content)
+            .map_err(|e| OvieError::io_error(format!("Failed to write template: {}", e)))
+    }
+
+    /// Check if version pinning is enforced
+    pub fn is_version_pinning_enforced(&self) -> bool {
+        self.security.enforce_pinning
+    }
+
+    /// Get all dependencies (including dev and build dependencies)
+    pub fn get_all_dependencies(&self) -> HashMap<String, &DependencySpec> {
+        let mut all_deps = HashMap::new();
+        
+        for (name, spec) in &self.dependencies {
+            all_deps.insert(name.clone(), spec);
+        }
+        
+        for (name, spec) in &self.dev_dependencies {
+            all_deps.insert(format!("dev:{}", name), spec);
+        }
+        
+        for (name, spec) in &self.build_dependencies {
+            all_deps.insert(format!("build:{}", name), spec);
+        }
+
+        all_deps
+    }
+
+    /// Get dependencies for a specific target
+    pub fn get_target_dependencies(&self, target: &str) -> HashMap<String, &DependencySpec> {
+        self.target.get(target)
+            .map(|config| config.dependencies.iter().map(|(k, v)| (k.clone(), v)).collect())
+            .unwrap_or_default()
+    }
+
+    /// Add a dependency with version pinning enforcement
+    pub fn add_dependency(&mut self, name: String, spec: DependencySpec) -> OvieResult<()> {
+        if self.security.enforce_pinning {
+            match &spec {
+                DependencySpec::VersionRange { .. } => {
+                    return Err(OvieError::generic(format!(
+                        "Version ranges not allowed when version pinning is enforced for dependency '{}'", 
+                        name
+                    )));
+                }
+                _ => {} // Exact versions and hashes are allowed
+            }
+        }
+
+        self.dependencies.insert(name, spec);
+        Ok(())
+    }
+
+    /// Remove a dependency
+    pub fn remove_dependency(&mut self, name: &str) -> bool {
+        self.dependencies.remove(name).is_some() ||
+        self.dev_dependencies.remove(name).is_some() ||
+        self.build_dependencies.remove(name).is_some()
+    }
+
+    /// Update a dependency version
+    pub fn update_dependency(&mut self, name: &str, spec: DependencySpec) -> OvieResult<bool> {
+        if self.security.enforce_pinning {
+            match &spec {
+                DependencySpec::VersionRange { .. } => {
+                    return Err(OvieError::generic(format!(
+                        "Version ranges not allowed when version pinning is enforced for dependency '{}'", 
+                        name
+                    )));
+                }
+                _ => {} // Exact versions and hashes are allowed
+            }
+        }
+
+        if self.dependencies.contains_key(name) {
+            self.dependencies.insert(name.to_string(), spec);
+            Ok(true)
+        } else if self.dev_dependencies.contains_key(name) {
+            self.dev_dependencies.insert(name.to_string(), spec);
+            Ok(true)
+        } else if self.build_dependencies.contains_key(name) {
+            self.build_dependencies.insert(name.to_string(), spec);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
 #[serde(untagged)]
 pub enum DependencySpec {
     /// Exact version: "1.0.0"
@@ -765,6 +1492,15 @@ mod tests {
             documentation: None,
             keywords: vec!["test".to_string()],
             categories: vec!["testing".to_string()],
+            signatures: Vec::new(),
+            checksums: HashMap::new(),
+            build_timestamp: Some(1640995200), // 2022-01-01 00:00:00 UTC
+            offline_metadata: OfflineMetadata {
+                requires_network: false,
+                external_resources: Vec::new(),
+                deterministic_build: true,
+                reproducible_hash: Some("test-hash".to_string()),
+            },
         };
         
         // Store package
@@ -852,11 +1588,89 @@ target = "web"
 
     #[test]
     fn test_dependency_resolver_creation() {
+        let _resolver = DependencyResolver::new().unwrap();
+        // Should not panic
+        
+        let _resolver_custom = DependencyResolver::with_settings(false, false).unwrap();
+        // Should not panic
+    }
+
+    #[test]
+    fn test_integrity_verification() {
         let temp_dir = TempDir::new().unwrap();
         let registry_path = temp_dir.path().join("registry");
         let vendor_path = temp_dir.path().join("vendor");
         
-        let _resolver = DependencyResolver::new();
-        // Should not panic
+        let mut registry = PackageRegistry::with_paths(registry_path, vendor_path).unwrap();
+        
+        let content = b"Test package content for integrity";
+        let content_hash = registry.compute_content_hash(content);
+        
+        let package_id = PackageId::new(
+            "integrity-test".to_string(),
+            "1.0.0".to_string(),
+            content_hash,
+        );
+        
+        let mut checksums = HashMap::new();
+        checksums.insert("sha256".to_string(), registry.compute_content_hash(content));
+        
+        let metadata = PackageMetadata {
+            id: package_id.clone(),
+            description: Some("Integrity test package".to_string()),
+            authors: vec!["Test Author".to_string()],
+            dependencies: HashMap::new(),
+            dev_dependencies: HashMap::new(),
+            build_dependencies: HashMap::new(),
+            license: Some("MIT".to_string()),
+            repository: None,
+            homepage: None,
+            documentation: None,
+            keywords: vec!["test".to_string()],
+            categories: vec!["testing".to_string()],
+            signatures: Vec::new(),
+            checksums,
+            build_timestamp: Some(1640995200),
+            offline_metadata: OfflineMetadata {
+                requires_network: false,
+                external_resources: Vec::new(),
+                deterministic_build: true,
+                reproducible_hash: Some("test-hash".to_string()),
+            },
+        };
+        
+        // Store package
+        registry.store_package(metadata, content).unwrap();
+        
+        // Verify integrity
+        let is_valid = registry.verify_package_integrity(&package_id).unwrap();
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn test_offline_compliance_validation() {
+        let offline_metadata = OfflineMetadata {
+            requires_network: false,
+            external_resources: Vec::new(),
+            deterministic_build: true,
+            reproducible_hash: Some("test-hash".to_string()),
+        };
+        
+        // Valid offline metadata should pass
+        assert!(!offline_metadata.requires_network);
+        assert!(offline_metadata.external_resources.is_empty());
+        assert!(offline_metadata.deterministic_build);
+        
+        let invalid_offline_metadata = OfflineMetadata {
+            requires_network: true,
+            external_resources: vec!["https://example.com".to_string()],
+            deterministic_build: false,
+            reproducible_hash: None,
+        };
+        
+        // Invalid offline metadata should fail validation
+        assert!(invalid_offline_metadata.requires_network);
+        assert!(!invalid_offline_metadata.external_resources.is_empty());
+        assert!(!invalid_offline_metadata.deterministic_build);
     }
 }

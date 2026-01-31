@@ -1,7 +1,11 @@
 (* Ovie Programming Language Grammar Specification *)
 (* EBNF Format - Extended Backus-Naur Form *)
-(* Version: 1.0.0 *)
-(* Last Updated: 2024-01-26 *)
+(* Version: 2.0.0 - FROZEN FOR STAGE 2 *)
+(* Last Updated: 2024-01-28 *)
+(* 
+   This is the machine-readable EBNF grammar.
+   For complete specification with rules and examples, see spec/grammar.md
+*)
 
 (* ===== PROGRAM STRUCTURE ===== *)
 

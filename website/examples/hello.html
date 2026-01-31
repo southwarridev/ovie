@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello World Example - Ovie Programming Language</title>
+    <link rel="icon" type="image/png" href="../assets/ovie.png">
+    <link rel="stylesheet" href="../assets/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .example-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 120px var(--spacing-lg) var(--spacing-3xl);
+        }
+        
+        .example-header {
+            text-align: center;
+            margin-bottom: var(--spacing-3xl);
+        }
+        
+        .example-meta {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+            flex-wrap: wrap;
+        }
+        
+        .meta-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-md);
+            font-size: 0.9rem;
+        }
+        
+        .meta-label {
+            color: var(--text-muted);
+            margin-right: var(--spacing-xs);
+        }
+        
+        .meta-value {
+            color: var(--brand-primary);
+            font-weight: 500;
+        }
+        
+        .code-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            margin: var(--spacing-xl) 0;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .code-title {
+            color: var(--text-primary);
+            font-weight: 600;
+            flex-grow: 1;
+        }
+        
+        .copy-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            font-size: 0.8rem;
+        }
+        
+        .copy-btn:hover {
+            border-color: var(--brand-primary);
+            color: var(--brand-primary);
+        }
+        
+        .code-content {
+            padding: var(--spacing-lg);
+            background: var(--bg-code);
+        }
+        
+        .code-content pre {
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+            overflow-x: auto;
+        }
+        
+        .output-section {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            margin: var(--spacing-xl) 0;
+            overflow: hidden;
+        }
+        
+        .output-header {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        .output-content {
+            padding: var(--spacing-lg);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--success);
+            background: var(--bg-code);
+        }
+        
+        .explanation {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin: var(--spacing-xl) 0;
+        }
+        
+        .explanation h3 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .explanation p {
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        
+        .try-it {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin: var(--spacing-xl) 0;
+            text-align: center;
+        }
+        
+        .try-it h3 {
+            color: var(--brand-primary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: var(--spacing-3xl);
+            padding-top: var(--spacing-xl);
+            border-top: 1px solid var(--border-primary);
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            color: var(--brand-primary);
+            text-decoration: none;
+            transition: var(--transition-fast);
+        }
+        
+        .nav-link:hover {
+            color: var(--brand-secondary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="../index.html">
+                    <img src="../assets/ovie.png" alt="Ovie" class="nav-logo">
+                </a>
+                <span class="nav-title">Ovie</span>
+                <span class="nav-badge">Self-Hosted</span>
+            </div>
+            <div class="nav-menu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="../index.html#features" class="nav-link">Features</a>
+                <a href="../index.html#download" class="nav-link">Download</a>
+                <a href="../index.html#docs" class="nav-link">Documentation</a>
+                <a href="../index.html#examples" class="nav-link">Examples</a>
+            </div>
+            <div class="nav-actions">
+                <a href="../index.html#download" class="btn btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="example-container">
+        <div class="example-header">
+            <img src="../assets/ovie.png" alt="Ovie" width="60" height="60" style="margin-bottom: var(--spacing-md); border-radius: var(--radius-md);">
+            <h1>Hello World Example</h1>
+            <p class="section-subtitle">Your first program in the self-hosted Ovie language</p>
+        </div>
+
+        <div class="example-meta">
+            <div class="meta-item">
+                <span class="meta-label">Difficulty:</span>
+                <span class="meta-value">Beginner</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Category:</span>
+                <span class="meta-value">Basic</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Concepts:</span>
+                <span class="meta-value">Output, Variables, Functions</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">Compiler:</span>
+                <span class="meta-value">Self-Hosted Ovie</span>
+            </div>
+        </div>
+
+        <div class="code-section">
+            <div class="code-header">
+                <span class="code-title">📄 hello.ov</span>
+                <button class="copy-btn" onclick="OvieWebsite.copyCode(this)">Copy Code</button>
+            </div>
+            <div class="code-content">
+                <pre><code class="language-ovie">// Hello World in Ovie - Self-Hosted Programming Language!
+// This code is compiled by a compiler written in Ovie itself
+
+seeAm "Hello, World!"
+seeAm "Welcome to Ovie programming!"
+
+// Let's explore some basic features
+mut name = "Developer"
+mut language = "Ovie"
+mut year = 2026
+
+// String concatenation
+seeAm "Hello, " + name + "!"
+seeAm "You're learning " + language + " in " + year
+
+// Function definition
+fn greet(person) {
+    seeAm "Greetings, " + person + "!"
+    seeAm "Welcome to the self-hosted programming language!"
+}
+
+// Function call
+greet("New Programmer")
+
+// Simple calculation
+mut a = 10
+mut b = 5
+mut sum = a + b
+
+seeAm "Calculation: " + a + " + " + b + " = " + sum
+
+// Conditional logic
+if sum > 10 {
+    seeAm "The sum is greater than 10!"
+} else {
+    seeAm "The sum is 10 or less."
+}
+
+seeAm "🎉 Congratulations! You've run your first Ovie program!"</code></pre>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <div class="output-header">
+                🖥️ Expected Output
+            </div>
+            <div class="output-content">
+                <pre>Hello, World!
+Welcome to Ovie programming!
+Hello, Developer!
+You're learning Ovie in 2026
+Greetings, New Programmer!
+Welcome to the self-hosted programming language!
+Calculation: 10 + 5 = 15
+The sum is greater than 10!
+🎉 Congratulations! You've run your first Ovie program!</pre>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>🔍 Code Explanation</h3>
+            <p>This Hello World example demonstrates several fundamental concepts in Ovie:</p>
+            
+            <h4>1. Natural Language Output</h4>
+            <p>Ovie uses <code>seeAm</code> instead of traditional <code>print</code> statements. This makes the code more readable and accessible to non-programmers.</p>
+            
+            <h4>2. Variables and Mutability</h4>
+            <p>Variables are declared with <code>mut</code> for mutable variables. Ovie encourages explicit mutability for better code safety.</p>
+            
+            <h4>3. String Concatenation</h4>
+            <p>Strings are combined using the <code>+</code> operator, making it intuitive for beginners.</p>
+            
+            <h4>4. Functions</h4>
+            <p>Functions are defined with <code>fn</code> and can take parameters. The syntax is clean and readable.</p>
+            
+            <h4>5. Conditional Logic</h4>
+            <p>If-else statements work as expected, with clear syntax that reads like natural language.</p>
+        </div>
+
+        <div class="try-it">
+            <h3>🚀 Try It Yourself</h3>
+            <p>Ready to run this code? Follow these steps:</p>
+            <div style="text-align: left; max-width: 600px; margin: var(--spacing-lg) auto 0;">
+                <ol style="color: var(--text-secondary); line-height: 1.8;">
+                    <li>Create a new Ovie project: <code>ovie new hello-world</code></li>
+                    <li>Navigate to the project: <code>cd hello-world</code></li>
+                    <li>Copy the code above into <code>src/main.ov</code></li>
+                    <li>Run the program: <code>ovie run</code></li>
+                </ol>
+            </div>
+            <div style="margin-top: var(--spacing-lg);">
+                <a href="../index.html#test-project" class="btn btn-primary">Try Online Playground</a>
+                <a href="../docs/getting-started.html" class="btn btn-secondary">Installation Guide</a>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>🏆 Self-Hosting Achievement</h3>
+            <p>What makes this example special is that it's compiled by the <strong>Ovie compiler written in Ovie itself</strong>! This is a historic achievement in programming language development.</p>
+            
+            <p>When you run <code>ovie run</code>, you're using:</p>
+            <ul style="color: var(--text-secondary); line-height: 1.8;">
+                <li>✅ <strong>Ovie Lexer</strong> - written in Ovie</li>
+                <li>✅ <strong>Ovie Parser</strong> - written in Ovie</li>
+                <li>✅ <strong>Ovie Semantic Analyzer</strong> - written in Ovie</li>
+                <li>✅ <strong>Ovie Code Generator</strong> - written in Ovie</li>
+            </ul>
+            
+            <p>This self-hosting capability proves Ovie's maturity and production readiness!</p>
+        </div>
+
+        <div class="explanation">
+            <h3>📚 What's Next?</h3>
+            <p>Now that you've mastered Hello World, explore these concepts:</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-lg);">
+                <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-md);">
+                    <h5 style="color: var(--brand-primary); margin-bottom: var(--spacing-sm);">Variables & Types</h5>
+                    <p style="margin: 0; font-size: 0.9rem;">Learn about different data types and variable handling</p>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-md);">
+                    <h5 style="color: var(--brand-primary); margin-bottom: var(--spacing-sm);">Functions</h5>
+                    <p style="margin: 0; font-size: 0.9rem;">Master function definitions and parameter passing</p>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-md);">
+                    <h5 style="color: var(--brand-primary); margin-bottom: var(--spacing-sm);">Control Flow</h5>
+                    <p style="margin: 0; font-size: 0.9rem;">Explore loops, conditionals, and program flow</p>
+                </div>
+                <div style="background: var(--bg-tertiary); padding: var(--spacing-md); border-radius: var(--radius-md);">
+                    <h5 style="color: var(--brand-primary); margin-bottom: var(--spacing-sm);">Data Structures</h5>
+                    <p style="margin: 0; font-size: 0.9rem;">Work with structs, arrays, and complex data</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="navigation">
+            <a href="../index.html#examples" class="nav-link">
+                <span>←</span>
+                <span>Back to Examples</span>
+            </a>
+            <a href="variables.html" class="nav-link">
+                <span>Variables & Types</span>
+                <span>→</span>
+            </a>
+        </div>
+    </div>
+
+    <script src="../assets/script.js"></script>
+</body>
+</html>

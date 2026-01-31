@@ -56,6 +56,7 @@ pub struct BootstrapIntegration {
     verifier: Option<BootstrapVerifier>,
     ovie_lexer_ir: Option<IR>,
     ovie_parser_ir: Option<IR>,
+    ovie_compiler_ir: Option<IR>,
     verification_history: Vec<IntegrationVerificationResult>,
 }
 
@@ -79,6 +80,7 @@ impl BootstrapIntegration {
             verifier: None,
             ovie_lexer_ir: None,
             ovie_parser_ir: None,
+            ovie_compiler_ir: None,
             verification_history: Vec::new(),
         }
     }
@@ -91,38 +93,59 @@ impl BootstrapIntegration {
         // Load Ovie lexer implementation
         let lexer_source = include_str!("lexer_spec.ov");
         
-        // For now, we'll compile the lexer spec using the Rust compiler
+        // Load Ovie parser implementation
+        let parser_source = include_str!("parser_spec.ov");
+        
+        // Load Ovie minimal compiler implementation
+        let compiler_source = include_str!("minimal_compiler.ov");
+        
+        // For now, we'll compile these specs using the Rust compiler
         // In a real implementation, this would be a proper Ovie program
         let mut compiler = crate::Compiler::new_deterministic();
         
-        // This will fail because the lexer spec isn't valid Ovie syntax yet
-        // But we'll set up the structure for when it is
+        // Try to compile the lexer spec
         match compiler.compile_to_ir(lexer_source) {
             Ok(ir) => {
                 self.ovie_lexer_ir = Some(ir);
                 println!("✅ Ovie lexer IR compiled successfully");
             }
             Err(e) => {
-                println!("⚠️  Ovie lexer compilation failed (expected): {}", e);
+                println!("⚠️  Ovie lexer compilation failed (expected for now): {}", e);
                 // Continue with setup for future implementation
             }
         }
         
-        // Load Ovie parser implementation
-        let parser_source = include_str!("parser_spec.ov");
+        // Try to compile the parser spec
         match compiler.compile_to_ir(parser_source) {
             Ok(ir) => {
                 self.ovie_parser_ir = Some(ir);
                 println!("✅ Ovie parser IR compiled successfully");
             }
             Err(e) => {
-                println!("⚠️  Ovie parser compilation failed (expected): {}", e);
+                println!("⚠️  Ovie parser compilation failed (expected for now): {}", e);
+                // Continue with setup for future implementation
+            }
+        }
+        
+        // Try to compile the minimal compiler
+        match compiler.compile_to_ir(compiler_source) {
+            Ok(ir) => {
+                self.ovie_compiler_ir = Some(ir);
+                println!("✅ Ovie minimal compiler IR compiled successfully");
+            }
+            Err(e) => {
+                println!("⚠️  Ovie minimal compiler compilation failed (expected for now): {}", e);
                 // Continue with setup for future implementation
             }
         }
         
         // Initialize verifier with mock data for now
         self.verifier = Some(verifier);
+        
+        println!("🚀 Bootstrap integration initialized");
+        println!("   - Lexer IR: {}", if self.ovie_lexer_ir.is_some() { "✅" } else { "❌" });
+        println!("   - Parser IR: {}", if self.ovie_parser_ir.is_some() { "✅" } else { "❌" });
+        println!("   - Compiler IR: {}", if self.ovie_compiler_ir.is_some() { "✅" } else { "❌" });
         
         Ok(())
     }

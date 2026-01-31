@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installation Guide - Ovie Programming Language</title>
+    <link rel="icon" type="image/png" href="../assets/ovie.png">
+    <link rel="stylesheet" href="../assets/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .doc-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 120px var(--spacing-lg) var(--spacing-3xl);
+        }
+        
+        .doc-header {
+            text-align: center;
+            margin-bottom: var(--spacing-3xl);
+        }
+        
+        .doc-content {
+            line-height: 1.8;
+        }
+        
+        .doc-content h2 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-xl);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 2px solid var(--border-primary);
+        }
+        
+        .doc-content h3 {
+            color: var(--text-primary);
+            margin-top: var(--spacing-lg);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .doc-content p {
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .doc-content code {
+            background: var(--bg-code);
+            color: var(--brand-primary);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+        }
+        
+        .doc-content pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            overflow-x: auto;
+            margin: var(--spacing-md) 0;
+        }
+        
+        .doc-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+        
+        .install-option {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .install-option.recommended {
+            border-color: var(--brand-primary);
+            background: rgba(0, 212, 255, 0.05);
+        }
+        
+        .install-option h3 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .recommended-badge {
+            background: var(--brand-gradient);
+            color: white;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .info-box h4 {
+            color: var(--brand-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .warning-box {
+            background: rgba(255, 170, 0, 0.1);
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .warning-box h4 {
+            color: var(--warning);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .success-box {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .success-box h4 {
+            color: var(--success);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .platform-tabs {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+            justify-content: center;
+        }
+        
+        .platform-tab {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-secondary);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+        
+        .platform-tab.active {
+            background: var(--brand-primary);
+            color: white;
+            border-color: var(--brand-primary);
+        }
+        
+        .platform-content {
+            display: none;
+        }
+        
+        .platform-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="../index.html">
+                    <img src="../assets/ovie.png" alt="Ovie" class="nav-logo">
+                </a>
+                <span class="nav-title">Ovie</span>
+                <span class="nav-badge">Self-Hosted</span>
+            </div>
+            <div class="nav-menu">
+                <a href="../index.html" class="nav-link">Home</a>
+                <a href="../index.html#features" class="nav-link">Features</a>
+                <a href="../index.html#download" class="nav-link">Download</a>
+                <a href="../index.html#docs" class="nav-link">Documentation</a>
+                <a href="../index.html#examples" class="nav-link">Examples</a>
+            </div>
+            <div class="nav-actions">
+                <a href="../index.html#download" class="btn btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="doc-container">
+        <div class="doc-header">
+            <img src="../assets/ovie.png" alt="Ovie" width="80" height="80" style="margin-bottom: var(--spacing-md); border-radius: var(--radius-lg);">
+            <h1>Installation Guide</h1>
+            <p class="section-subtitle">Get Ovie running on your system in minutes</p>
+        </div>
+
+        <div class="doc-content">
+            <div class="success-box">
+                <h4>🎉 Self-Hosted Compiler!</h4>
+                <p>You're installing a programming language that can compile itself! The Ovie compiler is written in Ovie, making it a truly sovereign programming language.</p>
+            </div>
+
+            <h2>Quick Installation</h2>
+            
+            <div class="install-option recommended">
+                <h3>
+                    🚀 One-Line Install
+                    <span class="recommended-badge">Recommended</span>
+                </h3>
+                <p>The fastest way to get Ovie up and running on your system.</p>
+                
+                <div class="platform-tabs">
+                    <button class="platform-tab active" data-platform="unix">Unix/Linux/macOS</button>
+                    <button class="platform-tab" data-platform="windows">Windows</button>
+                </div>
+                
+                <div class="platform-content active" id="unix">
+                    <pre><code>curl -sSL https://install.ovie-lang.org | sh</code></pre>
+                    <p>This script will:</p>
+                    <ul>
+                        <li>Download the latest Ovie release</li>
+                        <li>Install the compiler and CLI tools</li>
+                        <li>Add Ovie to your PATH</li>
+                        <li>Set up the standard library</li>
+                    </ul>
+                </div>
+                
+                <div class="platform-content" id="windows">
+                    <p><strong>PowerShell (Run as Administrator):</strong></p>
+                    <pre><code>iwr -useb https://install.ovie-lang.org/install.ps1 | iex</code></pre>
+                    <p><strong>Command Prompt:</strong></p>
+                    <pre><code>@"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iwr -useb https://install.ovie-lang.org/install.ps1 | iex"</code></pre>
+                </div>
+            </div>
+
+            <h2>Alternative Installation Methods</h2>
+
+            <div class="install-option">
+                <h3>📦 Package Managers</h3>
+                <p>Install Ovie using your system's package manager.</p>
+                
+                <h4>Homebrew (macOS/Linux)</h4>
+                <pre><code>brew install ovie-lang</code></pre>
+                
+                <h4>Chocolatey (Windows)</h4>
+                <pre><code>choco install ovie</code></pre>
+                
+                <h4>Scoop (Windows)</h4>
+                <pre><code>scoop install ovie</code></pre>
+                
+                <h4>APT (Ubuntu/Debian)</h4>
+                <pre><code>sudo apt update
+sudo apt install ovie</code></pre>
+                
+                <h4>YUM/DNF (RHEL/Fedora)</h4>
+                <pre><code>sudo dnf install ovie</code></pre>
+            </div>
+
+            <div class="install-option">
+                <h3>🔧 Build from Source</h3>
+                <p>For complete control and offline installation.</p>
+                
+                <h4>Prerequisites</h4>
+                <ul>
+                    <li>Rust 1.70+ (for bootstrap compiler)</li>
+                    <li>Git</li>
+                    <li>Make</li>
+                    <li>LLVM 15+ (optional, for LLVM backend)</li>
+                </ul>
+                
+                <h4>Build Steps</h4>
+                <pre><code># Clone the repository
+git clone https://github.com/southwarridev/ovie.git
+cd ovie
+
+# Build the project
+make build
+
+# Install system-wide
+sudo make install
+
+# Or install to user directory
+make install PREFIX=~/.local</code></pre>
+                
+                <div class="info-box">
+                    <h4>💡 Self-Hosting Build</h4>
+                    <p>The build process uses the Rust bootstrap compiler first, then rebuilds using the self-hosted Ovie compiler for maximum authenticity!</p>
+                </div>
+            </div>
+
+            <div class="install-option">
+                <h3>🐳 Docker</h3>
+                <p>Run Ovie in a containerized environment.</p>
+                
+                <pre><code># Pull the official image
+docker pull ovie/ovie:latest
+
+# Run interactively
+docker run -it ovie/ovie:latest
+
+# Run a specific file
+docker run -v $(pwd):/workspace ovie/ovie:latest ovie run /workspace/main.ov</code></pre>
+            </div>
+
+            <h2>Verification</h2>
+            
+            <p>After installation, verify that Ovie is working correctly:</p>
+            
+            <pre><code># Check version
+ovie --version
+
+# Expected output:
+# Ovie Programming Language v1.0.0
+# Self-hosted compiler (written in Ovie)
+# Build: 2026-01-30</code></pre>
+            
+            <pre><code># Check available commands
+ovie --help
+
+# Test with a simple program
+echo 'seeAm "Hello from Ovie!"' > test.ov
+ovie run test.ov</code></pre>
+            
+            <div class="success-box">
+                <h4>✅ Installation Successful!</h4>
+                <p>If you see the version information and can run the test program, Ovie is successfully installed!</p>
+            </div>
+
+            <h2>System Requirements</h2>
+            
+            <h3>Minimum Requirements</h3>
+            <ul>
+                <li><strong>OS:</strong> Windows 10+, macOS 10.15+, Linux (any modern distribution)</li>
+                <li><strong>RAM:</strong> 512 MB available memory</li>
+                <li><strong>Storage:</strong> 100 MB free space</li>
+                <li><strong>CPU:</strong> x86_64 or ARM64 architecture</li>
+            </ul>
+            
+            <h3>Recommended Requirements</h3>
+            <ul>
+                <li><strong>RAM:</strong> 2 GB+ for large projects</li>
+                <li><strong>Storage:</strong> 1 GB+ for development</li>
+                <li><strong>CPU:</strong> Multi-core processor for faster compilation</li>
+            </ul>
+
+            <h2>Configuration</h2>
+            
+            <h3>Environment Variables</h3>
+            <p>Ovie respects these environment variables:</p>
+            
+            <ul>
+                <li><code>OVIE_HOME</code> - Ovie installation directory</li>
+                <li><code>OVIE_PATH</code> - Additional library search paths</li>
+                <li><code>OVIE_CACHE</code> - Compilation cache directory</li>
+                <li><code>OVIE_LOG</code> - Logging level (debug, info, warn, error)</li>
+            </ul>
+            
+            <h3>Configuration File</h3>
+            <p>Global configuration is stored in:</p>
+            <ul>
+                <li><strong>Unix/Linux/macOS:</strong> <code>~/.config/ovie/config.toml</code></li>
+                <li><strong>Windows:</strong> <code>%APPDATA%\Ovie\config.toml</code></li>
+            </ul>
+            
+            <pre><code># Example config.toml
+[compiler]
+optimization_level = 2
+target = "native"
+debug_info = true
+
+[paths]
+stdlib = "/usr/local/lib/ovie/std"
+cache = "~/.cache/ovie"
+
+[features]
+aproko_assistant = true
+self_hosting = true</code></pre>
+
+            <h2>IDE Integration</h2>
+            
+            <h3>Visual Studio Code</h3>
+            <pre><code># Install the Ovie extension
+code --install-extension ovie-lang.ovie-vscode</code></pre>
+            
+            <h3>Vim/Neovim</h3>
+            <pre><code># Using vim-plug
+Plug 'ovie-lang/vim-ovie'</code></pre>
+            
+            <h3>Emacs</h3>
+            <pre><code># Using package.el
+M-x package-install RET ovie-mode RET</code></pre>
+
+            <h2>Troubleshooting</h2>
+            
+            <div class="warning-box">
+                <h4>⚠️ Common Issues</h4>
+                
+                <h5>Command not found: ovie</h5>
+                <p>The installation didn't add Ovie to your PATH. Add this to your shell profile:</p>
+                <pre><code>export PATH="$HOME/.ovie/bin:$PATH"</code></pre>
+                
+                <h5>Permission denied</h5>
+                <p>On Unix systems, you may need to make the binary executable:</p>
+                <pre><code>chmod +x ~/.ovie/bin/ovie</code></pre>
+                
+                <h5>SSL/TLS errors during download</h5>
+                <p>Update your system's CA certificates or use the offline installation method.</p>
+                
+                <h5>Build failures from source</h5>
+                <p>Ensure you have all prerequisites installed and try:</p>
+                <pre><code>make clean
+make build</code></pre>
+            </div>
+
+            <h2>Uninstallation</h2>
+            
+            <p>To remove Ovie from your system:</p>
+            
+            <h3>Quick Install Method</h3>
+            <pre><code>curl -sSL https://install.ovie-lang.org/uninstall.sh | sh</code></pre>
+            
+            <h3>Manual Removal</h3>
+            <pre><code># Remove binaries
+rm -rf ~/.ovie
+
+# Remove configuration
+rm -rf ~/.config/ovie
+
+# Remove from PATH (edit your shell profile)
+# Remove the line: export PATH="$HOME/.ovie/bin:$PATH"</code></pre>
+
+            <h2>Next Steps</h2>
+            
+            <div class="info-box">
+                <h4>🚀 Ready to Code!</h4>
+                <p>Now that Ovie is installed, here's what to do next:</p>
+                <ul>
+                    <li><a href="getting-started.html">Getting Started Guide</a> - Write your first program</li>
+                    <li><a href="language-guide.html">Language Guide</a> - Learn Ovie syntax</li>
+                    <li><a href="../index.html#examples">Examples</a> - Explore code examples</li>
+                    <li><a href="cli.html">CLI Reference</a> - Master the command-line tools</li>
+                </ul>
+            </div>
+
+            <hr style="margin: var(--spacing-3xl) 0; border: none; border-top: 1px solid var(--border-primary);">
+
+            <div style="text-align: center; color: var(--text-muted);">
+                <p>Need help? Visit our <a href="https://github.com/southwarridev/ovie/discussions">Community Discussions</a></p>
+                <p>Self-hosted since January 30, 2026 🎉</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/script.js"></script>
+    <script>
+        // Platform tab switching
+        document.querySelectorAll('.platform-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const platform = this.getAttribute('data-platform');
+                
+                // Remove active class from all tabs and contents
+                document.querySelectorAll('.platform-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.platform-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                this.classList.add('active');
+                document.getElementById(platform).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

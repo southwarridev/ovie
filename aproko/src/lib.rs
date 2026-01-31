@@ -5,10 +5,16 @@
 //! security, correctness, and style.
 
 pub mod analyzers;
+pub mod diagnostic;
+pub mod explanation;
 #[cfg(test)]
 mod integration_tests;
+#[cfg(test)]
+mod property_tests;
 
 use analyzers::{SyntaxAnalyzer, LogicAnalyzer, PerformanceAnalyzer, SecurityAnalyzer, CorrectnessAnalyzer, StyleAnalyzer};
+use diagnostic::{DiagnosticEngine, Diagnostic};
+use explanation::ExplanationEngine;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -152,6 +158,8 @@ impl Default for AprokoConfig {
 pub struct AnalysisResults {
     /// All findings discovered during analysis
     pub findings: Vec<Finding>,
+    /// Structured diagnostics from the diagnostic engine
+    pub diagnostics: Vec<Diagnostic>,
     /// Analysis statistics
     pub stats: AnalysisStats,
     /// Configuration used for this analysis
@@ -175,6 +183,8 @@ pub struct AnalysisStats {
 pub struct AprokoEngine {
     config: AprokoConfig,
     analyzers: HashMap<AnalysisCategory, Box<dyn Analyzer>>,
+    diagnostic_engine: DiagnosticEngine,
+    explanation_engine: ExplanationEngine,
 }
 
 /// Trait for category-specific analyzers
@@ -200,6 +210,8 @@ impl AprokoEngine {
         let mut engine = Self {
             config,
             analyzers: HashMap::new(),
+            diagnostic_engine: DiagnosticEngine::new(),
+            explanation_engine: ExplanationEngine::new(),
         };
         
         // Register default analyzers
@@ -276,11 +288,16 @@ impl AprokoEngine {
             }
         }
 
+        // Generate structured diagnostics from findings
+        let mut diagnostic_engine = self.diagnostic_engine.clone();
+        let diagnostics = diagnostic_engine.generate_diagnostics_from_findings(all_findings.clone());
+
         let duration = start_time.elapsed();
         let lines_analyzed = source.lines().count();
 
         Ok(AnalysisResults {
             findings: all_findings,
+            diagnostics,
             stats: AnalysisStats {
                 findings_by_severity,
                 findings_by_category,
@@ -301,6 +318,36 @@ impl AprokoEngine {
         self.config = config;
         self.configure_analyzers()
     }
+
+    /// Get the diagnostic engine
+    pub fn diagnostic_engine(&self) -> &DiagnosticEngine {
+        &self.diagnostic_engine
+    }
+
+    /// Get a mutable reference to the diagnostic engine
+    pub fn diagnostic_engine_mut(&mut self) -> &mut DiagnosticEngine {
+        &mut self.diagnostic_engine
+    }
+
+    /// Get the explanation engine
+    pub fn explanation_engine(&self) -> &ExplanationEngine {
+        &self.explanation_engine
+    }
+
+    /// Get a mutable reference to the explanation engine
+    pub fn explanation_engine_mut(&mut self) -> &mut ExplanationEngine {
+        &mut self.explanation_engine
+    }
+
+    /// Get detailed explanation for a diagnostic
+    pub fn explain_diagnostic(&self, diagnostic: &Diagnostic) -> AprokoResult<explanation::Explanation> {
+        self.explanation_engine.explain_diagnostic(diagnostic)
+    }
+
+    /// Get detailed explanation for a finding
+    pub fn explain_finding(&self, finding: &Finding) -> AprokoResult<explanation::Explanation> {
+        self.explanation_engine.explain_finding(finding)
+    }
 }
 
 impl Default for AprokoEngine {
@@ -311,6 +358,8 @@ impl Default for AprokoEngine {
 
 // Re-export commonly used types
 pub use oviec;
+pub use diagnostic::{DiagnosticEngine, Diagnostic, DiagnosticCategory, DiagnosticRule, SourceLocation};
+pub use explanation::{ExplanationEngine, Explanation, ExplanationType, FixSuggestion, CodeExample};
 
 #[cfg(test)]
 mod tests {

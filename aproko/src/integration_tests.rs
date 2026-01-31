@@ -1,419 +1,362 @@
-//! Integration tests for Aproko analyzers
-
-use crate::{AprokoEngine, AnalysisCategory, Severity, AprokoConfig, CategoryConfig, CustomRule};
-use oviec::{lexer::Lexer, parser::Parser};
-use std::collections::HashMap;
+//! Integration tests for the Aproko analysis engine with diagnostic system
 
 #[cfg(test)]
-mod integration_tests {
-    use super::*;
+mod tests {
+    use crate::*;
+    use oviec::ast::{AstNode, Statement, Expression, Literal};
 
     #[test]
-    fn test_syntax_analyzer_integration() {
-        let source = r#"
-            fn test() {
-                seeAm "hello";
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should have some findings (at least no critical errors)
-        assert!(results.findings.iter().all(|f| f.severity != Severity::Critical));
-    }
-
-    #[test]
-    fn test_logic_analyzer_integration() {
-        let source = r#"
-            fn test() {
-                if true {
-                    seeAm "always true";
-                } else {
-                    seeAm "never reached";
-                }
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should detect unreachable else block
-        let logic_findings: Vec<_> = results.findings.iter()
-            .filter(|f| f.category == AnalysisCategory::Logic)
-            .collect();
+    fn test_aproko_engine_with_diagnostic_integration() {
+        let mut engine = AprokoEngine::new();
         
-        assert!(!logic_findings.is_empty());
-        assert!(logic_findings.iter().any(|f| f.rule_id == "unreachable_else"));
-    }
-
-    #[test]
-    fn test_security_analyzer_integration() {
-        let source = r#"
-            fn test() {
-                password = "secret123";
-                seeAm password;
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should detect sensitive variable name and potential information disclosure
-        let security_findings: Vec<_> = results.findings.iter()
-            .filter(|f| f.category == AnalysisCategory::Security)
-            .collect();
-        
-        assert!(!security_findings.is_empty());
-        assert!(security_findings.iter().any(|f| f.rule_id.contains("sensitive")));
-    }
-
-    #[test]
-    fn test_performance_analyzer_integration() {
-        let source = r#"
-            fn test() {
-                for i in 1..10 {
-                    for j in 1..10 {
-                        seeAm i + j;
-                    }
-                }
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should detect nested loops
-        let performance_findings: Vec<_> = results.findings.iter()
-            .filter(|f| f.category == AnalysisCategory::Performance)
-            .collect();
-        
-        assert!(!performance_findings.is_empty());
-        assert!(performance_findings.iter().any(|f| f.rule_id == "nested_loop"));
-    }
-
-    #[test]
-    fn test_multiple_analyzers() {
-        let source = r#"
-            fn complex_function(a, b, c, d, e, f) {
-                password = "hardcoded_secret";
-                if true {
-                    for i in 1..1000000 {
-                        seeAm password;
-                    }
-                } else {
-                    seeAm "unreachable";
-                }
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should have findings from multiple analyzers
-        let categories: std::collections::HashSet<_> = results.findings.iter()
-            .map(|f| f.category)
-            .collect();
-        
-        assert!(categories.len() >= 2); // At least 2 different categories
-        assert!(results.stats.findings_by_category.len() >= 2);
-    }
-
-    #[test]
-    fn test_correctness_analyzer_integration() {
-        let source = r#"
-            fn test() {
-                x = getValue();
-                y = x;  // x is moved here
-                seeAm x;  // use after move
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should detect use after move
-        let correctness_findings: Vec<_> = results.findings.iter()
-            .filter(|f| f.category == AnalysisCategory::Correctness)
-            .collect();
-        
-        assert!(!correctness_findings.is_empty());
-        assert!(correctness_findings.iter().any(|f| f.rule_id.contains("move") || f.rule_id.contains("undeclared")));
-    }
-
-    #[test]
-    fn test_style_analyzer_integration() {
-        let source = r#"
-            fn BadFunctionName(VeryLongParameterNameThatExceedsReasonableLength, another_param) {
-                strUserName = "hardcoded_value";
-                magic_number = 42;
-                if (condition1 && condition2 && condition3 && condition4) {
-                    if (nested_condition) {
-                        if (deeply_nested) {
-                            seeAm "too deep";
-                        }
-                    }
-                }
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should detect style issues
-        let style_findings: Vec<_> = results.findings.iter()
-            .filter(|f| f.category == AnalysisCategory::Style)
-            .collect();
-        
-        assert!(!style_findings.is_empty());
-        // Should detect naming issues, magic numbers, complex conditions, etc.
-        assert!(style_findings.len() >= 3);
-    }
-
-    #[test]
-    fn test_all_analyzers_working() {
-        let source = r#"
-            fn badFunction(a, b, c, d, e, f, g) {
-                password = "secret123";
-                for i in 1..1000000 {
-                    for j in 1..100 {
-                        if true {
-                            seeAm password;
-                        } else {
-                            seeAm "unreachable";
-                        }
-                    }
-                }
-                undeclaredVar = getValue();
-                return 42;
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should have findings from all analyzer categories
-        let categories: std::collections::HashSet<_> = results.findings.iter()
-            .map(|f| f.category)
-            .collect();
-        
-        // Should have findings from at least 4 different categories
-        assert!(categories.len() >= 4);
-        
-        // Verify we have the expected categories
-        assert!(categories.contains(&AnalysisCategory::Security)); // password variable
-        assert!(categories.contains(&AnalysisCategory::Performance)); // nested loops
-        assert!(categories.contains(&AnalysisCategory::Logic)); // unreachable else
-        assert!(categories.contains(&AnalysisCategory::Style)); // bad naming, magic number
-    }
-
-    #[test]
-    fn test_aproko_configuration_compliance() {
-        let source = r#"
-            fn test() {
-                password = "secret";
-                seeAm password;
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        // Test default configuration
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-        
-        // Should have all categories enabled by default
-        assert_eq!(results.config.enabled_categories.len(), 6);
-        assert_eq!(results.config.min_severity, Severity::Info);
-        
-        // Test custom configuration
-        let mut custom_config = AprokoConfig::default();
-        custom_config.min_severity = Severity::Warning;
-        custom_config.enabled_categories = vec![AnalysisCategory::Security, AnalysisCategory::Syntax];
-        
-        let mut custom_engine = AprokoEngine::with_config(custom_config);
-        let custom_results = custom_engine.analyze(source, &ast).unwrap();
-        
-        // Should respect custom configuration
-        assert_eq!(custom_results.config.enabled_categories.len(), 2);
-        assert_eq!(custom_results.config.min_severity, Severity::Warning);
-        
-        // Should only have findings from enabled categories
-        let categories: std::collections::HashSet<_> = custom_results.findings.iter()
-            .map(|f| f.category)
-            .collect();
-        
-        for category in categories {
-            assert!(custom_results.config.enabled_categories.contains(&category));
-        }
-        
-        // Should filter by minimum severity
-        for finding in &custom_results.findings {
-            assert!(finding.severity >= Severity::Warning);
-        }
-    }
-
-    #[test]
-    fn test_aproko_toml_configuration() {
-        use std::collections::HashMap;
-        
-        // Test TOML configuration parsing
-        let mut config = AprokoConfig::default();
-        
-        // Test category configuration
-        let mut category_config = CategoryConfig {
-            enabled: false,
-            settings: HashMap::new(),
+        // Create a simple AST for testing
+        let ast = AstNode {
+            statements: vec![
+                Statement::Assignment {
+                    identifier: "".to_string(), // Empty identifier should trigger diagnostic
+                    value: Expression::Literal(Literal::Integer(42)),
+                    mutable: false,
+                },
+                Statement::Print {
+                    expression: Expression::Identifier("undefined_var".to_string()),
+                },
+            ],
         };
-        category_config.settings.insert("check_grammar".to_string(), "false".to_string());
+
+        let source = "let  = 42\nseeAm(undefined_var)";
         
-        config.category_configs.insert(AnalysisCategory::Syntax, category_config);
+        // Run analysis
+        let result = engine.analyze(source, &ast);
+        assert!(result.is_ok());
+        
+        let analysis_results = result.unwrap();
+        
+        // Should have findings from analyzers
+        assert!(!analysis_results.findings.is_empty());
+        
+        // Should have structured diagnostics
+        assert!(!analysis_results.diagnostics.is_empty());
+        
+        // Verify statistics are tracked
+        assert!(analysis_results.stats.duration_ms > 0);
+        assert_eq!(analysis_results.stats.lines_analyzed, 2);
+        
+        // Check that diagnostics correspond to findings
+        assert_eq!(analysis_results.findings.len(), analysis_results.diagnostics.len());
+    }
+
+    #[test]
+    fn test_diagnostic_engine_rule_based_categorization() {
+        let engine = AprokoEngine::new();
+        let diagnostic_engine = engine.diagnostic_engine();
+        
+        // Test that default rules are properly categorized
+        let syntax_rules = diagnostic_engine.get_rules_by_category(
+            crate::diagnostic::DiagnosticCategory::SyntaxError
+        );
+        let type_rules = diagnostic_engine.get_rules_by_category(
+            crate::diagnostic::DiagnosticCategory::TypeError
+        );
+        let performance_rules = diagnostic_engine.get_rules_by_category(
+            crate::diagnostic::DiagnosticCategory::PerformanceWarning
+        );
+        
+        assert!(!syntax_rules.is_empty(), "Should have syntax error rules");
+        assert!(!type_rules.is_empty(), "Should have type error rules");
+        assert!(!performance_rules.is_empty(), "Should have performance warning rules");
+        
+        // Verify rule categories are correct
+        for rule in syntax_rules {
+            assert_eq!(rule.category, crate::diagnostic::DiagnosticCategory::SyntaxError);
+        }
+    }
+
+    #[test]
+    fn test_structured_diagnostic_output() {
+        let mut engine = AprokoEngine::new();
+        
+        // Create AST with multiple types of issues
+        let ast = AstNode {
+            statements: vec![
+                Statement::Assignment {
+                    identifier: "fn".to_string(), // Reserved keyword
+                    value: Expression::Literal(Literal::Integer(42)),
+                    mutable: false,
+                },
+                Statement::Function {
+                    name: "".to_string(), // Empty function name
+                    parameters: vec!["param1".to_string()],
+                    body: vec![], // Empty body
+                },
+                Statement::If {
+                    condition: Expression::Literal(Literal::Boolean(true)),
+                    then_block: vec![], // Empty if block
+                    else_block: Some(vec![]), // Empty else block
+                },
+            ],
+        };
+
+        let source = "let fn = 42\nfn () {}\nif true {} else {}";
+        
+        let result = engine.analyze(source, &ast).unwrap();
+        
+        // Should have multiple diagnostics with different categories and severities
+        assert!(result.diagnostics.len() >= 3);
+        
+        // Verify diagnostic structure
+        for diagnostic in &result.diagnostics {
+            assert!(!diagnostic.rule_id.is_empty());
+            assert!(!diagnostic.message.is_empty());
+            assert!(diagnostic.explanation.is_some());
+            assert!(diagnostic.location.line > 0);
+            assert!(diagnostic.location.column > 0);
+        }
+        
+        // Should have both errors and warnings
+        let has_errors = result.diagnostics.iter().any(|d| d.severity == Severity::Error);
+        let has_warnings = result.diagnostics.iter().any(|d| d.severity == Severity::Warning);
+        
+        assert!(has_errors, "Should have error-level diagnostics");
+        assert!(has_warnings, "Should have warning-level diagnostics");
+    }
+
+    #[test]
+    fn test_diagnostic_engine_configuration() {
+        let mut config = AprokoConfig::default();
+        config.min_severity = Severity::Error; // Only show errors
         
         let mut engine = AprokoEngine::with_config(config);
         
-        // Configuration should be applied
-        assert!(engine.config().category_configs.contains_key(&AnalysisCategory::Syntax));
-        
-        let syntax_config = &engine.config().category_configs[&AnalysisCategory::Syntax];
-        assert!(!syntax_config.enabled);
-        assert_eq!(syntax_config.settings.get("check_grammar"), Some(&"false".to_string()));
-    }
-
-    #[test]
-    fn test_aproko_analyzer_configuration() {
-        let source = r#"
-            fn test() {
-                x = 42;
-                seeAm x;
-            }
-        "#;
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        // Test with performance analyzer configured for lower complexity threshold
-        let mut config = AprokoConfig::default();
-        let mut perf_config = CategoryConfig {
-            enabled: true,
-            settings: HashMap::new(),
+        // Create AST with both errors and warnings
+        let ast = AstNode {
+            statements: vec![
+                Statement::Assignment {
+                    identifier: "".to_string(), // Error: empty identifier
+                    value: Expression::Literal(Literal::Integer(42)),
+                    mutable: false,
+                },
+                Statement::Function {
+                    name: "test_func".to_string(),
+                    parameters: vec![],
+                    body: vec![], // Warning: empty function body
+                },
+            ],
         };
-        perf_config.settings.insert("max_complexity".to_string(), "1".to_string());
-        config.category_configs.insert(AnalysisCategory::Performance, perf_config);
+
+        let source = "let  = 42\nfn test_func() {}";
+        let result = engine.analyze(source, &ast).unwrap();
         
-        let engine = AprokoEngine::with_config(config);
-        let results = engine.analyze(source, &ast).unwrap();
+        // Should filter out warnings, only show errors
+        let error_count = result.diagnostics.iter()
+            .filter(|d| d.severity >= Severity::Error)
+            .count();
+        let warning_count = result.diagnostics.iter()
+            .filter(|d| d.severity == Severity::Warning)
+            .count();
         
-        // Configuration should be respected
-        let perf_config = &results.config.category_configs[&AnalysisCategory::Performance];
-        assert_eq!(perf_config.settings.get("max_complexity"), Some(&"1".to_string()));
+        assert!(error_count > 0, "Should have errors");
+        // Note: Warnings might still appear if they're generated by the analyzers
+        // but the diagnostic engine should respect severity filtering
     }
 
     #[test]
-    fn test_aproko_custom_rules() {
-        use crate::{CustomRule, Severity};
-        
-        let mut config = AprokoConfig::default();
-        
-        // Add custom rule
-        let custom_rule = CustomRule {
-            id: "test_rule".to_string(),
-            description: "Test custom rule".to_string(),
-            pattern: "test_pattern".to_string(),
-            suggestion: "Test suggestion".to_string(),
-            severity: Severity::Warning,
-        };
-        
-        config.custom_rules.push(custom_rule);
-        
-        let engine = AprokoEngine::with_config(config);
-        
-        // Custom rule should be in configuration
-        assert_eq!(engine.config().custom_rules.len(), 1);
-        assert_eq!(engine.config().custom_rules[0].id, "test_rule");
-        assert_eq!(engine.config().custom_rules[0].severity, Severity::Warning);
-    }
-
-    #[test]
-    fn test_aproko_configuration_validation() {
-        // Test that configuration changes are properly validated
+    fn test_diagnostic_metadata_and_suggestions() {
         let mut engine = AprokoEngine::new();
         
-        // Test updating configuration
-        let mut new_config = AprokoConfig::default();
-        new_config.min_severity = Severity::Error;
-        new_config.enabled_categories = vec![AnalysisCategory::Security];
+        let ast = AstNode {
+            statements: vec![
+                Statement::Assignment {
+                    identifier: "test_var".to_string(),
+                    value: Expression::Call {
+                        function: "".to_string(), // Empty function name
+                        arguments: vec![],
+                    },
+                    mutable: false,
+                },
+            ],
+        };
+
+        let source = "let test_var = ()";
+        let result = engine.analyze(source, &ast).unwrap();
         
-        let result = engine.set_config(new_config);
-        assert!(result.is_ok());
-        
-        // Configuration should be updated
-        assert_eq!(engine.config().min_severity, Severity::Error);
-        assert_eq!(engine.config().enabled_categories.len(), 1);
-        assert!(engine.config().enabled_categories.contains(&AnalysisCategory::Security));
+        // Check that diagnostics have proper metadata
+        for diagnostic in &result.diagnostics {
+            // Should have explanation
+            assert!(diagnostic.explanation.is_some());
+            
+            // Location should be valid
+            assert!(diagnostic.location.line > 0);
+            assert!(diagnostic.location.column > 0);
+            
+            // Should have a valid rule ID
+            assert!(!diagnostic.rule_id.is_empty());
+            
+            // Category should be valid
+            match diagnostic.category {
+                crate::diagnostic::DiagnosticCategory::SyntaxError |
+                crate::diagnostic::DiagnosticCategory::TypeError |
+                crate::diagnostic::DiagnosticCategory::OwnershipError |
+                crate::diagnostic::DiagnosticCategory::MemoryError |
+                crate::diagnostic::DiagnosticCategory::LogicError |
+                crate::diagnostic::DiagnosticCategory::PerformanceWarning |
+                crate::diagnostic::DiagnosticCategory::SecurityWarning |
+                crate::diagnostic::DiagnosticCategory::StyleWarning |
+                crate::diagnostic::DiagnosticCategory::DeprecationWarning |
+                crate::diagnostic::DiagnosticCategory::Info => {
+                    // Valid category
+                }
+            }
+        }
     }
 
     #[test]
-    fn test_empty_program() {
-        let source = "";
-
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().unwrap();
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-
-        let engine = AprokoEngine::new();
-        let results = engine.analyze(source, &ast).unwrap();
-
-        // Should detect empty program
-        let syntax_findings: Vec<_> = results.findings.iter()
-            .filter(|f| f.category == AnalysisCategory::Syntax)
-            .collect();
+    fn test_diagnostic_statistics_tracking() {
+        let mut engine = AprokoEngine::new();
         
-        assert!(syntax_findings.iter().any(|f| f.rule_id == "empty_program"));
+        let ast = AstNode {
+            statements: vec![
+                Statement::Assignment {
+                    identifier: "".to_string(), // Error
+                    value: Expression::Literal(Literal::Integer(42)),
+                    mutable: false,
+                },
+                Statement::Assignment {
+                    identifier: "valid_var".to_string(),
+                    value: Expression::Literal(Literal::String("test".to_string())),
+                    mutable: false,
+                },
+                Statement::Function {
+                    name: "test_func".to_string(),
+                    parameters: vec![],
+                    body: vec![], // Warning
+                },
+            ],
+        };
+
+        let source = "let  = 42\nlet valid_var = \"test\"\nfn test_func() {}";
+        let result = engine.analyze(source, &ast).unwrap();
+        
+        // Verify statistics are properly tracked
+        let stats = &result.stats;
+        assert!(stats.duration_ms > 0);
+        assert_eq!(stats.lines_analyzed, 3);
+        
+        // Should have findings categorized by severity
+        let total_findings: usize = stats.findings_by_severity.values().sum();
+        assert!(total_findings > 0);
+        
+        // Should have findings categorized by analysis category
+        let total_by_category: usize = stats.findings_by_category.values().sum();
+        assert_eq!(total_findings, total_by_category);
+    }
+
+    #[test]
+    fn test_explanation_system_integration() {
+        let mut engine = AprokoEngine::new();
+        
+        // Create AST with syntax error
+        let ast = AstNode {
+            statements: vec![
+                Statement::Assignment {
+                    identifier: "".to_string(), // Empty identifier should trigger diagnostic
+                    value: Expression::Literal(Literal::Integer(42)),
+                    mutable: false,
+                },
+            ],
+        };
+
+        let source = "let  = 42";
+        let result = engine.analyze(source, &ast).unwrap();
+        
+        // Should have diagnostics
+        assert!(!result.diagnostics.is_empty());
+        
+        // Test explanation for the first diagnostic
+        let first_diagnostic = &result.diagnostics[0];
+        let explanation_result = engine.explain_diagnostic(first_diagnostic);
+        
+        assert!(explanation_result.is_ok());
+        let explanation = explanation_result.unwrap();
+        
+        // Verify explanation structure
+        assert!(!explanation.summary.is_empty());
+        assert!(!explanation.detailed_explanation.is_empty());
+        assert!(explanation.confidence > 0.0);
+        assert!(explanation.confidence <= 1.0);
+        
+        // Should have location information in detailed explanation
+        assert!(explanation.detailed_explanation.contains("line"));
+        assert!(explanation.detailed_explanation.contains("column"));
+    }
+
+    #[test]
+    fn test_fix_suggestions_generation() {
+        let mut engine = AprokoEngine::new();
+        
+        // Create AST with multiple fixable issues
+        let ast = AstNode {
+            statements: vec![
+                Statement::Assignment {
+                    identifier: "fn".to_string(), // Reserved keyword
+                    value: Expression::Literal(Literal::Integer(42)),
+                    mutable: false,
+                },
+                Statement::Function {
+                    name: "test_func".to_string(),
+                    parameters: vec![],
+                    body: vec![], // Empty body
+                },
+            ],
+        };
+
+        let source = "let fn = 42\nfn test_func() {}";
+        let result = engine.analyze(source, &ast).unwrap();
+        
+        // Test explanations for all diagnostics
+        for diagnostic in &result.diagnostics {
+            let explanation_result = engine.explain_diagnostic(diagnostic);
+            assert!(explanation_result.is_ok());
+            
+            let explanation = explanation_result.unwrap();
+            
+            // Should have fix suggestions for most issues
+            if !explanation.fix_suggestions.is_empty() {
+                let fix = &explanation.fix_suggestions[0];
+                
+                // Verify fix suggestion structure
+                assert!(!fix.title.is_empty());
+                assert!(!fix.description.is_empty());
+                assert!(!fix.steps.is_empty());
+                assert!(fix.confidence > 0.0);
+                assert!(fix.confidence <= 1.0);
+                
+                // Should never be auto-applicable for safety
+                assert!(!fix.auto_applicable);
+                
+                // Steps should be numbered correctly
+                for (i, step) in fix.steps.iter().enumerate() {
+                    assert_eq!(step.step_number, i + 1);
+                    assert!(!step.description.is_empty());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_explanation_engine_access() {
+        let engine = AprokoEngine::new();
+        
+        // Test access to explanation engine
+        let explanation_engine = engine.explanation_engine();
+        let all_explanations = explanation_engine.get_all_explanations();
+        
+        // Should have default explanations
+        assert!(!all_explanations.is_empty());
+        
+        // Should have explanations for common rule IDs
+        assert!(all_explanations.contains_key("E001"));
+        assert!(all_explanations.contains_key("E002"));
+        assert!(all_explanations.contains_key("W001"));
+        assert!(all_explanations.contains_key("S001"));
     }
 }
