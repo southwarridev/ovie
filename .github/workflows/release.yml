@@ -21,6 +21,11 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 env:
   OVIE_VERSION: "2.0.0"
   DEBIAN_FRONTEND: noninteractive

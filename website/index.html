@@ -272,6 +272,19 @@ greet(name)</code></pre>
                 <h2 class="section-title">Get Started with Ovie</h2>
                 <p class="section-subtitle">Choose your installation method</p>
             </div>
+            
+            <!-- Release Status Banner -->
+            <div class="achievement-banner" style="margin-bottom: 2rem;">
+                <div class="achievement-content">
+                    <div class="achievement-icon">🎉</div>
+                    <div class="achievement-text">
+                        <h3>v2.0.0 - Stage 2 Self-Hosted Release is Live!</h3>
+                        <p>The GitHub release is available with source code. Pre-built binaries coming soon!</p>
+                    </div>
+                    <a href="https://github.com/southwarridev/ovie/releases/tag/v2.0.0" class="btn btn-outline" target="_blank" rel="noopener noreferrer">View Release</a>
+                </div>
+            </div>
+            
             <div class="download-options">
                 <div class="download-card primary">
                     <div class="download-header">
@@ -282,40 +295,45 @@ greet(name)</code></pre>
                         <div class="code-block">
                             <div class="code-tabs">
                                 <button class="tab-btn active" data-tab="unix">Unix/Linux/macOS</button>
-                                <button class="tab-btn" data-tab="windows">Windows</button>
+                                <button class="tab-btn" data-tab="windows-ps">Windows (PowerShell)</button>
+                                <button class="tab-btn" data-tab="windows-cmd">Windows (Command Prompt)</button>
                             </div>
                             <div class="tab-content active" id="unix">
                                 <pre><code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/install.sh | bash</code></pre>
                             </div>
-                            <div class="tab-content" id="windows">
-                                <pre><code>iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/install.ps1 | iex</code></pre>
+                            <div class="tab-content" id="windows-ps">
+                                <pre><code># Run in PowerShell (not Command Prompt)
+iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/install.ps1 | iex</code></pre>
+                            </div>
+                            <div class="tab-content" id="windows-cmd">
+                                <pre><code>REM Download and run the batch installer
+curl -o install.bat https://raw.githubusercontent.com/southwarridev/ovie/main/install.bat
+install.bat</code></pre>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="download-card">
                     <div class="download-header">
-                        <h3>Direct Downloads</h3>
-                        <p>Pre-built binaries from GitHub Releases</p>
+                        <h3>GitHub Release</h3>
+                        <p>Official v2.0.0 - Stage 2 Self-Hosted Release</p>
                     </div>
                     <div class="download-content">
                         <div class="download-links">
-                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-v2.0.0-linux-x64.tar.gz" class="btn btn-outline">
-                                <span class="btn-icon">🐧</span> Linux x64
+                            <a href="https://github.com/southwarridev/ovie/releases/tag/v2.0.0" class="btn btn-primary">
+                                <span class="btn-icon">🎉</span> View v2.0.0 Release
                             </a>
-                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-v2.0.0-windows-x64.zip" class="btn btn-outline">
-                                <span class="btn-icon">🪟</span> Windows x64
+                            <a href="https://github.com/southwarridev/ovie/archive/refs/tags/v2.0.0.zip" class="btn btn-outline">
+                                <span class="btn-icon">📦</span> Source Code (ZIP)
                             </a>
-                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-v2.0.0-macos-x64.tar.gz" class="btn btn-outline">
-                                <span class="btn-icon">🍎</span> macOS Intel
-                            </a>
-                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-v2.0.0-macos-arm64.tar.gz" class="btn btn-outline">
-                                <span class="btn-icon">🍎</span> macOS Apple Silicon
+                            <a href="https://github.com/southwarridev/ovie/archive/refs/tags/v2.0.0.tar.gz" class="btn btn-outline">
+                                <span class="btn-icon">📦</span> Source Code (TAR.GZ)
                             </a>
                         </div>
                         <div class="download-info">
-                            <p><strong>Latest Release:</strong> v2.0.0 - Stage 2 Self-Hosted</p>
-                            <p><a href="https://github.com/southwarridev/ovie/releases/latest">View all releases on GitHub</a></p>
+                            <p><strong>🎯 Historic Milestone:</strong> v2.0.0 - Stage 2 Self-Hosted!</p>
+                            <p><strong>Status:</strong> Ovie compiler now compiles itself across all platforms</p>
+                            <p><a href="https://github.com/southwarridev/ovie/releases/tag/v2.0.0" target="_blank" rel="noopener noreferrer">View release notes and download source code</a></p>
                         </div>
                     </div>
                 </div>
@@ -357,30 +375,55 @@ make install</code></pre>
                         <p>Full IDE support with syntax highlighting</p>
                     </div>
                     <div class="download-content">
-                        <div class="download-links">
-                            <a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/ovie-lang-1.0.0.vsix" class="btn btn-outline">
-                                <span class="btn-icon">📝</span> Download Extension
-                            </a>
-                        </div>
                         <div class="download-info">
-                            <p><strong>Installation:</strong> Open VS Code → Extensions → Install from VSIX</p>
-                            <p>Includes syntax highlighting, code completion, and Aproko integration</p>
+                            <p><strong>Status:</strong> Extension is ready and included in the source release</p>
+                            <p><strong>Location:</strong> <code>extensions/ovie-vscode/</code> in the source code</p>
+                            <p><strong>Installation:</strong> Build from source, then install via VS Code</p>
+                        </div>
+                        <div class="download-links">
+                            <a href="https://github.com/southwarridev/ovie/tree/main/extensions/ovie-vscode" class="btn btn-outline">
+                                <span class="btn-icon">📝</span> View Extension Source
+                            </a>
                         </div>
                     </div>
                 </div>
                 <div class="download-card">
                     <div class="download-header">
-                        <h3>Checksums & Verification</h3>
-                        <p>Verify download integrity</p>
+                        <h3>Verification & Security</h3>
+                        <p>Verify your installation</p>
                     </div>
                     <div class="download-content">
                         <div class="download-info">
-                            <p><a href="https://github.com/southwarridev/ovie/releases/download/v2.0.0/checksums.txt">Download SHA256 checksums</a></p>
-                            <p>All releases are signed and verified for security</p>
+                            <p><strong>Source Verification:</strong> All code is open source and auditable</p>
+                            <p><strong>Self-Hosted:</strong> Ovie compiles itself - no external dependencies</p>
+                            <p><strong>Security:</strong> Built-in memory safety and deterministic compilation</p>
+                        </div>
+                        <div class="download-links">
+                            <a href="https://github.com/southwarridev/ovie/security" class="btn btn-outline">
+                                <span class="btn-icon">🔒</span> Security Policy
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
+                <div class="download-card">
+                    <div class="download-header">
+                        <h3>Pre-built Binaries</h3>
+                        <p>Coming soon - Build from source for now</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="download-info">
+                            <p><strong>Status:</strong> Pre-built binaries are being prepared for the next release</p>
+                            <p><strong>Current:</strong> Use the installation scripts above or build from source</p>
+                            <p>The self-hosted compiler is ready - binaries will be available soon!</p>
+                        </div>
+                        <div class="download-links">
+                            <a href="https://github.com/southwarridev/ovie/releases" class="btn btn-outline">
+                                <span class="btn-icon">👀</span> Watch for Updates
+                            </a>
+                        </div>
+                    </div>
+                </div>
             <div class="download-verify">
                 <h4>Verify Installation</h4>
                 <div class="code-block">
@@ -388,6 +431,31 @@ make install</code></pre>
 ovie new hello-world
 cd hello-world
 ovie run</code></pre>
+                </div>
+            </div>
+            
+            <!-- Troubleshooting Section -->
+            <div class="download-verify" style="margin-top: 2rem;">
+                <h4>🔧 Troubleshooting Installation Issues</h4>
+                <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+                    <h5 style="color: #dc3545; margin-bottom: 1rem;">Windows Users:</h5>
+                    <div style="margin-bottom: 1rem;">
+                        <strong>❌ Error: 'iwr' is not recognized</strong><br>
+                        <span style="color: #6c757d;">You're trying to run PowerShell commands in Command Prompt</span><br>
+                        <strong>✅ Solution:</strong> Either:
+                        <ul style="margin: 0.5rem 0;">
+                            <li>Open <strong>PowerShell</strong> (not Command Prompt) and run the PowerShell command</li>
+                            <li>Or use the Command Prompt installer: <code>curl -o install.bat https://raw.githubusercontent.com/southwarridev/ovie/main/install.bat && install.bat</code></li>
+                        </ul>
+                    </div>
+                    <div style="margin-bottom: 1rem;">
+                        <strong>❌ Error: Git not found</strong><br>
+                        <strong>✅ Solution:</strong> Install Git from <a href="https://git-scm.com/download/win" target="_blank">git-scm.com</a>
+                    </div>
+                    <div>
+                        <strong>❌ Error: Build failed</strong><br>
+                        <strong>✅ Solution:</strong> The installer will try multiple methods automatically. If all fail, <a href="https://github.com/southwarridev/ovie/releases" target="_blank">download from releases</a>
+                    </div>
                 </div>
             </div>
         </div>

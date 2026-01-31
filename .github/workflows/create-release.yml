@@ -9,6 +9,11 @@ on:
         required: true
         default: '2.0.0'
 
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
 env:
   OVIE_VERSION: ${{ github.event.inputs.version }}
 
@@ -267,6 +272,20 @@ jobs:
         echo ""
         echo "📦 Release assets created:"
         ls -la
+
+    - name: Create tag first
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Check if tag already exists
+        if git rev-parse "v${{ env.OVIE_VERSION }}" >/dev/null 2>&1; then
+          echo "Tag v${{ env.OVIE_VERSION }} already exists"
+        else
+          git tag -a "v${{ env.OVIE_VERSION }}" -m "Ovie v${{ env.OVIE_VERSION }} - Stage 2 Self-Hosted Release"
+          git push origin "v${{ env.OVIE_VERSION }}"
+          echo "Created and pushed tag v${{ env.OVIE_VERSION }}"
+        fi
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
