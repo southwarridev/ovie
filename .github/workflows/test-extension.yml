@@ -1,0 +1,52 @@
+# Test workflow for VS Code extension build
+name: Test VS Code Extension Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'extensions/ovie-vscode/**'
+
+jobs:
+  test-extension:
+    name: Test Extension Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: extensions/ovie-vscode/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd extensions/ovie-vscode
+        npm install
+
+    - name: Compile TypeScript
+      run: |
+        cd extensions/ovie-vscode
+        npm run compile
+
+    - name: Build VS Code extension
+      run: |
+        cd extensions/ovie-vscode
+        npm install -g @vscode/vsce
+        npx @vscode/vsce package
+
+    - name: Upload extension artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ovie-vscode-extension-test
+        path: extensions/ovie-vscode/*.vsix
+        retention-days: 7
+
+    - name: Test summary
+      run: |
+        echo "✅ VS Code extension built successfully!"
+        ls -la extensions/ovie-vscode/*.vsix
