@@ -1,13 +1,13 @@
 <div align="center">
   <img src="ovie.png" alt="Ovie Programming Language" width="200" height="200">
   
-  # 🚀 Ovie Programming Language
+  # 🚀 Ovie v2.1 - Low-Level Self-Hosted Programming Language
   
-  ### ✅ **OFFICIALLY SELF-HOSTED PROGRAMMING LANGUAGE**
+  ### ✅ **STAGE 2.1 - FORMAL COMPILER INVARIANTS & BOOTSTRAP VERIFICATION**
   
-  > A modern, safe, and AI-friendly **open-source** programming language designed for accessibility, deterministic builds, and AI/LLM integration.
+  > A modern low-level self-hosted programming language with formal compiler invariants, bootstrap verification, and multi-stage IR pipeline. Perfect for systems programming, embedded development, and performance-critical applications.
   
-  **🎉 Status: Production-Ready Self-Hosted Language (January 30, 2026)**
+  **🎉 Status: Production-Ready Low-Level Language (January 31, 2026)**
 </div>
 
 [![GitHub](https://img.shields.io/badge/GitHub-southwarridev%2Fovie-blue?logo=github)](https://github.com/southwarridev/ovie)
@@ -19,34 +19,51 @@
 
 ## What is Ovie?
 
-**Ovie is now officially a self-hosted programming language!** ✅
+**Ovie v2.1 is a low-level self-hosted programming language with formal compiler invariants!** ✅
 
-Ovie has achieved full programming language status with a complete compiler written in Ovie itself. It solves fundamental issues in modern software development through:
+Ovie has evolved into a powerful systems programming language with mathematically verified compiler correctness. It provides:
 
-- **🔒 Offline-First**: Complete development environment with no network dependencies
-- **🏆 Self-Hosted**: The compiler is written in Ovie itself (ACHIEVED!)
-- **Natural Syntax**: Pidgin English keywords make programming accessible to everyone
-- **Built-in Assistant**: Aproko provides real-time guidance and auto-correction
-- **Deterministic Builds**: Identical inputs always produce identical outputs
-- **Privacy-Focused**: No telemetry, no tracking, no data collection
+- **🔧 Low-Level Programming**: Direct memory management, hardware access, and system-level programming
+- **📐 Formal Compiler Invariants**: Mathematically verified AST→HIR→MIR pipeline correctness
+- **🏗️ Self-Hosted Architecture**: Complete independence from external toolchains
+- **⚡ Multi-Stage IR Pipeline**: AST → HIR → MIR with invariant validation at each stage
+- **🎯 Multiple Backends**: Native (LLVM), WebAssembly, and built-in interpreter
+- **🔒 Security & Privacy**: Built-in supply chain security and offline-first development
+- **🤖 AI-Powered Analysis**: Aproko engine provides intelligent code insights
+- **🚀 Performance Optimized**: Designed for embedded systems and real-time applications
 
-> **✅ MILESTONE: Ovie achieved self-hosting capability on January 30, 2026**
+> **✅ MILESTONE: Ovie v2.1 achieved formal compiler invariants on January 31, 2026**
 
-> **See [OFFLINE-FIRST.md](OFFLINE-FIRST.md) for complete offline development guide**
+> **See [docs/compiler_invariants.md](docs/compiler_invariants.md) for formal verification details**
 
 ## Quick Start
 
 ```ovie
-// Hello World in Ovie
-seeAm "Hello, World!"
+// Hello World in Ovie v2.1 - Low-Level Programming
+seeAm "Hello from Ovie v2.1!"
 
-// Variables and functions
-mut name = "Ovie"
-fn greet(person) {
-    seeAm "Hello, " + person + "!"
+// Direct memory management and low-level operations
+mut buffer = allocate(1024)  // Direct memory allocation
+mut ptr = buffer.as_ptr()    // Raw pointer access
+
+// Systems programming with hardware access
+fn read_hardware_register(address: usize) -> u32 {
+    unsafe {
+        return *(address as *const u32)
+    }
 }
 
-greet(name)
+// High-level abstractions with zero cost
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+fn distance(p1: Point, p2: Point) -> f64 {
+    mut dx = p1.x - p2.x
+    mut dy = p1.y - p2.y
+    return sqrt(dx * dx + dy * dy)
+}
 ```
 
 ## Key Features
@@ -95,13 +112,6 @@ greet(name)
 make offline-dev
 ```
 
-### Build from Source (Completely Offline)
-```bash
-git clone https://github.com/southwarridev/ovie.git
-cd ovie
-make build  # or: cargo build --release --workspace
-make install  # or: cargo install --path ovie
-```
 
 ### Quick Install Scripts (Optional Online)
 > ⚠️ These scripts download from the internet. Use offline method above for air-gapped environments.

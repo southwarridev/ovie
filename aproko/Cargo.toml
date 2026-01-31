@@ -17,6 +17,6 @@ thiserror.workspace = true
 # Serialization
 serde.workspace = true
 # TOML parsing for configuration
-toml = "0.8"
+toml.workspace = true
 # Reference to oviec for AST types
 oviec = { path = "../oviec" }

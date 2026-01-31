@@ -1,13 +1,13 @@
 #!/bin/bash
 # ============================================================================
-#                    OVIE PROGRAMMING LANGUAGE - UNIVERSAL INSTALLER
-#                           Linux/macOS/Unix Easy Install
+#                    OVIE PROGRAMMING LANGUAGE - MACOS INSTALLER
+#                           macOS Optimized Easy Install
 # ============================================================================
 
 set -e
 
 # Configuration
-OVIE_VERSION="2.0.0"
+OVIE_VERSION="2.1.0"
 INSTALL_DIR="$HOME/.local"
 BIN_DIR="$HOME/.local/bin"
 TEMP_DIR="/tmp/ovie-install-$$"
@@ -31,115 +31,86 @@ echo -e "${CYAN}  ██║   ██║╚██╗ ██╔╝██║██�
 echo -e "${CYAN}  ╚██████╔╝ ╚████╔╝ ██║███████╗${NC}"
 echo -e "${CYAN}   ╚═════╝   ╚═══╝  ╚═╝╚══════╝${NC}"
 echo ""
-echo -e "${GREEN}   🚀 STAGE 2 - SELF-HOSTED PROGRAMMING LANGUAGE${NC}"
-echo -e "${YELLOW}   📦 Universal Installation v$OVIE_VERSION${NC}"
+echo -e "${GREEN}   🍎 MACOS OPTIMIZED INSTALLATION${NC}"
+echo -e "${YELLOW}   📦 Easy macOS Install v$OVIE_VERSION${NC}"
 echo ""
 echo -e "${BLUE}============================================================================${NC}"
 
-# Detect OS and Architecture
-OS="$(uname -s)"
+# Detect macOS version and architecture
+MACOS_VERSION=$(sw_vers -productVersion)
 ARCH="$(uname -m)"
 
-case "$OS" in
-    Linux*)     PLATFORM="linux";;
-    Darwin*)    PLATFORM="macos";;
-    CYGWIN*)    PLATFORM="windows";;
-    MINGW*)     PLATFORM="windows";;
-    *)          PLATFORM="unknown";;
-esac
-
 case "$ARCH" in
-    x86_64)     ARCH="x64";;
-    arm64)      ARCH="arm64";;
-    aarch64)    ARCH="arm64";;
-    *)          ARCH="x64";;
+    x86_64)     ARCH_NAME="Intel x64";;
+    arm64)      ARCH_NAME="Apple Silicon (M1/M2/M3)";;
+    *)          ARCH_NAME="Unknown ($ARCH)";;
 esac
 
-echo -e "${GREEN}🎯 Welcome to Ovie Universal Installer!${NC}"
+echo -e "${GREEN}🍎 Welcome to Ovie macOS Installer!${NC}"
+echo ""
+echo -e "${BLUE}[INFO]${NC} macOS Version: $MACOS_VERSION"
+echo -e "${BLUE}[INFO]${NC} Architecture: $ARCH_NAME"
 echo ""
 echo -e "${WHITE}This installer will:${NC}"
-echo -e "  ✅ Download Ovie v$OVIE_VERSION from GitHub"
-echo -e "  ✅ Build the full self-hosted compiler"
+echo -e "  ✅ Install Xcode Command Line Tools (if needed)"
+echo -e "  ✅ Install Homebrew (if needed)"
+echo -e "  ✅ Download and build Ovie v$OVIE_VERSION"
 echo -e "  ✅ Install to: $INSTALL_DIR"
-echo -e "  ✅ Add Ovie to your PATH"
-echo -e "  ✅ Set up examples, docs, and standard library"
-echo -e "  ✅ Configure VS Code extension"
-echo ""
-echo -e "${BLUE}[INFO]${NC} Detected platform: $PLATFORM-$ARCH"
+echo -e "  ✅ Configure Terminal and Zsh/Bash"
+echo -e "  ✅ Set up VS Code integration"
+echo -e "  ✅ Install examples and documentation"
 echo ""
 
-# Function to check for required commands
-check_command() {
-    if ! command -v "$1" >/dev/null 2>&1; then
-        echo -e "${RED}[ERROR]${NC} $1 is required but not installed."
-        case "$1" in
-            curl)
-                echo -e "${YELLOW}[INFO]${NC} Install with: sudo apt install curl (Ubuntu/Debian) or brew install curl (macOS)"
-                ;;
-            git)
-                echo -e "${YELLOW}[INFO]${NC} Install with: sudo apt install git (Ubuntu/Debian) or brew install git (macOS)"
-                ;;
-            make)
-                echo -e "${YELLOW}[INFO]${NC} Install with: sudo apt install build-essential (Ubuntu/Debian) or xcode-select --install (macOS)"
-                ;;
-        esac
-        return 1
+# Function to check for Xcode Command Line Tools
+check_xcode_tools() {
+    if ! xcode-select -p >/dev/null 2>&1; then
+        echo -e "${YELLOW}[INFO]${NC} Installing Xcode Command Line Tools..."
+        xcode-select --install
+        echo -e "${BLUE}[INFO]${NC} Please complete the Xcode installation and run this script again."
+        echo -e "${BLUE}[INFO]${NC} Press any key after Xcode installation is complete..."
+        read -n 1 -s
     fi
-    return 0
+    echo -e "${GREEN}✅ Xcode Command Line Tools available${NC}"
 }
 
-# Function to install missing dependencies
-install_dependencies() {
-    echo -e "${BLUE}[INFO]${NC} Installing missing dependencies..."
-    
-    if [[ "$PLATFORM" == "linux" ]]; then
-        if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y curl git build-essential
-        elif command -v yum >/dev/null 2>&1; then
-            sudo yum install -y curl git gcc gcc-c++ make
-        elif command -v pacman >/dev/null 2>&1; then
-            sudo pacman -S --noconfirm curl git base-devel
-        else
-            echo -e "${YELLOW}[WARNING]${NC} Unknown Linux distribution. Please install curl, git, and build tools manually."
+# Function to install Homebrew
+install_homebrew() {
+    if ! command -v brew >/dev/null 2>&1; then
+        echo -e "${BLUE}[INFO]${NC} Installing Homebrew..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        
+        # Add Homebrew to PATH for Apple Silicon Macs
+        if [[ "$ARCH" == "arm64" ]]; then
+            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+            eval "$(/opt/homebrew/bin/brew shellenv)"
         fi
-    elif [[ "$PLATFORM" == "macos" ]]; then
-        if ! command -v brew >/dev/null 2>&1; then
-            echo -e "${BLUE}[INFO]${NC} Installing Homebrew..."
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        fi
-        brew install curl git
-        xcode-select --install 2>/dev/null || true
+        echo -e "${GREEN}✅ Homebrew installed${NC}"
+    else
+        echo -e "${GREEN}✅ Homebrew found${NC}"
     fi
 }
 
 # Check system requirements
-echo -e "${BLUE}[1/8]${NC} Checking system requirements..."
-MISSING_DEPS=0
+echo -e "${BLUE}[1/8]${NC} Checking macOS system requirements..."
 
-if ! check_command "curl"; then MISSING_DEPS=1; fi
-if ! check_command "git"; then MISSING_DEPS=1; fi
-if ! check_command "make"; then MISSING_DEPS=1; fi
+# Check for Xcode Command Line Tools
+check_xcode_tools
 
-if [ $MISSING_DEPS -eq 1 ]; then
-    echo -e "${YELLOW}[INFO]${NC} Some dependencies are missing. Attempting to install..."
-    install_dependencies
-    
-    # Re-check after installation
-    if ! check_command "curl" || ! check_command "git"; then
-        echo -e "${RED}[ERROR]${NC} Failed to install required dependencies. Please install manually."
-        exit 1
-    fi
-fi
+# Install Homebrew if needed
+install_homebrew
+
+# Install required tools via Homebrew
+echo -e "${BLUE}[2/8]${NC} Installing required tools..."
+brew install curl git
 
 echo -e "${GREEN}✅ System requirements satisfied${NC}"
 
 # Create directories
-echo -e "${BLUE}[2/8]${NC} Creating installation directories..."
+echo -e "${BLUE}[3/8]${NC} Creating installation directories..."
 mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$TEMP_DIR"
 
 # Download source code
-echo -e "${BLUE}[3/8]${NC} Downloading Ovie source code..."
+echo -e "${BLUE}[4/8]${NC} Downloading Ovie source code..."
 DOWNLOAD_URL="$GITHUB_REPO/archive/refs/tags/v$OVIE_VERSION.tar.gz"
 
 if curl -fsSL "$DOWNLOAD_URL" -o "$TEMP_DIR/ovie-source.tar.gz"; then
@@ -154,24 +125,37 @@ else
 fi
 
 # Install Rust if needed
-echo -e "${BLUE}[4/8]${NC} Setting up build environment..."
+echo -e "${BLUE}[5/8]${NC} Setting up Rust build environment..."
 if ! command -v cargo >/dev/null 2>&1; then
-    echo -e "${BLUE}[INFO]${NC} Installing Rust toolchain..."
+    echo -e "${BLUE}[INFO]${NC} Installing Rust toolchain optimized for macOS..."
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
     source "$HOME/.cargo/env"
+    
+    # Add Rust to shell profiles
+    echo 'source "$HOME/.cargo/env"' >> ~/.zshrc 2>/dev/null || true
+    echo 'source "$HOME/.cargo/env"' >> ~/.bash_profile 2>/dev/null || true
+    
     echo -e "${GREEN}✅ Rust toolchain installed${NC}"
 else
     echo -e "${GREEN}✅ Rust toolchain found${NC}"
 fi
 
 # Build Ovie
-echo -e "${BLUE}[5/8]${NC} Building Ovie self-hosted compiler..."
-echo -e "${YELLOW}[INFO]${NC} This may take a few minutes..."
+echo -e "${BLUE}[6/8]${NC} Building Ovie self-hosted compiler..."
+echo -e "${YELLOW}[INFO]${NC} Building for $ARCH_NAME - this may take a few minutes..."
+
+# Set macOS-specific build flags
+export MACOSX_DEPLOYMENT_TARGET="10.15"
+if [[ "$ARCH" == "arm64" ]]; then
+    export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="clang"
+else
+    export CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER="clang"
+fi
 
 # Try self-hosted build first if oviec exists
 if [ -f "oviec" ]; then
     echo -e "${BLUE}[INFO]${NC} Attempting self-hosted build..."
-    if ./oviec --build-all --output-dir="$BIN_DIR" 2>/dev/null; then
+    if ./oviec --build-all --output-dir="$BIN_DIR" --target="macos-$ARCH" 2>/dev/null; then
         echo -e "${GREEN}✅ Self-hosted build successful!${NC}"
         BUILT_WITH_SELF_HOSTED=1
     else
@@ -195,7 +179,7 @@ if [ $BUILT_WITH_SELF_HOSTED -eq 0 ]; then
 fi
 
 # Install resources
-echo -e "${BLUE}[6/8]${NC} Installing resources and documentation..."
+echo -e "${BLUE}[7/8]${NC} Installing resources and documentation..."
 
 # Copy standard library
 if [ -d "std" ]; then
@@ -206,7 +190,8 @@ fi
 # Copy examples
 if [ -d "examples" ]; then
     cp -r examples "$INSTALL_DIR/"
-    echo -e "${GREEN}✅ Examples installed ($(ls examples/*.ov 2>/dev/null | wc -l) files)${NC}"
+    EXAMPLE_COUNT=$(ls examples/*.ov 2>/dev/null | wc -l | tr -d ' ')
+    echo -e "${GREEN}✅ Examples installed ($EXAMPLE_COUNT files)${NC}"
 fi
 
 # Copy documentation
@@ -228,40 +213,34 @@ if [ -d "extensions/ovie-vscode" ]; then
     echo -e "${GREEN}✅ VS Code extension included${NC}"
 fi
 
-# Configure PATH
-echo -e "${BLUE}[7/8]${NC} Configuring environment..."
+# Configure macOS-specific environment
+echo -e "${BLUE}[8/8]${NC} Configuring macOS environment..."
 
-# Detect shell and add to appropriate RC file
-SHELL_RC=""
-if [ -n "$BASH_VERSION" ] || [ "$SHELL" = "/bin/bash" ]; then
-    SHELL_RC="$HOME/.bashrc"
-elif [ -n "$ZSH_VERSION" ] || [ "$SHELL" = "/bin/zsh" ]; then
-    SHELL_RC="$HOME/.zshrc"
-elif [ -f "$HOME/.profile" ]; then
-    SHELL_RC="$HOME/.profile"
-fi
+# Add to both Zsh and Bash profiles
+SHELL_CONFIGS=("$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.profile")
 
-if [ -n "$SHELL_RC" ]; then
-    if ! grep -q "$BIN_DIR" "$SHELL_RC" 2>/dev/null; then
-        echo "" >> "$SHELL_RC"
-        echo "# Ovie Programming Language - Stage 2 Self-Hosted" >> "$SHELL_RC"
-        echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$SHELL_RC"
-        echo -e "${GREEN}✅ Added to PATH in $SHELL_RC${NC}"
-    else
-        echo -e "${BLUE}[INFO]${NC} Already in PATH"
+for config in "${SHELL_CONFIGS[@]}"; do
+    if [ -f "$config" ] || [[ "$config" == *".zshrc" ]]; then
+        if ! grep -q "$BIN_DIR" "$config" 2>/dev/null; then
+            echo "" >> "$config"
+            echo "# Ovie Programming Language - Stage 2 Self-Hosted" >> "$config"
+            echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$config"
+            echo -e "${GREEN}✅ Added to PATH in $(basename "$config")${NC}"
+        fi
     fi
-fi
+done
 
-# Create ovie command wrapper with enhanced functionality
+# Create macOS-optimized ovie command wrapper
 cat > "$BIN_DIR/ovie" << 'EOF'
 #!/bin/bash
-# Ovie CLI Tool - Stage 2 Self-Hosted
+# Ovie CLI Tool - Stage 2 Self-Hosted (macOS Optimized)
 OVIE_HOME="$HOME/.local"
 
 case "$1" in
     --version)
-        echo "ovie 2.0.0 - Self-Hosted Programming Language"
+        echo "ovie 2.1.0 - Self-Hosted Programming Language (macOS)"
         echo "Copyright (c) 2026 Ovie Language Team"
+        echo "Architecture: $(uname -m)"
         echo "Visit: https://ovie-lang.org"
         ;;
     --help)
@@ -274,13 +253,15 @@ case "$1" in
         echo "  test           Run tests"
         echo "  aproko         Run code analysis"
         echo "  compile        Compile with options"
+        echo "  vscode         Install VS Code extension"
         echo "  --version      Show version information"
         echo "  --help         Show this help message"
         echo ""
-        echo "Examples:"
+        echo "macOS Examples:"
         echo "  ovie new my-project"
         echo "  ovie run"
-        echo "  ovie compile --wasm"
+        echo "  ovie compile --target wasm"
+        echo "  ovie vscode"
         echo ""
         echo "Documentation: https://ovie-lang.org"
         ;;
@@ -294,39 +275,41 @@ case "$1" in
         mkdir -p "$2"
         cat > "$2/main.ov" << 'OVIE_CODE'
 // Hello World in Ovie - Stage 2 Self-Hosted!
-// Compiled by a compiler written in Ovie itself
+// Running on macOS with native compilation
 
-seeAm "Hello, World from Ovie!"
+seeAm "Hello, World from Ovie on macOS!"
 seeAm "Welcome to the future of programming!"
 
 // Natural language syntax
-mut name = "Developer"
-fn greet(person) {
-    seeAm "Hello, " + person + "!"
+mut name = "macOS Developer"
+mut platform = "macOS"
+fn greet(person, os) {
+    seeAm "Hello, " + person + " on " + os + "!"
 }
 
-greet(name)
+greet(name, platform)
 
-// Try some examples:
-// - Check out examples/ directory
-// - Run: ovie aproko (for code analysis)
-// - Compile: ovie compile --wasm
+// macOS-specific features available:
+// - Native compilation for Apple Silicon and Intel
+// - Optimized for macOS development
+// - VS Code integration ready
 OVIE_CODE
         
         cat > "$2/ovie.toml" << 'TOML_CONFIG'
 [package]
 name = "PROJECT_NAME"
 version = "0.1.0"
-description = "A new Ovie project"
+description = "A new Ovie project for macOS"
 
 [build]
 target = "native"
 optimization = "release"
+macos_deployment_target = "10.15"
 
 [dependencies]
 # Add dependencies here
 TOML_CONFIG
-        sed -i "s/PROJECT_NAME/$2/g" "$2/ovie.toml" 2>/dev/null || sed -i '' "s/PROJECT_NAME/$2/g" "$2/ovie.toml"
+        sed -i '' "s/PROJECT_NAME/$2/g" "$2/ovie.toml"
         
         echo "✅ Project created successfully!"
         echo "Next steps:"
@@ -335,7 +318,7 @@ TOML_CONFIG
         ;;
     run)
         if [ -f "main.ov" ]; then
-            echo "Running Ovie project..."
+            echo "Running Ovie project on macOS..."
             "$OVIE_HOME/bin/oviec" main.ov -o main && ./main
         else
             echo "Error: No main.ov file found in current directory"
@@ -343,12 +326,30 @@ TOML_CONFIG
             exit 1
         fi
         ;;
+    vscode)
+        echo "Installing Ovie VS Code extension..."
+        if command -v code >/dev/null 2>&1; then
+            if [ -f "$OVIE_HOME/extensions/ovie-vscode/ovie-lang-1.0.0.vsix" ]; then
+                code --install-extension "$OVIE_HOME/extensions/ovie-vscode/ovie-lang-1.0.0.vsix"
+                echo "✅ VS Code extension installed!"
+            else
+                echo "Building VS Code extension..."
+                cd "$OVIE_HOME/extensions/ovie-vscode"
+                npm install && npm run package
+                code --install-extension *.vsix
+                echo "✅ VS Code extension built and installed!"
+            fi
+        else
+            echo "VS Code not found. Please install VS Code first:"
+            echo "https://code.visualstudio.com/download"
+        fi
+        ;;
     aproko)
         echo "Running Aproko code analysis..."
         if command -v "$OVIE_HOME/bin/aproko" >/dev/null 2>&1; then
             "$OVIE_HOME/bin/aproko" "${@:2}"
         else
-            echo "Aproko analysis engine not found. Building from source..."
+            echo "Aproko analysis engine not found."
             echo "This feature will be available after full compilation."
         fi
         ;;
@@ -357,21 +358,41 @@ TOML_CONFIG
         "$OVIE_HOME/bin/oviec" "${@:2}"
         ;;
     *)
-        echo "Ovie Programming Language v2.0.0 - Stage 2 Self-Hosted"
+        echo "Ovie Programming Language v2.1.0 - Stage 2.1 Self-Hosted (macOS)"
         echo "Use 'ovie --help' for available commands."
         echo ""
         echo "Quick start:"
         echo "  ovie new my-project"
         echo "  cd my-project"
         echo "  ovie run"
+        echo ""
+        echo "macOS-specific:"
+        echo "  ovie vscode    # Install VS Code extension"
         ;;
 esac
 EOF
 
 chmod +x "$BIN_DIR/ovie"
 
+# Create macOS app bundle (optional)
+if command -v osascript >/dev/null 2>&1; then
+    echo -e "${BLUE}[INFO]${NC} Creating macOS app shortcuts..."
+    
+    # Create Terminal shortcut for Ovie
+    mkdir -p "$HOME/Applications/Ovie"
+    cat > "$HOME/Applications/Ovie/Ovie Terminal.command" << 'EOF'
+#!/bin/bash
+cd "$HOME"
+export PATH="$HOME/.local/bin:$PATH"
+echo "Ovie Programming Language - Stage 2 Self-Hosted"
+echo "Type 'ovie --help' for available commands"
+echo ""
+exec bash
+EOF
+    chmod +x "$HOME/Applications/Ovie/Ovie Terminal.command"
+fi
+
 # Cleanup
-echo -e "${BLUE}[8/8]${NC} Cleaning up..."
 cd "$HOME"
 rm -rf "$TEMP_DIR"
 
@@ -380,7 +401,7 @@ echo -e "${BLUE}[INFO]${NC} Verifying installation..."
 if [ -x "$BIN_DIR/ovie" ] && [ -x "$BIN_DIR/oviec" ]; then
     echo ""
     echo -e "${BLUE}============================================================================${NC}"
-    echo -e "${GREEN}                          🎉 INSTALLATION COMPLETE! 🎉${NC}"
+    echo -e "${GREEN}                    🍎 MACOS INSTALLATION COMPLETE! 🎉${NC}"
     echo -e "${BLUE}============================================================================${NC}"
     echo ""
     echo -e "${GREEN}✅ Ovie v$OVIE_VERSION - Stage 2 Self-Hosted installed successfully!${NC}"
@@ -388,40 +409,41 @@ if [ -x "$BIN_DIR/ovie" ] && [ -x "$BIN_DIR/oviec" ]; then
     echo -e "${YELLOW}📍 Installation Details:${NC}"
     echo -e "  • Location: $INSTALL_DIR"
     echo -e "  • Binaries: $BIN_DIR"
+    echo -e "  • Architecture: $ARCH_NAME"
+    echo -e "  • macOS Version: $MACOS_VERSION"
     echo -e "  • Standard Library: $INSTALL_DIR/std"
     echo -e "  • Examples: $INSTALL_DIR/examples"
     echo -e "  • Documentation: $INSTALL_DIR/docs"
     echo -e "  • VS Code Extension: $INSTALL_DIR/extensions/ovie-vscode"
     echo ""
     echo -e "${GREEN}🚀 Quick Start:${NC}"
-    echo -e "  # Reload your shell or run:"
+    echo -e "  # Restart Terminal or run:"
     echo -e "  export PATH=\"$BIN_DIR:\$PATH\""
     echo -e ""
     echo -e "  # Verify installation:"
     echo -e "  ovie --version"
     echo -e ""
     echo -e "  # Create your first project:"
-    echo -e "  ovie new hello-world"
-    echo -e "  cd hello-world"
+    echo -e "  ovie new hello-macos"
+    echo -e "  cd hello-macos"
     echo -e "  ovie run"
     echo ""
-    echo -e "${CYAN}🎯 Stage 2 Features Available:${NC}"
-    echo -e "  ✅ Natural language programming syntax"
-    echo -e "  ✅ Self-hosted compilation with oviec"
-    echo -e "  ✅ LLVM backend optimization"
-    echo -e "  ✅ WebAssembly compilation target"
-    echo -e "  ✅ Aproko static analysis"
-    echo -e "  ✅ Cross-platform deployment"
-    echo -e "  ✅ Memory safety guarantees"
-    echo -e "  ✅ AI-friendly development"
+    echo -e "${CYAN}🍎 macOS-Specific Features:${NC}"
+    echo -e "  ✅ Optimized for Apple Silicon and Intel Macs"
+    echo -e "  ✅ Native macOS compilation targets"
+    echo -e "  ✅ Terminal integration"
+    echo -e "  ✅ VS Code extension ready: ovie vscode"
+    echo -e "  ✅ Homebrew integration"
+    echo -e "  ✅ Xcode Command Line Tools integration"
     echo ""
     echo -e "${BLUE}🌐 Resources:${NC}"
     echo -e "  • Website: https://ovie-lang.org"
     echo -e "  • GitHub: https://github.com/southwarridev/ovie"
     echo -e "  • Documentation: $INSTALL_DIR/docs"
     echo -e "  • Examples: $INSTALL_DIR/examples"
+    echo -e "  • Terminal Shortcut: ~/Applications/Ovie/"
     echo ""
-    echo -e "${GREEN}Thank you for installing Ovie! 🚀${NC}"
+    echo -e "${GREEN}Thank you for installing Ovie on macOS! 🚀${NC}"
     echo -e "${CYAN}The future of programming is here!${NC}"
     echo ""
 else

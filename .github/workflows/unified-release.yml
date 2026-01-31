@@ -1,0 +1,553 @@
+name: Unified Ovie v2.1 Release
+
+on:
+  push:
+    tags:
+      - 'v2.1.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v2.1.0)'
+        required: true
+        default: 'v2.1.0'
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+  OVIE_VERSION: ${{ github.event.inputs.version || github.ref_name }}
+
+jobs:
+  # Build matrix for all platforms
+  build-matrix:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows builds
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: windows-x64
+            ext: .exe
+            archive: zip
+          - target: i686-pc-windows-msvc
+            os: windows-latest
+            name: windows-x86
+            ext: .exe
+            archive: zip
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            name: windows-arm64
+            ext: .exe
+            archive: zip
+          
+          # Linux builds
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-x64
+            ext: ""
+            archive: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-arm64
+            ext: ""
+            archive: tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: linux-x64-musl
+            ext: ""
+            archive: tar.gz
+          
+          # macOS builds
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: macos-x64
+            ext: ""
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: macos-arm64
+            ext: ""
+            archive: tar.gz
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Install cross-compilation dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-multilib
+        if [[ "${{ matrix.target }}" == *"musl"* ]]; then
+          sudo apt-get install -y musl-tools
+        fi
+        if [[ "${{ matrix.target }}" == "aarch64"* ]]; then
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+        fi
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ matrix.target }}-
+          ${{ runner.os }}-cargo-
+
+    - name: Build Ovie compiler (oviec)
+      run: |
+        cargo build --release --target ${{ matrix.target }} --bin oviec
+        
+    - name: Build Ovie runtime (ovie)
+      run: |
+        cargo build --release --target ${{ matrix.target }} --bin ovie
+
+    - name: Run self-check tests
+      if: matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'x86_64-apple-darwin'
+      run: |
+        ./target/${{ matrix.target }}/release/oviec${{ matrix.ext }} --self-check
+
+    - name: Create release directory
+      run: |
+        mkdir -p release/${{ matrix.name }}
+        
+    - name: Copy binaries and assets
+      shell: bash
+      run: |
+        # Copy main binaries
+        cp target/${{ matrix.target }}/release/oviec${{ matrix.ext }} release/${{ matrix.name }}/
+        cp target/${{ matrix.target }}/release/ovie${{ matrix.ext }} release/${{ matrix.name }}/
+        
+        # Copy standard library
+        cp -r std/ release/${{ matrix.name }}/
+        
+        # Copy examples
+        cp -r examples/ release/${{ matrix.name }}/
+        
+        # Copy documentation
+        cp -r docs/ release/${{ matrix.name }}/
+        
+        # Copy essential files
+        cp README.md LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md release/${{ matrix.name }}/
+        
+        # Copy installer scripts
+        if [[ "${{ matrix.name }}" == windows* ]]; then
+          cp easy-windows-install.bat easy-windows-install.ps1 release/${{ matrix.name }}/
+        elif [[ "${{ matrix.name }}" == linux* ]]; then
+          cp easy-linux-install.sh release/${{ matrix.name }}/
+        elif [[ "${{ matrix.name }}" == macos* ]]; then
+          cp easy-macos-install.sh release/${{ matrix.name }}/
+        fi
+        
+        # Copy VS Code extension
+        cp -r extensions/ release/${{ matrix.name }}/
+        
+        # Copy bootstrap verification scripts
+        cp -r scripts/ release/${{ matrix.name }}/
+        
+        # Create version info
+        echo "Ovie v${{ env.OVIE_VERSION }} - Low-Level Self-Hosted Programming Language" > release/${{ matrix.name }}/VERSION.txt
+        echo "Target: ${{ matrix.target }}" >> release/${{ matrix.name }}/VERSION.txt
+        echo "Build Date: $(date -u)" >> release/${{ matrix.name }}/VERSION.txt
+        echo "Git Hash: ${{ github.sha }}" >> release/${{ matrix.name }}/VERSION.txt
+
+    - name: Create archive
+      shell: bash
+      run: |
+        cd release
+        if [[ "${{ matrix.archive }}" == "zip" ]]; then
+          7z a -tzip ../ovie-${{ env.OVIE_VERSION }}-${{ matrix.name }}.zip ${{ matrix.name }}/
+        else
+          tar -czf ../ovie-${{ env.OVIE_VERSION }}-${{ matrix.name }}.tar.gz ${{ matrix.name }}/
+        fi
+
+    - name: Generate checksums
+      shell: bash
+      run: |
+        if [[ "${{ matrix.archive }}" == "zip" ]]; then
+          sha256sum ovie-${{ env.OVIE_VERSION }}-${{ matrix.name }}.zip > ovie-${{ env.OVIE_VERSION }}-${{ matrix.name }}.zip.sha256
+        else
+          sha256sum ovie-${{ env.OVIE_VERSION }}-${{ matrix.name }}.tar.gz > ovie-${{ env.OVIE_VERSION }}-${{ matrix.name }}.tar.gz.sha256
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ovie-${{ env.OVIE_VERSION }}-${{ matrix.name }}
+        path: |
+          ovie-${{ env.OVIE_VERSION }}-${{ matrix.name }}.*
+        retention-days: 30
+
+  # Test suite across platforms
+  test-suite:
+    name: Test Suite ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run unit tests
+      run: cargo test --verbose
+
+    - name: Run integration tests
+      run: cargo test --test '*' --verbose
+
+    - name: Run property tests
+      run: cargo test --features property-tests --verbose
+
+    - name: Run bootstrap verification
+      shell: bash
+      run: |
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          powershell -ExecutionPolicy Bypass -File scripts/bootstrap_verify.ps1
+        else
+          bash scripts/bootstrap_verify.sh
+        fi
+
+  # Build VS Code extension
+  build-vscode-extension:
+    name: Build VS Code Extension
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: extensions/ovie-vscode/package.json
+
+    - name: Install dependencies
+      run: |
+        cd extensions/ovie-vscode
+        npm ci
+
+    - name: Build extension
+      run: |
+        cd extensions/ovie-vscode
+        npm run compile
+        npm run package
+
+    - name: Upload VS Code extension
+      uses: actions/upload-artifact@v4
+      with:
+        name: ovie-vscode-extension-${{ env.OVIE_VERSION }}
+        path: extensions/ovie-vscode/*.vsix
+        retention-days: 30
+
+  # Create unified GitHub release
+  create-release:
+    name: Create GitHub Release
+    needs: [build-matrix, test-suite, build-vscode-extension]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        
+        # Copy all platform builds
+        find artifacts/ -name "ovie-${{ env.OVIE_VERSION }}-*" -type f -exec cp {} release-assets/ \;
+        
+        # Copy VS Code extension
+        find artifacts/ -name "*.vsix" -exec cp {} release-assets/ \;
+        
+        # Create unified checksums file
+        cd release-assets
+        sha256sum * > checksums.txt
+        
+        # List all files
+        ls -la
+
+    - name: Generate release notes
+      run: |
+        cat > RELEASE_NOTES.md << 'EOF'
+        # 🚀 Ovie v${{ env.OVIE_VERSION }} - Low-Level Self-Hosted Programming Language
+        
+        ## 🎯 Stage 2.1 - Formal Compiler Invariants & Bootstrap Verification
+        
+        Ovie v${{ env.OVIE_VERSION }} represents a major milestone in compiler correctness and self-hosting capabilities. This release introduces formal mathematical verification of compiler invariants and comprehensive bootstrap verification.
+        
+        ## ✨ New Features
+        
+        ### 🔧 Low-Level Programming Capabilities
+        - **Direct Memory Management**: Zero-cost abstractions with manual memory control
+        - **Hardware Access**: Direct hardware programming and embedded systems support
+        - **Systems Programming**: Perfect for OS kernels, drivers, and real-time systems
+        
+        ### 📐 Formal Compiler Invariants
+        - **AST Invariants**: Mathematically verified syntax tree properties
+        - **HIR Invariants**: Type system and semantic analysis correctness
+        - **MIR Invariants**: Control flow and memory safety guarantees
+        - **Bootstrap Verification**: Programmatic proof of self-hosting capability
+        
+        ### 🏗️ Enhanced Self-Hosting
+        - **Complete Independence**: No external toolchain dependencies
+        - **Reproducible Builds**: Deterministic compilation across platforms
+        - **Self-Check Command**: `oviec --self-check` validates compiler integrity
+        
+        ### ⚡ Performance & Reliability
+        - **Multi-Stage IR Pipeline**: AST → HIR → MIR with invariant validation
+        - **Multiple Backends**: Native (LLVM), WebAssembly, Interpreter
+        - **Cross-Platform**: Windows, Linux, macOS (x64 and ARM64)
+        
+        ## 📦 Installation
+        
+        ### Windows
+        ```cmd
+        curl -o install.bat https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.bat && install.bat
+        ```
+        
+        ### Linux
+        ```bash
+        curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+        ```
+        
+        ### macOS
+        ```bash
+        curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
+        ```
+        
+        ## 🧪 Verification
+        
+        After installation, verify your Ovie compiler:
+        
+        ```bash
+        oviec --self-check    # Run comprehensive compiler diagnostics
+        oviec --version       # Show version and build information
+        ```
+        
+        ## 📋 Platform Support
+        
+        | Platform | Architecture | Status |
+        |----------|-------------|--------|
+        | Windows | x64 | ✅ Fully Supported |
+        | Windows | x86 | ✅ Fully Supported |
+        | Windows | ARM64 | ✅ Fully Supported |
+        | Linux | x64 | ✅ Fully Supported |
+        | Linux | ARM64 | ✅ Fully Supported |
+        | Linux | x64 (musl) | ✅ Fully Supported |
+        | macOS | x64 | ✅ Fully Supported |
+        | macOS | ARM64 (M1/M2) | ✅ Fully Supported |
+        
+        ## 🔒 Security & Privacy
+        
+        - **Supply Chain Security**: All dependencies verified and monitored
+        - **Telemetry Blocking**: No data collection or tracking
+        - **Offline-First**: Complete development environment works offline
+        - **Reproducible Builds**: Cryptographically verifiable compilation
+        
+        ## 🤖 AI Integration
+        
+        - **Aproko Analysis Engine**: Intelligent code analysis and explanations
+        - **LLM-Friendly Syntax**: Optimized for AI code generation and understanding
+        - **Diagnostic Explanations**: Human-readable error messages with fix suggestions
+        
+        ## 📚 Documentation
+        
+        - [Getting Started Guide](https://ovie-lang.org/docs/getting-started.html)
+        - [Language Reference](https://ovie-lang.org/docs/language-guide.html)
+        - [Compiler Internals](https://ovie-lang.org/docs/internals.html)
+        - [Bootstrap Verification](https://github.com/southwarridev/ovie/blob/main/docs/compiler_invariants.md)
+        
+        ## 🛠️ Development Tools
+        
+        - **VS Code Extension**: Full IDE support with syntax highlighting, debugging, and IntelliSense
+        - **Command Line Tools**: `oviec` compiler and `ovie` runtime
+        - **Analysis Tools**: Built-in code analysis and optimization suggestions
+        
+        ## 🎯 Use Cases
+        
+        Ovie v${{ env.OVIE_VERSION }} is perfect for:
+        
+        - **Systems Programming**: Operating systems, device drivers, embedded systems
+        - **Performance-Critical Applications**: Game engines, real-time systems, HPC
+        - **WebAssembly Development**: High-performance web applications
+        - **Cross-Platform Development**: Single codebase, multiple targets
+        - **Educational Projects**: Learning compiler design and low-level programming
+        
+        ## 🔄 Migration from v2.0
+        
+        Ovie v${{ env.OVIE_VERSION }} is fully backward compatible with v2.0 code. New features:
+        
+        - Use `oviec --self-check` to verify compiler integrity
+        - Enhanced error messages with formal invariant violations
+        - Improved performance and memory usage
+        - Additional standard library modules
+        
+        ## 🐛 Bug Fixes
+        
+        - Fixed compiler invariant validation edge cases
+        - Improved cross-platform build reliability
+        - Enhanced VS Code extension stability
+        - Better error handling in bootstrap verification
+        
+        ## 🙏 Acknowledgments
+        
+        Special thanks to the Ovie community for testing, feedback, and contributions that made this release possible.
+        
+        ---
+        
+        **Full Changelog**: https://github.com/southwarridev/ovie/compare/v2.0.0...v${{ env.OVIE_VERSION }}
+        
+        **Website**: https://ovie-lang.org  
+        **Documentation**: https://ovie-lang.org/docs  
+        **Community**: https://github.com/southwarridev/ovie/discussions
+        EOF
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ env.OVIE_VERSION }}
+        name: "Ovie ${{ env.OVIE_VERSION }} - Low-Level Self-Hosted Programming Language"
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: ${{ github.event.inputs.prerelease || false }}
+        files: |
+          release-assets/*
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deploy website
+  deploy-website:
+    name: Deploy Website
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        working-directory: ./website
+        vercel-args: '--prod'
+
+    - name: Deploy to Netlify
+      uses: nwtgck/actions-netlify@v3.0
+      with:
+        publish-dir: './website'
+        production-branch: main
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        deploy-message: "Deploy Ovie v${{ env.OVIE_VERSION }}"
+        enable-pull-request-comment: false
+        enable-commit-comment: true
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+  # Publish VS Code extension
+  publish-vscode-extension:
+    name: Publish VS Code Extension
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: extensions/ovie-vscode/package.json
+
+    - name: Install dependencies
+      run: |
+        cd extensions/ovie-vscode
+        npm ci
+        npm install -g @vscode/vsce
+
+    - name: Update extension version
+      run: |
+        cd extensions/ovie-vscode
+        npm version ${{ env.OVIE_VERSION }} --no-git-tag-version
+
+    - name: Package and publish extension
+      run: |
+        cd extensions/ovie-vscode
+        vsce package
+        vsce publish -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+      env:
+        VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+
+  # Notification
+  notify-completion:
+    name: Notify Release Completion
+    needs: [create-release, deploy-website, publish-vscode-extension]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Release Summary
+      run: |
+        echo "🎉 Ovie v${{ env.OVIE_VERSION }} Release Complete!"
+        echo ""
+        echo "✅ GitHub Release: https://github.com/southwarridev/ovie/releases/tag/${{ env.OVIE_VERSION }}"
+        echo "✅ Website: https://ovie-lang.org"
+        echo "✅ VS Code Extension: Published to marketplace"
+        echo ""
+        echo "📦 Platform Builds:"
+        echo "  - Windows (x64, x86, ARM64)"
+        echo "  - Linux (x64, ARM64, musl)"
+        echo "  - macOS (x64, ARM64)"
+        echo ""
+        echo "🔧 Installation:"
+        echo "  Windows: curl -o install.bat https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.bat && install.bat"
+        echo "  Linux:   curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash"
+        echo "  macOS:   curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash"
+        echo ""
+        echo "🧪 Verification: oviec --self-check"

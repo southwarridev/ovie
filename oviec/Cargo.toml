@@ -7,8 +7,8 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-description = "The Ovie programming language compiler"
-keywords = ["compiler", "programming-language", "ovie"]
+description = "Ovie v2.1 compiler - Low-level self-hosted programming language compiler with formal invariants, AST→HIR→MIR pipeline, and bootstrap verification"
+keywords = ["compiler", "programming-language", "ovie", "low-level", "self-hosted", "formal-verification"]
 categories = ["compilers", "development-tools"]
 
 [[bin]]
@@ -23,12 +23,12 @@ thiserror.workspace = true
 miette.workspace = true
 # Serialization
 serde.workspace = true
-serde_json = "1.0"
+serde_json.workspace = true
 # WASM generation
-wasm-encoder = "0.38"
-wasmparser = "0.118"
+wasm-encoder.workspace = true
+wasmparser.workspace = true
 # LLVM backend (optional)
-inkwell = { version = "0.4", features = ["llvm17-0"], optional = true }
+inkwell = { workspace = true, optional = true }
 # CLI argument parsing
 clap.workspace = true
 # Async runtime
@@ -37,7 +37,7 @@ tokio.workspace = true
 sha2.workspace = true
 dirs.workspace = true
 chrono.workspace = true
-toml = "0.8"
+toml.workspace = true
 
 [features]
 default = []
@@ -45,8 +45,8 @@ llvm = ["inkwell"]
 
 [dev-dependencies]
 # Property-based testing
-proptest = "1.0"
+proptest.workspace = true
 # Additional testing utilities
-quickcheck = "1.0"
+quickcheck.workspace = true
 # Temporary directories for testing
 tempfile.workspace = true

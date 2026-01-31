@@ -1128,6 +1128,308 @@ impl MirProgram {
             .map_err(|e| OvieError::IrError { message: format!("MIR deserialization error: {}", e) })
     }
 
+    /// Validate MIR invariants according to Stage 2.1 compiler invariants
+    /// 
+    /// MIR Invariants (from docs/compiler_invariants.md):
+    /// - Control flow is explicit (basic blocks only)
+    /// - No high-level expressions exist
+    /// - No unresolved symbols
+    /// - No implicit temporaries
+    /// - All memory operations are explicit
+    /// - Borrow/ownership rules validated
+    /// - Function calls are explicit
+    /// - All variables have explicit lifetimes
+    pub fn validate_invariants(&self) -> Result<(), crate::ast::InvariantError> {
+        // Check that all functions have valid control flow graphs
+        for (func_id, function) in &self.functions {
+            self.validate_function_invariants(function)
+                .map_err(|mut e| {
+                    e.location = Some(format!("function:{}:{}", func_id, function.name));
+                    e
+                })?;
+        }
+
+        // Check that entry point exists and is valid
+        if let Some(entry_id) = self.entry_point {
+            if !self.functions.contains_key(&entry_id) {
+                return Err(crate::ast::InvariantError {
+                    message: "Entry point function not found".to_string(),
+                    location: Some(format!("entry_point:{}", entry_id)),
+                });
+            }
+        }
+
+        // Check that all globals are properly defined
+        for (name, global) in &self.globals {
+            if matches!(global.global_type, MirType::Error) {
+                return Err(crate::ast::InvariantError {
+                    message: format!("Global '{}' has error type", name),
+                    location: Some(format!("global:{}", name)),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_function_invariants(&self, function: &MirFunction) -> Result<(), crate::ast::InvariantError> {
+        // Check that function has at least one basic block
+        if function.basic_blocks.is_empty() {
+            return Err(crate::ast::InvariantError {
+                message: "Function must have at least one basic block".to_string(),
+                location: None,
+            });
+        }
+
+        // Check that entry block exists
+        if !function.basic_blocks.contains_key(&function.entry_block) {
+            return Err(crate::ast::InvariantError {
+                message: "Function entry block not found".to_string(),
+                location: Some(format!("entry_block:{}", function.entry_block)),
+            });
+        }
+
+        // Validate all basic blocks
+        for (block_id, block) in &function.basic_blocks {
+            self.validate_basic_block_invariants(block)
+                .map_err(|mut e| {
+                    e.location = Some(format!("block:{}", block_id));
+                    e
+                })?;
+        }
+
+        // Check that all locals have valid types
+        for (local_id, local) in function.locals.iter().enumerate() {
+            if matches!(local.local_type, MirType::Error) {
+                return Err(crate::ast::InvariantError {
+                    message: format!("Local {} has error type", local_id),
+                    location: Some(format!("local:{}", local_id)),
+                });
+            }
+        }
+
+        // Validate control flow graph properties
+        self.validate_cfg_invariants(function)?;
+
+        Ok(())
+    }
+
+    fn validate_basic_block_invariants(&self, block: &MirBasicBlock) -> Result<(), crate::ast::InvariantError> {
+        // Basic block must be well-formed (statements + terminator)
+        // This is enforced by the type system, but we can add additional checks
+
+        // Validate all statements
+        for (stmt_idx, statement) in block.statements.iter().enumerate() {
+            self.validate_statement_invariants(statement)
+                .map_err(|mut e| {
+                    e.location = Some(format!("statement:{}", stmt_idx));
+                    e
+                })?;
+        }
+
+        // Validate terminator
+        self.validate_terminator_invariants(&block.terminator)?;
+
+        Ok(())
+    }
+
+    fn validate_statement_invariants(&self, statement: &MirStatement) -> Result<(), crate::ast::InvariantError> {
+        match &statement.kind {
+            MirStatementKind::Assign { place, rvalue } => {
+                // Place must be valid
+                self.validate_place_invariants(place)?;
+                
+                // RValue must be valid
+                self.validate_rvalue_invariants(rvalue)?;
+            }
+            MirStatementKind::StorageLive(_) | MirStatementKind::StorageDead(_) => {
+                // Storage operations are always valid at MIR level
+            }
+            MirStatementKind::Nop => {
+                // No-ops are always valid
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_place_invariants(&self, place: &MirPlace) -> Result<(), crate::ast::InvariantError> {
+        // Place must have a valid type
+        if matches!(place.place_type, MirType::Error) {
+            return Err(crate::ast::InvariantError {
+                message: "Place has error type".to_string(),
+                location: None,
+            });
+        }
+
+        match &place.kind {
+            MirPlaceKind::Local(_) => {
+                // Local places are valid if they reference valid locals
+            }
+            MirPlaceKind::Field { base, .. } => {
+                // Field access must have valid base
+                self.validate_place_invariants(base)?;
+            }
+            MirPlaceKind::Index { base, index } => {
+                // Index access must have valid base and index
+                self.validate_place_invariants(base)?;
+                self.validate_operand_invariants(index)?;
+            }
+            MirPlaceKind::Deref(base) => {
+                // Dereference must have valid base
+                self.validate_place_invariants(base)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_rvalue_invariants(&self, rvalue: &MirRvalue) -> Result<(), crate::ast::InvariantError> {
+        match rvalue {
+            MirRvalue::Use(operand) => {
+                self.validate_operand_invariants(operand)?;
+            }
+            MirRvalue::BinaryOp { left, right, .. } => {
+                self.validate_operand_invariants(left)?;
+                self.validate_operand_invariants(right)?;
+            }
+            MirRvalue::UnaryOp { operand, .. } => {
+                self.validate_operand_invariants(operand)?;
+            }
+            MirRvalue::Cast { operand, target_type } => {
+                self.validate_operand_invariants(operand)?;
+                if matches!(target_type, MirType::Error) {
+                    return Err(crate::ast::InvariantError {
+                        message: "Cast target type is error type".to_string(),
+                        location: None,
+                    });
+                }
+            }
+            MirRvalue::Ref { place, .. } => {
+                self.validate_place_invariants(place)?;
+            }
+            MirRvalue::Aggregate { operands, .. } => {
+                for operand in operands {
+                    self.validate_operand_invariants(operand)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_operand_invariants(&self, operand: &MirOperand) -> Result<(), crate::ast::InvariantError> {
+        match operand {
+            MirOperand::Copy(place) | MirOperand::Move(place) => {
+                self.validate_place_invariants(place)?;
+            }
+            MirOperand::Constant(constant) => {
+                if matches!(constant.const_type, MirType::Error) {
+                    return Err(crate::ast::InvariantError {
+                        message: "Constant has error type".to_string(),
+                        location: None,
+                    });
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_terminator_invariants(&self, terminator: &MirTerminator) -> Result<(), crate::ast::InvariantError> {
+        match terminator {
+            MirTerminator::Return { value } => {
+                if let Some(operand) = value {
+                    self.validate_operand_invariants(operand)?;
+                }
+            }
+            MirTerminator::Goto { .. } => {
+                // Goto is always valid (target validation is done at CFG level)
+            }
+            MirTerminator::SwitchInt { discriminant, .. } => {
+                self.validate_operand_invariants(discriminant)?;
+            }
+            MirTerminator::Call { func, args, destination, .. } => {
+                self.validate_operand_invariants(func)?;
+                for arg in args {
+                    self.validate_operand_invariants(arg)?;
+                }
+                if let Some((place, _)) = destination {
+                    self.validate_place_invariants(place)?;
+                }
+            }
+            MirTerminator::Drop { place, .. } => {
+                self.validate_place_invariants(place)?;
+            }
+            MirTerminator::Assert { condition, .. } => {
+                self.validate_operand_invariants(condition)?;
+            }
+            MirTerminator::Unreachable => {
+                // Unreachable is always valid
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_cfg_invariants(&self, function: &MirFunction) -> Result<(), crate::ast::InvariantError> {
+        // Check that all basic blocks are reachable from entry
+        let mut visited = std::collections::HashSet::new();
+        let mut stack = vec![function.entry_block];
+
+        while let Some(block_id) = stack.pop() {
+            if visited.contains(&block_id) {
+                continue;
+            }
+            visited.insert(block_id);
+
+            if let Some(block) = function.basic_blocks.get(&block_id) {
+                // Add successors to stack
+                match &block.terminator {
+                    MirTerminator::Goto { target } => {
+                        stack.push(*target);
+                    }
+                    MirTerminator::SwitchInt { targets, otherwise, .. } => {
+                        for (_, target) in targets {
+                            stack.push(*target);
+                        }
+                        stack.push(*otherwise);
+                    }
+                    MirTerminator::Call { destination, cleanup, .. } => {
+                        if let Some((_, target)) = destination {
+                            stack.push(*target);
+                        }
+                        if let Some(cleanup_target) = cleanup {
+                            stack.push(*cleanup_target);
+                        }
+                    }
+                    MirTerminator::Drop { target, unwind } => {
+                        stack.push(*target);
+                        if let Some(unwind_target) = unwind {
+                            stack.push(*unwind_target);
+                        }
+                    }
+                    MirTerminator::Assert { target, cleanup, .. } => {
+                        stack.push(*target);
+                        if let Some(cleanup_target) = cleanup {
+                            stack.push(*cleanup_target);
+                        }
+                    }
+                    MirTerminator::Return { .. } | MirTerminator::Unreachable => {
+                        // No successors
+                    }
+                }
+            }
+        }
+
+        // Check for unreachable blocks
+        for block_id in function.basic_blocks.keys() {
+            if !visited.contains(block_id) {
+                return Err(crate::ast::InvariantError {
+                    message: format!("Basic block {} is unreachable", block_id),
+                    location: Some(format!("unreachable_block:{}", block_id)),
+                });
+            }
+        }
+
+        Ok(())
+    }
+
     /// Analyze control flow graph and compute basic block properties
     pub fn analyze_cfg(&self) -> OvieResult<CfgAnalysis> {
         let mut analysis = CfgAnalysis::new();

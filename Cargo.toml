@@ -1,38 +1,45 @@
 [workspace]
-members = [
-  "oviec",
-  "aproko", 
-  "ovie"
-]
+members = ["oviec", "ovie", "aproko"]
 resolver = "2"
 
 [workspace.package]
-version = "1.0.0"
+version = "2.1.0"
 edition = "2021"
 license = "MIT"
 authors = ["Ovie Language Team <team@ovie-lang.org>"]
 repository = "https://github.com/southwarridev/ovie"
 homepage = "https://ovie-lang.org"
 documentation = "https://docs.ovie-lang.org"
-description = "A modern, safe, and AI-friendly programming language designed for accessibility and offline-first development"
-keywords = ["programming-language", "compiler", "offline-first", "ai-friendly", "pidgin-english"]
-categories = ["development-tools", "compilers"]
 
 [workspace.dependencies]
-# Core dependencies for all projects
+# Lexer and parsing
 logos = "0.14"
+# Error handling
 thiserror = "1.0"
-miette = "7.0"
+miette = { version = "7.0", features = ["fancy"] }
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
+serde_json = "1.0"
+# CLI argument parsing
 clap = { version = "4.0", features = ["derive"] }
+# Async runtime
 tokio = { version = "1.0", features = ["full"] }
-
-# Testing dependencies
-proptest = "1.0"
-tempfile = "3.0"
-
-# Package management dependencies
+# Cryptography and hashing
 sha2 = "0.10"
+# File system utilities
 dirs = "5.0"
+# Date and time
 chrono = { version = "0.4", features = ["serde"] }
+# Testing utilities
+tempfile = "3.0"
+# TOML parsing
+toml = "0.8"
+# Property-based testing
+proptest = "1.0"
+# Additional testing utilities
+quickcheck = "1.0"
+# WASM generation
+wasm-encoder = "0.38"
+wasmparser = "0.118"
+# LLVM backend (optional)
+inkwell = { version = "0.4", features = ["llvm17-0"] }

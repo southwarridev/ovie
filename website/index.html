@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ovie Programming Language - Self-Hosted & Production Ready</title>
-    <meta name="description" content="Ovie is a modern, self-hosted programming language with natural syntax, AI-friendly design, and offline-first development. Built for accessibility and production use.">
+    <title>Ovie - Low-Level Self-Hosted Programming Language v2.1</title>
+    <meta name="description" content="Ovie v2.1 - A modern low-level self-hosted programming language with formal compiler invariants, bootstrap verification, and multi-stage IR pipeline. Perfect for systems programming, embedded development, and performance-critical applications.">
     <meta name="keywords" content="ovie programming language, self-hosted compiler, natural syntax, AI-friendly, offline-first, memory safe, deterministic, accessible programming">
     <meta name="author" content="Ovie Language Team">
     <meta name="robots" content="index, follow">
@@ -43,8 +43,8 @@
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "name": "Ovie Programming Language",
-      "description": "Modern, self-hosted programming language with natural syntax, AI-friendly design, and offline-first development",
+      "name": "Ovie - Low-Level Self-Hosted Programming Language",
+      "description": "A modern low-level self-hosted programming language with formal compiler invariants, bootstrap verification, and multi-stage IR pipeline. Designed for systems programming, embedded development, and performance-critical applications.",
       "url": "https://ovie-lang.org",
       "logo": "https://ovie-lang.org/assets/ovie.png",
       "applicationCategory": "DeveloperApplication",
@@ -61,8 +61,8 @@
         "priceCurrency": "USD"
       },
       "downloadUrl": "https://github.com/southwarridev/ovie/releases",
-      "softwareVersion": "2.0.0",
-      "datePublished": "2026-01-30",
+      "softwareVersion": "2.1.0",
+      "datePublished": "2026-01-31",
       "keywords": "programming language, compiler, self-hosted, AI-friendly, natural syntax, memory safe, offline-first",
       "featureList": [
         "Self-hosted compiler",
@@ -143,12 +143,10 @@
                     <span>OFFICIALLY SELF-HOSTED PROGRAMMING LANGUAGE</span>
                 </div>
                 <h1 class="hero-title">
-                    The <span class="gradient-text">Self-Hosted</span><br>
-                    Programming Language
+                    🚀 Ovie v2.1 - Low-Level Self-Hosted Programming Language
                 </h1>
                 <p class="hero-subtitle">
-                    Ovie is a modern, accessible, and AI-friendly programming language that compiles itself. 
-                    Built for developers, designed for everyone, ready for production.
+                    Modern low-level programming with formal compiler invariants and bootstrap verification
                 </p>
                 <div class="hero-stats">
                     <div class="stat">
@@ -232,34 +230,44 @@ greet(name)</code></pre>
             </div>
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="feature-icon">🏆</div>
-                    <h3 class="feature-title">Self-Hosted</h3>
-                    <p class="feature-description">The Ovie compiler is written in Ovie itself, proving its maturity and stability.</p>
+                    <div class="feature-icon">🔧</div>
+                    <h3 class="feature-title">Low-Level Systems Programming</h3>
+                    <p class="feature-description">Direct memory management, hardware access, and system-level programming capabilities with zero-cost abstractions.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🌍</div>
-                    <h3 class="feature-title">Accessible Syntax</h3>
-                    <p class="feature-description">Natural language patterns make programming accessible to everyone.</p>
+                    <div class="feature-icon">🏗️</div>
+                    <h3 class="feature-title">Self-Hosted Architecture</h3>
+                    <p class="feature-description">Ovie compiles itself using its own compiler - complete independence from external toolchains.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🔒</div>
-                    <h3 class="feature-title">Offline-First</h3>
-                    <p class="feature-description">Complete development environment with no network dependencies required.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3 class="feature-title">AI-Friendly</h3>
-                    <p class="feature-description">Designed from the ground up for AI/LLM integration and code generation.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🛡️</div>
-                    <h3 class="feature-title">Memory Safe</h3>
-                    <p class="feature-description">Built-in memory safety without garbage collection overhead.</p>
+                    <div class="feature-icon">📐</div>
+                    <h3 class="feature-title">Formal Compiler Invariants</h3>
+                    <p class="feature-description">Stage 2.1 introduces mathematically verified compiler correctness with bootstrap verification.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
-                    <h3 class="feature-title">Deterministic</h3>
-                    <p class="feature-description">Identical inputs always produce identical outputs across all platforms.</p>
+                    <h3 class="feature-title">Multi-Stage IR Pipeline</h3>
+                    <p class="feature-description">AST → HIR → MIR compilation pipeline with invariant validation at each stage.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3 class="feature-title">Multiple Backends</h3>
+                    <p class="feature-description">Compile to native code (LLVM), WebAssembly, or run with the built-in interpreter.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3 class="feature-title">Security & Privacy First</h3>
+                    <p class="feature-description">Built-in supply chain security, telemetry blocking, and offline-first development.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3 class="feature-title">AI-Powered Analysis</h3>
+                    <p class="feature-description">Aproko analysis engine provides intelligent code insights and explanations.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🚀</div>
+                    <h3 class="feature-title">Performance Optimized</h3>
+                    <p class="feature-description">Designed for embedded systems, real-time applications, and performance-critical code.</p>
                 </div>
             </div>
         </div>
@@ -278,62 +286,81 @@ greet(name)</code></pre>
                 <div class="achievement-content">
                     <div class="achievement-icon">🎉</div>
                     <div class="achievement-text">
-                        <h3>v2.0.0 - Stage 2 Self-Hosted Release is Live!</h3>
-                        <p>The GitHub release is available with source code. Pre-built binaries coming soon!</p>
+                        <h3>🎉 Ovie v2.1 - Stage 2.1 Self-Hosted is Live!</h3>
+                        <p>✨ New in v2.1: Formal compiler invariants, bootstrap verification, enhanced low-level programming capabilities</p>
                     </div>
-                    <a href="https://github.com/southwarridev/ovie/releases/tag/v2.0.0" class="btn btn-outline" target="_blank" rel="noopener noreferrer">View Release</a>
+                    <a href="https://github.com/southwarridev/ovie/releases/tag/v2.1.0" class="btn btn-outline" target="_blank" rel="noopener noreferrer">View Release</a>
                 </div>
             </div>
             
             <div class="download-options">
                 <div class="download-card primary">
                     <div class="download-header">
-                        <h3>Quick Install</h3>
-                        <p>One-line installation for all platforms</p>
+                        <h3>🪟 Windows Installation</h3>
+                        <p>Easy one-click installation for Windows users</p>
                     </div>
                     <div class="download-content">
-                        <div class="code-block">
-                            <div class="code-tabs">
-                                <button class="tab-btn active" data-tab="unix">Unix/Linux/macOS</button>
-                                <button class="tab-btn" data-tab="windows-ps">Windows (PowerShell)</button>
-                                <button class="tab-btn" data-tab="windows-cmd">Windows (Command Prompt)</button>
-                            </div>
-                            <div class="tab-content active" id="unix">
-                                <pre><code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/install.sh | bash</code></pre>
-                            </div>
-                            <div class="tab-content" id="windows-ps">
-                                <pre><code># Run in PowerShell (not Command Prompt)
-iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/install.ps1 | iex</code></pre>
-                            </div>
-                            <div class="tab-content" id="windows-cmd">
-                                <pre><code>REM Download and run the batch installer
-curl -o install.bat https://raw.githubusercontent.com/southwarridev/ovie/main/install.bat
-install.bat</code></pre>
-                            </div>
+                        <div class="install-buttons">
+                            <a href="https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.bat" class="btn btn-primary" download>Download .bat installer</a>
+                            <a href="https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1" class="btn btn-secondary" download>Download .ps1 installer</a>
+                        </div>
+                        <div class="install-command">
+                            <code>curl -o install.bat https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.bat && install.bat</code>
                         </div>
                     </div>
                 </div>
+
+                <div class="download-card">
+                    <div class="download-header">
+                        <h3>🐧 Linux Installation</h3>
+                        <p>Universal Linux installer with automatic dependency management</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="install-buttons">
+                            <a href="https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh" class="btn btn-primary" download>Download installer</a>
+                        </div>
+                        <div class="install-command">
+                            <code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash</code>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="download-card">
+                    <div class="download-header">
+                        <h3>🍎 macOS Installation</h3>
+                        <p>Native macOS installer with Homebrew integration</p>
+                    </div>
+                    <div class="download-content">
+                        <div class="install-buttons">
+                            <a href="https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh" class="btn btn-primary" download>Download installer</a>
+                        </div>
+                        <div class="install-command">
+                            <code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
                 <div class="download-card">
                     <div class="download-header">
                         <h3>GitHub Release</h3>
-                        <p>Official v2.0.0 - Stage 2 Self-Hosted Release</p>
+                        <p>Official v2.1.0 - Stage 2.1 Hardening Release</p>
                     </div>
                     <div class="download-content">
                         <div class="download-links">
-                            <a href="https://github.com/southwarridev/ovie/releases/tag/v2.0.0" class="btn btn-primary">
-                                <span class="btn-icon">🎉</span> View v2.0.0 Release
+                            <a href="https://github.com/southwarridev/ovie/releases/tag/v2.1.0" class="btn btn-primary">
+                                <span class="btn-icon">🎉</span> View v2.1.0 Release
                             </a>
-                            <a href="https://github.com/southwarridev/ovie/archive/refs/tags/v2.0.0.zip" class="btn btn-outline">
+                            <a href="https://github.com/southwarridev/ovie/archive/refs/tags/v2.1.0.zip" class="btn btn-outline">
                                 <span class="btn-icon">📦</span> Source Code (ZIP)
                             </a>
-                            <a href="https://github.com/southwarridev/ovie/archive/refs/tags/v2.0.0.tar.gz" class="btn btn-outline">
+                            <a href="https://github.com/southwarridev/ovie/archive/refs/tags/v2.1.0.tar.gz" class="btn btn-outline">
                                 <span class="btn-icon">📦</span> Source Code (TAR.GZ)
                             </a>
                         </div>
                         <div class="download-info">
-                            <p><strong>🎯 Historic Milestone:</strong> v2.0.0 - Stage 2 Self-Hosted!</p>
-                            <p><strong>Status:</strong> Ovie compiler now compiles itself across all platforms</p>
-                            <p><a href="https://github.com/southwarridev/ovie/releases/tag/v2.0.0" target="_blank" rel="noopener noreferrer">View release notes and download source code</a></p>
+                            <p><strong>🎯 Historic Milestone:</strong> v2.1.0 - Stage 2.1 Formal Invariants!</p>
+                            <p><strong>Status:</strong> Enhanced compiler with formal verification and bootstrap validation</p>
+                            <p><a href="https://github.com/southwarridev/ovie/releases/tag/v2.1.0" target="_blank" rel="noopener noreferrer">View release notes and download source code</a></p>
                         </div>
                     </div>
                 </div>

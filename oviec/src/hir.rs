@@ -1500,6 +1500,282 @@ impl HirProgram {
         Ok(())
     }
 
+    /// Validate HIR invariants according to Stage 2.1 compiler invariants
+    /// 
+    /// HIR Invariants (from docs/compiler_invariants.md):
+    /// - All identifiers are resolved to symbols
+    /// - No unresolved names exist
+    /// - Every expression has a known type
+    /// - Type inference is complete
+    /// - Symbol table is fully populated
+    /// - Semantic errors have been caught
+    /// - Function signatures are resolved
+    /// - Struct/enum definitions are complete
+    pub fn validate_invariants(&self) -> Result<(), crate::ast::InvariantError> {
+        // Check that all items have valid invariants
+        for item in &self.items {
+            self.validate_item_invariants(item)?;
+        }
+
+        // Check symbol table is populated
+        if self.symbol_table.scopes.is_empty() {
+            return Err(crate::ast::InvariantError {
+                message: "HIR must have populated symbol table".to_string(),
+                location: Some("symbol_table".to_string()),
+            });
+        }
+
+        // Check that no error types remain (type inference should be complete)
+        self.validate_no_error_types()?;
+
+        Ok(())
+    }
+
+    fn validate_item_invariants(&self, item: &HirItem) -> Result<(), crate::ast::InvariantError> {
+        match item {
+            HirItem::Function(func) => {
+                // Function must have resolved return type
+                if matches!(func.return_type, HirType::Error | HirType::Infer(_)) {
+                    return Err(crate::ast::InvariantError {
+                        message: format!("Function '{}' has unresolved return type", func.name),
+                        location: Some(format!("function:{}", func.name)),
+                    });
+                }
+
+                // All parameters must have resolved types
+                for param in &func.parameters {
+                    if matches!(param.param_type, HirType::Error | HirType::Infer(_)) {
+                        return Err(crate::ast::InvariantError {
+                            message: format!("Parameter '{}' has unresolved type", param.name),
+                            location: Some(format!("function:{}:param:{}", func.name, param.name)),
+                        });
+                    }
+                }
+
+                // Validate function body
+                self.validate_block_invariants(&func.body)?;
+            }
+            HirItem::Struct(struct_def) => {
+                // All fields must have resolved types
+                for field in &struct_def.fields {
+                    if matches!(field.field_type, HirType::Error | HirType::Infer(_)) {
+                        return Err(crate::ast::InvariantError {
+                            message: format!("Struct field '{}' has unresolved type", field.name),
+                            location: Some(format!("struct:{}:field:{}", struct_def.name, field.name)),
+                        });
+                    }
+                }
+            }
+            HirItem::Enum(enum_def) => {
+                // All variants must have resolved types (if they have data)
+                for variant in &enum_def.variants {
+                    if let Some(ref data_type) = variant.data_type {
+                        if matches!(data_type, HirType::Error | HirType::Infer(_)) {
+                            return Err(crate::ast::InvariantError {
+                                message: format!("Enum variant '{}' has unresolved data type", variant.name),
+                                location: Some(format!("enum:{}:variant:{}", enum_def.name, variant.name)),
+                            });
+                        }
+                    }
+                }
+            }
+            HirItem::Global(global) => {
+                // Global must have resolved type
+                if matches!(global.global_type, HirType::Error | HirType::Infer(_)) {
+                    return Err(crate::ast::InvariantError {
+                        message: format!("Global '{}' has unresolved type", global.name),
+                        location: Some(format!("global:{}", global.name)),
+                    });
+                }
+
+                // If there's an initializer, validate it
+                if let Some(ref init) = global.initializer {
+                    self.validate_expression_invariants(init)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_block_invariants(&self, block: &HirBlock) -> Result<(), crate::ast::InvariantError> {
+        for stmt in &block.statements {
+            self.validate_statement_invariants(stmt)?;
+        }
+        Ok(())
+    }
+
+    fn validate_statement_invariants(&self, stmt: &HirStatement) -> Result<(), crate::ast::InvariantError> {
+        match &stmt.kind {
+            HirStatementKind::Local { var_type, initializer, .. } => {
+                if matches!(var_type, HirType::Error | HirType::Infer(_)) {
+                    return Err(crate::ast::InvariantError {
+                        message: "Local variable has unresolved type".to_string(),
+                        location: Some(format!("statement:{}", stmt.id)),
+                    });
+                }
+                if let Some(init) = initializer {
+                    self.validate_expression_invariants(init)?;
+                }
+            }
+            HirStatementKind::Assign { target, value } => {
+                self.validate_place_invariants(target)?;
+                self.validate_expression_invariants(value)?;
+            }
+            HirStatementKind::Expression(expr) => {
+                self.validate_expression_invariants(expr)?;
+            }
+            HirStatementKind::Print(expr) => {
+                self.validate_expression_invariants(expr)?;
+            }
+            HirStatementKind::Return(expr_opt) => {
+                if let Some(expr) = expr_opt {
+                    self.validate_expression_invariants(expr)?;
+                }
+            }
+            HirStatementKind::If { condition, then_block, else_block } => {
+                self.validate_expression_invariants(condition)?;
+                self.validate_block_invariants(then_block)?;
+                if let Some(else_blk) = else_block {
+                    self.validate_block_invariants(else_blk)?;
+                }
+            }
+            HirStatementKind::While { condition, body } => {
+                self.validate_expression_invariants(condition)?;
+                self.validate_block_invariants(body)?;
+            }
+            HirStatementKind::For { iterable, body, .. } => {
+                self.validate_expression_invariants(iterable)?;
+                self.validate_block_invariants(body)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_expression_invariants(&self, expr: &HirExpression) -> Result<(), crate::ast::InvariantError> {
+        // Every expression must have a known type (no Error or Infer types)
+        if matches!(expr.expr_type, HirType::Error | HirType::Infer(_)) {
+            return Err(crate::ast::InvariantError {
+                message: "Expression has unresolved type".to_string(),
+                location: Some(format!("expression:{}", expr.id)),
+            });
+        }
+
+        match &expr.kind {
+            HirExpressionKind::Literal(_) => {
+                // Literals are always valid
+            }
+            HirExpressionKind::Variable(symbol) => {
+                // Variable must be resolved (this is checked by having a Symbol type)
+                // The fact that we have a Symbol means it was resolved
+            }
+            HirExpressionKind::Binary { left, right, .. } => {
+                self.validate_expression_invariants(left)?;
+                self.validate_expression_invariants(right)?;
+            }
+            HirExpressionKind::Unary { operand, .. } => {
+                self.validate_expression_invariants(operand)?;
+            }
+            HirExpressionKind::Call { arguments, .. } => {
+                for arg in arguments {
+                    self.validate_expression_invariants(arg)?;
+                }
+            }
+            HirExpressionKind::FieldAccess { object, .. } => {
+                self.validate_expression_invariants(object)?;
+            }
+            HirExpressionKind::StructInit { fields, .. } => {
+                for field in fields {
+                    self.validate_expression_invariants(&field.value)?;
+                }
+            }
+            HirExpressionKind::Range { start, end } => {
+                self.validate_expression_invariants(start)?;
+                self.validate_expression_invariants(end)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_place_invariants(&self, place: &HirPlace) -> Result<(), crate::ast::InvariantError> {
+        if matches!(place.place_type, HirType::Error | HirType::Infer(_)) {
+            return Err(crate::ast::InvariantError {
+                message: "Place has unresolved type".to_string(),
+                location: Some("place".to_string()),
+            });
+        }
+
+        match &place.kind {
+            HirPlaceKind::Local(_) => {
+                // Local places are valid if they have resolved types
+            }
+            HirPlaceKind::Field { object, .. } => {
+                self.validate_place_invariants(object)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_no_error_types(&self) -> Result<(), crate::ast::InvariantError> {
+        // This is a comprehensive check that no Error or Infer types remain
+        // The individual checks above should catch most cases, but this is a final safety net
+        
+        for item in &self.items {
+            match item {
+                HirItem::Function(func) => {
+                    if self.type_contains_error(&func.return_type) {
+                        return Err(crate::ast::InvariantError {
+                            message: format!("Function '{}' contains unresolved types", func.name),
+                            location: Some(format!("function:{}", func.name)),
+                        });
+                    }
+                }
+                HirItem::Struct(struct_def) => {
+                    for field in &struct_def.fields {
+                        if self.type_contains_error(&field.field_type) {
+                            return Err(crate::ast::InvariantError {
+                                message: format!("Struct '{}' contains unresolved types", struct_def.name),
+                                location: Some(format!("struct:{}", struct_def.name)),
+                            });
+                        }
+                    }
+                }
+                HirItem::Enum(enum_def) => {
+                    for variant in &enum_def.variants {
+                        if let Some(ref data_type) = variant.data_type {
+                            if self.type_contains_error(data_type) {
+                                return Err(crate::ast::InvariantError {
+                                    message: format!("Enum '{}' contains unresolved types", enum_def.name),
+                                    location: Some(format!("enum:{}", enum_def.name)),
+                                });
+                            }
+                        }
+                    }
+                }
+                HirItem::Global(global) => {
+                    if self.type_contains_error(&global.global_type) {
+                        return Err(crate::ast::InvariantError {
+                            message: format!("Global '{}' contains unresolved types", global.name),
+                            location: Some(format!("global:{}", global.name)),
+                        });
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn type_contains_error(&self, hir_type: &HirType) -> bool {
+        match hir_type {
+            HirType::Error | HirType::Infer(_) => true,
+            HirType::Function { params, return_type } => {
+                params.iter().any(|p| self.type_contains_error(p)) || 
+                self.type_contains_error(return_type)
+            }
+            HirType::Range(inner) => self.type_contains_error(inner),
+            _ => false,
+        }
+    }
+
     /// Generate human-readable HIR report
     pub fn generate_hir_report(&self) -> OvieResult<String> {
         let mut report = String::new();

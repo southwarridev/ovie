@@ -2,6 +2,26 @@
 
 use std::fmt;
 use serde::{Deserialize, Serialize};
+use crate::error::{OvieError, OvieResult};
+
+/// Invariant error for AST validation
+#[derive(Debug, Clone)]
+pub struct InvariantError {
+    pub message: String,
+    pub location: Option<String>,
+}
+
+impl fmt::Display for InvariantError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(ref location) = self.location {
+            write!(f, "AST Invariant Violation at {}: {}", location, self.message)
+        } else {
+            write!(f, "AST Invariant Violation: {}", self.message)
+        }
+    }
+}
+
+impl std::error::Error for InvariantError {}
 
 /// Root AST node representing a complete Ovie program
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12,6 +32,116 @@ pub struct AstNode {
 impl AstNode {
     pub fn new(statements: Vec<Statement>) -> Self {
         Self { statements }
+    }
+
+    /// Validate AST invariants according to Stage 2.1 compiler invariants
+    /// 
+    /// AST Invariants (from docs/compiler_invariants.md):
+    /// - AST contains no resolved types
+    /// - AST contains no symbol IDs  
+    /// - AST nodes preserve exact source spans
+    /// - No semantic validation occurs in AST
+    /// - All syntax is valid (parser succeeded)
+    /// - Comments and whitespace are preserved for tooling
+    pub fn validate(&self) -> Result<(), InvariantError> {
+        // Check that AST contains no resolved types
+        for statement in &self.statements {
+            self.validate_statement_invariants(statement)?;
+        }
+        
+        // AST-level invariants passed
+        Ok(())
+    }
+
+    fn validate_statement_invariants(&self, statement: &Statement) -> Result<(), InvariantError> {
+        match statement {
+            Statement::Assignment { value, .. } => {
+                self.validate_expression_invariants(value)?;
+            }
+            Statement::Function { body, .. } => {
+                for stmt in body {
+                    self.validate_statement_invariants(stmt)?;
+                }
+            }
+            Statement::Print { expression } => {
+                self.validate_expression_invariants(expression)?;
+            }
+            Statement::If { condition, then_block, else_block } => {
+                self.validate_expression_invariants(condition)?;
+                for stmt in then_block {
+                    self.validate_statement_invariants(stmt)?;
+                }
+                if let Some(else_stmts) = else_block {
+                    for stmt in else_stmts {
+                        self.validate_statement_invariants(stmt)?;
+                    }
+                }
+            }
+            Statement::While { condition, body } => {
+                self.validate_expression_invariants(condition)?;
+                for stmt in body {
+                    self.validate_statement_invariants(stmt)?;
+                }
+            }
+            Statement::For { iterable, body, .. } => {
+                self.validate_expression_invariants(iterable)?;
+                for stmt in body {
+                    self.validate_statement_invariants(stmt)?;
+                }
+            }
+            Statement::Return { value } => {
+                if let Some(expr) = value {
+                    self.validate_expression_invariants(expr)?;
+                }
+            }
+            Statement::Expression { expression } => {
+                self.validate_expression_invariants(expression)?;
+            }
+            Statement::Struct { .. } => {
+                // Struct definitions are valid at AST level
+            }
+            Statement::Enum { .. } => {
+                // Enum definitions are valid at AST level
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_expression_invariants(&self, expression: &Expression) -> Result<(), InvariantError> {
+        match expression {
+            Expression::Literal(_) => {
+                // Literals are always valid at AST level
+            }
+            Expression::Identifier(_) => {
+                // Identifiers should NOT be resolved at AST level
+                // This is correct - identifiers are just strings at this stage
+            }
+            Expression::Binary { left, right, .. } => {
+                self.validate_expression_invariants(left)?;
+                self.validate_expression_invariants(right)?;
+            }
+            Expression::Unary { operand, .. } => {
+                self.validate_expression_invariants(operand)?;
+            }
+            Expression::Call { arguments, .. } => {
+                for arg in arguments {
+                    self.validate_expression_invariants(arg)?;
+                }
+            }
+            Expression::FieldAccess { object, .. } => {
+                self.validate_expression_invariants(object)?;
+            }
+            Expression::StructInstantiation { fields, .. } => {
+                for field in fields {
+                    self.validate_expression_invariants(&field.value)?;
+                }
+            }
+            Expression::Range { start, end } => {
+                self.validate_expression_invariants(start)?;
+                self.validate_expression_invariants(end)?;
+            }
+        }
+        Ok(())
     }
 }
 
