@@ -152,6 +152,29 @@ enum Commands {
         #[command(subcommand)]
         ir_type: IrType,
     },
+    /// Cross-target validation
+    CrossTarget {
+        /// Source file to validate
+        file: Option<String>,
+        /// Enable performance validation
+        #[arg(long)]
+        performance: bool,
+        /// Enable determinism validation
+        #[arg(long)]
+        determinism: bool,
+        /// Performance tolerance percentage
+        #[arg(long, default_value = "5.0")]
+        tolerance: f64,
+        /// Number of validation runs
+        #[arg(long, default_value = "3")]
+        runs: usize,
+        /// Output file for validation report
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Enable debug output
+        #[arg(long)]
+        debug: bool,
+    },
     /// Batch operations on multiple files
     Batch {
         #[command(subcommand)]
