@@ -4,7 +4,6 @@
 //! as specified in std/fs/mod.ov. All operations are offline-first and
 //! designed to work entirely with local files.
 
-use crate::error::OvieError;
 use crate::stdlib::{OvieResult, OvieOption, OvieVec, ok, err, some, none};
 use std::fs;
 use std::io::{self, Read, Write, BufRead, BufReader, BufWriter, Seek, SeekFrom};

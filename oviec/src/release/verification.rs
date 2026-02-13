@@ -3,7 +3,7 @@
 //! This module provides comprehensive verification of release packages,
 //! including signature validation, integrity checks, and security compliance.
 
-use crate::error::{OvieError, OvieResult};
+use crate::error::OvieResult;
 use crate::release::{SecurityLevel, ReleasePackage, SignatureResult};
 use sha2::{Sha256, Digest};
 use std::collections::HashMap;

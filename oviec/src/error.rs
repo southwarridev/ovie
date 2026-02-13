@@ -422,13 +422,13 @@ impl ErrorCode {
     pub fn default_severity(&self) -> ErrorSeverity {
         match self {
             // Internal compiler errors are fatal
-            ErrorCode::E_ICE_001 | ErrorCode::E_ICE_002 | ErrorCode::E_ICE_003 | ErrorCode::E_ICE_004 => ErrorSeverity::Fatal,
+            ErrorCode::EIce001 | ErrorCode::EIce002 | ErrorCode::EIce003 | ErrorCode::EIce004 => ErrorSeverity::Fatal,
             
             // Runtime errors are typically fatal
-            ErrorCode::E_RUNTIME_003 | ErrorCode::E_RUNTIME_005 => ErrorSeverity::Fatal,
+            ErrorCode::ERuntime003 | ErrorCode::ERuntime005 => ErrorSeverity::Fatal,
             
             // Memory errors are fatal
-            ErrorCode::E_MEM_001 | ErrorCode::E_MEM_002 | ErrorCode::E_MEM_003 | ErrorCode::E_MEM_004 | ErrorCode::E_MEM_005 => ErrorSeverity::Fatal,
+            ErrorCode::EMem001 | ErrorCode::EMem002 | ErrorCode::EMem003 | ErrorCode::EMem004 | ErrorCode::EMem005 => ErrorSeverity::Fatal,
             
             // Most other errors are regular errors
             _ => ErrorSeverity::Error,
@@ -644,7 +644,7 @@ impl ErrorExplanation {
     /// Create a comprehensive explanation for an error code
     pub fn for_error_code(error_code: &ErrorCode) -> Self {
         match error_code {
-            ErrorCode::E_LEX_001 => Self {
+            ErrorCode::ELex001 => Self {
                 what_happened: "The lexer encountered an invalid character that is not part of the Ovie language syntax.".to_string(),
                 why_it_happened: "This usually happens when you have a typo, use a character that's not allowed in Ovie, or have encoding issues.".to_string(),
                 how_to_fix: "Check for typos, ensure you're using valid Ovie syntax, and verify your file encoding is UTF-8.".to_string(),
@@ -664,7 +664,7 @@ impl ErrorExplanation {
                     }
                 ],
             },
-            ErrorCode::E_PARSE_001 => Self {
+            ErrorCode::EParse001 => Self {
                 what_happened: "The parser expected a specific token but found something else.".to_string(),
                 why_it_happened: "This occurs when the syntax doesn't match what the parser expects at this point in the code.".to_string(),
                 how_to_fix: "Check the syntax around the error location and ensure it follows Ovie's grammar rules.".to_string(),
@@ -684,7 +684,7 @@ impl ErrorExplanation {
                     }
                 ],
             },
-            ErrorCode::E_TYPE_001 => Self {
+            ErrorCode::EType001 => Self {
                 what_happened: "There's a mismatch between the expected type and the actual type of a value.".to_string(),
                 why_it_happened: "Ovie has a strong type system that prevents mixing incompatible types without explicit conversion.".to_string(),
                 how_to_fix: "Either change the value to match the expected type, or add an explicit type conversion.".to_string(),

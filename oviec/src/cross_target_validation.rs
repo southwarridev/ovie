@@ -4,7 +4,7 @@
 //! behavior across different target platforms while respecting platform-specific
 //! differences where appropriate.
 
-use crate::error::{OvieError, OvieResult};
+use crate::error::OvieResult;
 use crate::ir::Program;
 use crate::codegen::{CodegenBackend, WasmBackend};
 use std::collections::HashMap;
