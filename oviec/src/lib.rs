@@ -21,6 +21,10 @@ pub mod branding;
 pub mod release;
 pub mod cross_target_validation;
 pub mod hardware;
+pub mod hardware_impl;
+pub mod hardware_safety;
+pub mod runtime_environment;
+pub mod stdlib;
 
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -181,12 +185,12 @@ pub use error::{OvieError, OvieResult, Diagnostic, ErrorReporter, ErrorSeverity,
 // pub use self::{BuildConfig, BuildMetadata}; // Remove duplicate export
 pub use lexer::{Lexer, Token, TokenType};
 pub use parser::{Parser, ParseResult};
-pub use ast::{AstNode, Statement, Expression};
-pub use hir::{HirProgram, HirBuilder, HirItem, HirFunction, HirStatement, HirExpression, HirType};
-pub use mir::{MirProgram, MirBuilder, MirFunction, MirBasicBlock, MirStatement, MirTerminator, MirType};
+pub use ast::{AstNode, Statement, Expression, AstInvariantValidation};
+pub use hir::{HirProgram, HirBuilder, HirItem, HirFunction, HirStatement, HirExpression, HirType, HirInvariantValidation};
+pub use mir::{MirProgram, MirBuilder, MirFunction, MirBasicBlock, MirStatement, MirTerminator, MirType, MirInvariantValidation};
 pub use interpreter::{Interpreter, IrInterpreter};
 // pub use semantic::{SemanticAnalyzer, TypedAst, Type};
-pub use ir::{IrBuilder, Program as IR, Instruction, Value};
+pub use ir::{IrBuilder, Program as IR, Instruction, Value, BackendInvariantValidation};
 pub use normalizer::Normalizer;
 pub use codegen::CodegenBackend;
 pub use codegen::WasmBackend;
@@ -196,7 +200,12 @@ pub use self_hosting::{SelfHostingManager, SelfHostingStage, BootstrapVerifier, 
 pub use branding::{BrandingConfig, ProjectTemplate, ProjectMetadata};
 pub use release::{ReleaseManager, SecurityLevel, ReleaseMetadata, DistributionConfig, DistributionManager, ReleasePackage, SignatureResult, VerificationResult};
 pub use cross_target_validation::{CrossTargetValidator, CrossTargetValidationConfig, CrossTargetValidationResults, TargetPlatform, TargetValidationResult, PlatformGuarantee, GuaranteeType, ConsistencyResults, PerformanceResults, ValidationSummary};
-pub use hardware::{PlatformAbstractionLayer, DeviceModel, DeviceType, DeviceState, StateValue, DeviceOperation, SafetyConstraint, DeviceInvariant, PlatformConfiguration, SafetyLevel, HardwareSafetyAnalyzer, DeterminismEnforcer, DeviceFactory, HardwareBehaviorAnalyzer, AutomatedHardwareAnalyzer, HardwareConfiguration, BehaviorPattern, AnalysisResult};
+
+// Export the main Compiler interface
+// pub use self::{DeterministicBuildConfig, BuildMetadata};
+// Hardware abstraction layer - temporarily disabled for compilation
+// use hardware::{PlatformAbstractionLayer, DeviceModel, DeviceType, DeviceState, StateValue, DeviceOperation, SafetyConstraint, DeviceInvariant, PlatformConfiguration, SafetyLevel, HardwareSafetyAnalyzer, DeterminismEnforcer, DeviceFactory, HardwareBehaviorAnalyzer, AutomatedHardwareAnalyzer, HardwareConfiguration, BehaviorPattern, AnalysisResult};
+pub use runtime_environment::{OvieRuntimeEnvironment, OreError, HealthReport, HealthStatus, ComponentHealth};
 #[cfg(feature = "llvm")]
 pub use codegen::LlvmBackend;
 
@@ -270,6 +279,8 @@ pub struct Compiler {
     pub build_config: DeterministicBuildConfig,
     /// Supply chain security manager
     pub security_manager: SupplyChainSecurity,
+    /// Enable strict invariant checking (panic on violation)
+    pub strict_invariants: bool,
 }
 
 impl Compiler {
@@ -280,6 +291,7 @@ impl Compiler {
             default_backend: Backend::Interpreter,
             build_config: DeterministicBuildConfig::new(),
             security_manager: SupplyChainSecurity::new(),
+            strict_invariants: false,
         }
     }
 
@@ -290,6 +302,7 @@ impl Compiler {
             default_backend: Backend::Interpreter,
             build_config: DeterministicBuildConfig::new(),
             security_manager: SupplyChainSecurity::new(),
+            strict_invariants: false,
         }
     }
 
@@ -300,6 +313,7 @@ impl Compiler {
             default_backend: backend,
             build_config: DeterministicBuildConfig::new(),
             security_manager: SupplyChainSecurity::new(),
+            strict_invariants: false,
         }
     }
 
@@ -310,7 +324,24 @@ impl Compiler {
             default_backend: Backend::Interpreter,
             build_config: DeterministicBuildConfig::new_deterministic(),
             security_manager: SupplyChainSecurity::new(),
+            strict_invariants: false,
         }
+    }
+
+    /// Create a new compiler instance with strict invariant checking enabled
+    pub fn new_with_strict_invariants() -> Self {
+        Self {
+            debug: false,
+            default_backend: Backend::Interpreter,
+            build_config: DeterministicBuildConfig::new(),
+            security_manager: SupplyChainSecurity::new(),
+            strict_invariants: true,
+        }
+    }
+
+    /// Enable or disable strict invariant checking
+    pub fn set_strict_invariants(&mut self, enabled: bool) {
+        self.strict_invariants = enabled;
     }
 
     /// Set build configuration
@@ -417,6 +448,32 @@ impl Compiler {
         // Step 6: Semantic analysis
         // TODO: Implement semantic analyzer
 
+        // Step 7: AST invariant validation
+        if let Err(e) = normalized_ast.validate() {
+            let error = OvieError::InvariantViolation {
+                stage: "AST".to_string(),
+                message: format!("AST invariant violation: {} (Source: {}, Build: {})", 
+                    e, 
+                    self.build_config.source_hash.as_deref().unwrap_or("unknown"),
+                    self.build_config.compute_build_hash()
+                ),
+            };
+            
+            if self.strict_invariants {
+                panic!("AST invariant violation: {} (Source: {}, Build: {})", 
+                    e,
+                    self.build_config.source_hash.as_deref().unwrap_or("unknown"),
+                    self.build_config.compute_build_hash()
+                );
+            } else {
+                return Err(error);
+            }
+        }
+
+        if self.debug {
+            println!("AST invariants validated successfully");
+        }
+
         Ok(normalized_ast)
     }
 
@@ -428,8 +485,31 @@ impl Compiler {
         let mut hir_builder = HirBuilder::new();
         let hir = hir_builder.transform_ast(&ast)?;
         
+        // Step 7: HIR invariant validation
+        if let Err(e) = hir.validate() {
+            let error = OvieError::InvariantViolation {
+                stage: "HIR".to_string(),
+                message: format!("HIR invariant violation: {} (Source: {}, Build: {})", 
+                    e,
+                    self.build_config.source_hash.as_deref().unwrap_or("unknown"),
+                    self.build_config.compute_build_hash()
+                ),
+            };
+            
+            if self.strict_invariants {
+                panic!("HIR invariant violation: {} (Source: {}, Build: {})", 
+                    e,
+                    self.build_config.source_hash.as_deref().unwrap_or("unknown"),
+                    self.build_config.compute_build_hash()
+                );
+            } else {
+                return Err(error);
+            }
+        }
+        
         if self.debug {
             println!("HIR: {}", hir.to_json().unwrap_or_else(|_| "Failed to serialize HIR".to_string()));
+            println!("HIR invariants validated successfully");
         }
         
         Ok(hir)
@@ -443,8 +523,31 @@ impl Compiler {
         let mut mir_builder = MirBuilder::new();
         let mir = mir_builder.transform_hir(&hir)?;
         
+        // Step 8: MIR invariant validation
+        if let Err(e) = mir.validate() {
+            let error = OvieError::InvariantViolation {
+                stage: "MIR".to_string(),
+                message: format!("MIR invariant violation: {} (Source: {}, Build: {})", 
+                    e,
+                    self.build_config.source_hash.as_deref().unwrap_or("unknown"),
+                    self.build_config.compute_build_hash()
+                ),
+            };
+            
+            if self.strict_invariants {
+                panic!("MIR invariant violation: {} (Source: {}, Build: {})", 
+                    e,
+                    self.build_config.source_hash.as_deref().unwrap_or("unknown"),
+                    self.build_config.compute_build_hash()
+                );
+            } else {
+                return Err(error);
+            }
+        }
+        
         if self.debug {
             println!("MIR: {}", mir.to_json().unwrap_or_else(|_| "Failed to serialize MIR".to_string()));
+            println!("MIR invariants validated successfully");
         }
         
         Ok(mir)
@@ -464,8 +567,31 @@ impl Compiler {
         // In a full implementation, this would be a proper MIR to IR conversion
         let ir = ir_builder.build();
         
+        // Step 9: Backend invariant validation
+        if let Err(e) = ir.validate_backend_invariants() {
+            let error = OvieError::InvariantViolation {
+                stage: "Backend".to_string(),
+                message: format!("Backend invariant violation: {} (Source: {}, Build: {})", 
+                    e,
+                    self.build_config.source_hash.as_deref().unwrap_or("unknown"),
+                    self.build_config.compute_build_hash()
+                ),
+            };
+            
+            if self.strict_invariants {
+                panic!("Backend invariant violation: {} (Source: {}, Build: {})", 
+                    e,
+                    self.build_config.source_hash.as_deref().unwrap_or("unknown"),
+                    self.build_config.compute_build_hash()
+                );
+            } else {
+                return Err(error);
+            }
+        }
+        
         if self.debug {
             println!("Legacy IR: {}", ir.to_json().unwrap_or_else(|_| "Failed to serialize IR".to_string()));
+            println!("Backend invariants validated successfully");
         }
         
         Ok(ir)

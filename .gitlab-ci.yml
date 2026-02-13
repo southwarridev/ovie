@@ -10,7 +10,7 @@ stages:
   - deploy
 
 variables:
-  OVIE_VERSION: "2.1.0"
+  OVIE_VERSION: "2.2.0"
   DEBIAN_FRONTEND: noninteractive
 
 # Cache configuration for self-hosted builds

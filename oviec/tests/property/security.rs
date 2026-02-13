@@ -12,8 +12,8 @@ pub fn test_security_analysis_effectiveness_property(source: &str) -> OvieResult
     match compiler.compile_to_ast(source) {
         Ok(_) => {
             // Check that security analysis was performed
-            let security_report = compiler.security_manager().generate_comprehensive_report();
-            Ok(security_report.total_issues >= 0) // Always true, but validates structure
+            let security_report = compiler.security_manager().generate_comprehensive_security_report();
+            Ok(security_report.network_security.total_network_calls >= 0) // Always true, but validates structure
         }
         Err(_) => {
             // Security errors should be properly categorized
@@ -30,8 +30,8 @@ pub fn test_network_access_prevention_property(source: &str) -> OvieResult<bool>
     let _result = compiler.compile_to_ast(source);
     
     // Verify network monitor blocked any attempts
-    let network_report = compiler.security_manager().network_monitor().generate_report();
-    Ok(network_report.blocked_attempts >= 0) // Should be 0 for offline-first compliance
+    let network_report = compiler.security_manager().generate_security_report();
+    Ok(network_report.unauthorized_network_calls >= 0) // Should be 0 for offline-first compliance
 }
 
 /// Test telemetry blocking

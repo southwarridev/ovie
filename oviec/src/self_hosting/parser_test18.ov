@@ -1,0 +1,10 @@
+// Test 18: Comparison with parameters
+fn test(a, b) {
+    if a == b {
+        seeAm "equal";
+    } else {
+        seeAm "not equal";
+    }
+}
+
+test(1, 2);

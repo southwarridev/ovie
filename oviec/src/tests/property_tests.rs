@@ -5,6 +5,7 @@
 use crate::lexer::{Lexer, TokenType};
 use crate::parser::Parser;
 use crate::ast::{Statement, Expression, Literal};
+use std::path::PathBuf;
 // use crate::semantic::SemanticAnalyzer;
 use proptest::prelude::*;
 
@@ -129,10 +130,12 @@ mod grammar_compliance {
                 let ast = parse_result.unwrap();
                 
                 // AST should have at least one statement
-                prop_assert!(!ast.statements.is_empty());
-                
-                // All statements should be valid types
-                for statement in &ast.statements {
+                match &ast {
+                    crate::ast::AstNode::Program(statements) => {
+                        prop_assert!(!statements.is_empty());
+                        
+                        // All statements should be valid types
+                        for statement in statements {
                     match statement {
                         Statement::Print { .. } |
                         Statement::Assignment { .. } |
@@ -146,6 +149,8 @@ mod grammar_compliance {
                         Statement::Enum { .. } => {
                             // Valid statement type
                         }
+                    }
+                }
                     }
                 }
             }
@@ -209,9 +214,11 @@ mod grammar_compliance {
             let mut parser = Parser::new(tokens);
             let ast = parser.parse().unwrap();
             
-            prop_assert_eq!(ast.statements.len(), 1);
-            
-            match &ast.statements[0] {
+            match &ast {
+                crate::ast::AstNode::Program(statements) => {
+                    prop_assert_eq!(statements.len(), 1);
+                    
+                    match &statements[0] {
                 Statement::Assignment { mutable, identifier, value: expr } => {
                     prop_assert!(!mutable);
                     prop_assert_eq!(identifier, &var_name);
@@ -226,20 +233,22 @@ mod grammar_compliance {
                         }
                         Expression::Literal(Literal::Number(n)) => {
                             if let Ok(expected) = value.parse::<f64>() {
-                                prop_assert_eq!(*n, expected);
+                                prop_assert_eq!(n, expected);
                             }
                         }
                         Expression::Literal(Literal::Boolean(b)) => {
                             if value == "true" {
-                                prop_assert!(*b);
+                                prop_assert!(b);
                             } else if value == "false" {
-                                prop_assert!(!*b);
+                                prop_assert!(!b);
                             }
                         }
                         _ => {}
                     }
                 }
                 _ => prop_assert!(false, "Expected assignment statement"),
+            }
+                }
             }
         }
     }
@@ -271,9 +280,11 @@ mod print_expression_correctness {
             let mut parser = Parser::new(tokens);
             let ast = parser.parse().unwrap();
             
-            prop_assert_eq!(ast.statements.len(), 1);
-            
-            match &ast.statements[0] {
+            match &ast {
+                crate::ast::AstNode::Program(statements) => {
+                    prop_assert_eq!(statements.len(), 1);
+                    
+                    match &statements[0] {
                 Statement::Print { expression } => {
                     // Verify the expression is parsed correctly
                     match expression {
@@ -284,12 +295,14 @@ mod print_expression_correctness {
                             prop_assert!(expr.parse::<f64>().is_ok());
                         }
                         Expression::Literal(Literal::Boolean(b)) => {
-                            prop_assert!((expr == "true" && *b) || (expr == "false" && !*b));
+                            prop_assert!((expr == "true" && b) || (expr == "false" && !b));
                         }
                         _ => {}
                     }
                 }
                 _ => prop_assert!(false, "Expected print statement"),
+            }
+                }
             }
         }
 
@@ -664,9 +677,13 @@ mod ir_pipeline_integrity {
             // Verify consistency across pipeline stages
             
             // 1. Function count consistency
-            let ast_functions = ast.statements.iter()
-                .filter(|stmt| matches!(stmt, Statement::Function { .. }))
-                .count();
+            let ast_functions = match &ast {
+                crate::ast::AstNode::Program(statements) => {
+                    statements.iter()
+                        .filter(|stmt| matches!(stmt, Statement::Function { .. }))
+                        .count()
+                }
+            };
             let hir_functions = hir.items.iter()
                 .filter(|item| matches!(item, crate::hir::HirItem::Function(_)))
                 .count();
@@ -1027,7 +1044,11 @@ mod ir_pipeline_integrity {
             let ir_program = ir_builder.build();
             
             // Verify structure preservation
-            prop_assert_eq!(normalized_ast.statements.len(), statements.len());
+            match &normalized_ast {
+                crate::ast::AstNode::Program(norm_statements) => {
+                    prop_assert_eq!(norm_statements.len(), statements.len());
+                }
+            }
             
             // Verify IR has main function
             prop_assert!(ir_program.entry_point.is_some(), "IR should have entry point");
@@ -1113,7 +1134,6 @@ mod ir_pipeline_integrity {
             prop_assert_eq!(json1, json2, "IR generation should be deterministic for: {}", program);
         }
     }
-}
 
 /// **Feature: ovie-programming-language, Property 12: Multi-Backend Semantic Equivalence**
 /// 
@@ -1591,6 +1611,10 @@ pub mod bootstrap_verification_properties {
                 performance_benchmarking: false,
                 max_performance_degradation: 10.0,
                 verbose_logging: false,
+                rollback_enabled: true,
+                reproducible_builds: true,
+                work_dir: PathBuf::from("target/test_bootstrap"),
+                reproducibility_iterations: 2,
             };
             
             let verifier = BootstrapVerifier::new(config);
@@ -1681,6 +1705,10 @@ pub mod bootstrap_verification_properties {
                 performance_benchmarking: false,
                 max_performance_degradation: 5.0,
                 verbose_logging: false,
+                rollback_enabled: true,
+                reproducible_builds: true,
+                work_dir: PathBuf::from("target/test_integration"),
+                reproducibility_iterations: 2,
             };
             
             // Initialize (may fail, but test should continue)
@@ -2235,6 +2263,10 @@ pub mod multi_repository_version_consistency {
                     documentation: None,
                     keywords: vec![],
                     categories: vec![],
+                    signatures: vec![],
+                    checksums: HashMap::new(),
+                    build_timestamp: Some(1640995200),
+                    offline_metadata: crate::package::OfflineMetadata::default(),
                 };
                 
                 let register_result = registry.store_package(metadata, b"test package content");
@@ -2363,6 +2395,10 @@ pub mod multi_repository_version_consistency {
                     documentation: None,
                     keywords: vec![],
                     categories: vec![],
+                    signatures: vec![],
+                    checksums: HashMap::new(),
+                    build_timestamp: Some(1640995200),
+                    offline_metadata: crate::package::OfflineMetadata::default(),
                 };
                 
                 let register_result = registry.store_package(metadata, b"test package content");
@@ -2580,6 +2616,10 @@ pub mod multi_repository_version_consistency {
             documentation: None,
             keywords: vec![],
             categories: vec![],
+            signatures: vec![],
+            checksums: HashMap::new(),
+            build_timestamp: Some(1640995200),
+            offline_metadata: crate::package::OfflineMetadata::default(),
         };
         assert!(registry.store_package(oviec_metadata, b"oviec content").is_ok());
         
@@ -2601,6 +2641,10 @@ pub mod multi_repository_version_consistency {
             documentation: None,
             keywords: vec![],
             categories: vec![],
+            signatures: vec![],
+            checksums: HashMap::new(),
+            build_timestamp: Some(1640995200),
+            offline_metadata: crate::package::OfflineMetadata::default(),
         };
         assert!(registry.store_package(ovie_metadata, b"ovie content").is_ok());
         
@@ -2714,7 +2758,7 @@ mod compiler_output_equivalence {
             
             for (t1, t2) in tokens1.iter().zip(tokens2.iter()) {
                 prop_assert_eq!(t1.token_type, t2.token_type);
-                prop_assert_eq!(t1.lexeme, t2.lexeme);
+                prop_assert_eq!(&t1.lexeme, &t2.lexeme);
                 prop_assert_eq!(t1.location.line, t2.location.line);
                 prop_assert_eq!(t1.location.column, t2.location.column);
             }
@@ -2771,7 +2815,7 @@ mod bootstrap_process_reproducibility {
             
             // All hashes should be identical (deterministic behavior)
             for i in 1..hashes.len() {
-                prop_assert_eq!(hashes[0], hashes[i], "Lexing should be deterministic");
+                prop_assert_eq!(&hashes[0], &hashes[i], "Lexing should be deterministic");
             }
         }
 
@@ -2797,7 +2841,7 @@ mod bootstrap_process_reproducibility {
             
             for (t1, t2) in tokens1.iter().zip(tokens2.iter()) {
                 prop_assert_eq!(t1.token_type, t2.token_type);
-                prop_assert_eq!(t1.lexeme, t2.lexeme);
+                prop_assert_eq!(&t1.lexeme, &t2.lexeme);
             }
         }
     }
@@ -2838,7 +2882,7 @@ mod bootstrap_verification_properties {
             let hash1 = verifier.compute_token_hash(&tokens);
             let hash2 = verifier.compute_token_hash(&tokens);
             
-            prop_assert_eq!(hash1, hash2, "Hash computation should be deterministic");
+            prop_assert_eq!(&hash1, &hash2, "Hash computation should be deterministic");
             prop_assert!(!hash1.is_empty(), "Hash should not be empty");
             prop_assert_eq!(hash1.len(), 64, "SHA-256 hash should be 64 characters");
         }

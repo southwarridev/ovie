@@ -1,0 +1,213 @@
+name: Bootstrap Verification
+
+# This workflow runs bootstrap verification to ensure the Ovie-in-Ovie compiler
+# produces identical results to the Rust compiler.
+#
+# CURRENT STATUS: Infrastructure ready, waiting for working Ovie-in-Ovie compiler
+# This workflow is currently DISABLED (manual trigger only) until Task 7.1 is complete.
+
+on:
+  # Disabled automatic triggers until compiler is ready
+  # push:
+  #   branches: [ main, develop ]
+  #   paths:
+  #     - 'oviec/src/**'
+  #     - 'scripts/bootstrap_verify.*'
+  #     - '.github/workflows/bootstrap-verification.yml'
+  # pull_request:
+  #   branches: [ main, develop ]
+  
+  # Manual trigger only for now
+  workflow_dispatch:
+    inputs:
+      verbose:
+        description: 'Enable verbose logging'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bootstrap-verification:
+    name: Bootstrap Verification
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            script: ./scripts/bootstrap_verify.sh
+          - os: windows-latest
+            script: pwsh scripts/bootstrap_verify.ps1
+          - os: macos-latest
+            script: ./scripts/bootstrap_verify.sh
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Build Rust compiler (Stage 0)
+        run: cargo build --release --bin oviec
+        working-directory: oviec
+      
+      - name: Run bootstrap verification script
+        id: bootstrap
+        run: ${{ matrix.script }}
+        env:
+          VERBOSE: ${{ github.event.inputs.verbose || 'false' }}
+        continue-on-error: true
+      
+      - name: Check bootstrap verification result
+        if: steps.bootstrap.outcome == 'failure'
+        run: |
+          echo "::error::Bootstrap verification failed on ${{ matrix.os }}"
+          exit 1
+      
+      - name: Upload bootstrap verification report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: bootstrap-report-${{ matrix.os }}
+          path: |
+            target/bootstrap_verification/verification_report.txt
+            target/bootstrap_verification/rollback_state.json
+          retention-days: 30
+      
+      - name: Upload bootstrap artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: bootstrap-artifacts-${{ matrix.os }}
+          path: |
+            target/bootstrap_verification/
+          retention-days: 7
+
+  performance-monitoring:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    needs: bootstrap-verification
+    if: always()
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download bootstrap reports
+        uses: actions/download-artifact@v3
+        with:
+          path: bootstrap-reports/
+      
+      - name: Analyze performance metrics
+        run: |
+          echo "Analyzing bootstrap performance metrics..."
+          
+          # Extract performance data from reports
+          for report in bootstrap-reports/*/verification_report.txt; do
+            if [ -f "$report" ]; then
+              echo "Processing: $report"
+              grep -E "Performance|Time|Ratio" "$report" || true
+            fi
+          done
+          
+          echo "Performance analysis complete"
+      
+      - name: Check performance degradation
+        run: |
+          echo "Checking for performance degradation..."
+          
+          # This will be implemented to compare against baseline
+          # For now, just report that infrastructure is ready
+          echo "Performance monitoring infrastructure ready"
+          echo "Baseline comparison will be enabled once compiler is functional"
+
+  ci-integration-tests:
+    name: CI Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+      
+      - name: Run CI integration tests
+        run: |
+          echo "Running CI integration tests..."
+          
+          # Test that bootstrap scripts exist and are valid
+          cargo test --test bootstrap::script_integration_tests -- --test-threads=1
+        working-directory: oviec
+      
+      - name: Verify CI workflow configuration
+        run: |
+          echo "Verifying CI workflow configuration..."
+          
+          # Check that workflow file is valid YAML
+          if command -v yamllint &> /dev/null; then
+            yamllint .github/workflows/bootstrap-verification.yml
+          else
+            echo "yamllint not available, skipping YAML validation"
+          fi
+          
+          echo "CI configuration verified"
+
+  summary:
+    name: Bootstrap Verification Summary
+    runs-on: ubuntu-latest
+    needs: [bootstrap-verification, performance-monitoring, ci-integration-tests]
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Bootstrap Verification Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: Infrastructure Ready ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Bootstrap Verification: ${{ needs.bootstrap-verification.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Performance Monitoring: ${{ needs.performance-monitoring.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- CI Integration Tests: ${{ needs.ci-integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Notes" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow is currently in infrastructure-ready mode." >> $GITHUB_STEP_SUMMARY
+          echo "Full bootstrap verification will be enabled once the Ovie-in-Ovie compiler is functional (Task 7.1)." >> $GITHUB_STEP_SUMMARY
+      
+      - name: Check overall status
+        run: |
+          if [ "${{ needs.bootstrap-verification.result }}" != "success" ]; then
+            echo "::warning::Bootstrap verification did not complete successfully"
+          fi
+          
+          if [ "${{ needs.performance-monitoring.result }}" != "success" ]; then
+            echo "::warning::Performance monitoring encountered issues"
+          fi
+          
+          if [ "${{ needs.ci-integration-tests.result }}" != "success" ]; then
+            echo "::error::CI integration tests failed"
+            exit 1
+          fi

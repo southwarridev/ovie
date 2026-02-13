@@ -73,23 +73,23 @@ pub fn test_performance_regression_detection() -> OvieResult<()> {
     
     let mut regressions = Vec::new();
     
-    if current.lexer_time > baseline.lexer_time * regression_threshold.try_into().unwrap() {
+    if current.lexer_time.as_secs_f64() > baseline.lexer_time.as_secs_f64() * regression_threshold {
         regressions.push("Lexer performance regression detected");
     }
     
-    if current.parser_time > baseline.parser_time * regression_threshold.try_into().unwrap() {
+    if current.parser_time.as_secs_f64() > baseline.parser_time.as_secs_f64() * regression_threshold {
         regressions.push("Parser performance regression detected");
     }
     
-    if current.type_checker_time > baseline.type_checker_time * regression_threshold.try_into().unwrap() {
+    if current.type_checker_time.as_secs_f64() > baseline.type_checker_time.as_secs_f64() * regression_threshold {
         regressions.push("Type checker performance regression detected");
     }
     
-    if current.codegen_time > baseline.codegen_time * regression_threshold.try_into().unwrap() {
+    if current.codegen_time.as_secs_f64() > baseline.codegen_time.as_secs_f64() * regression_threshold {
         regressions.push("Code generation performance regression detected");
     }
     
-    if current.end_to_end_time > baseline.end_to_end_time * regression_threshold.try_into().unwrap() {
+    if current.end_to_end_time.as_secs_f64() > baseline.end_to_end_time.as_secs_f64() * regression_threshold {
         regressions.push("End-to-end performance regression detected");
     }
     

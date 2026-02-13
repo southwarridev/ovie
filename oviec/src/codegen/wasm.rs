@@ -1,6 +1,6 @@
 //! WebAssembly code generation backend with enhanced optimizations
 
-use crate::ir::{Program, Function, BasicBlock, Instruction, Terminator, Opcode, Value, Constant};
+use crate::ir::{Program, Function, BasicBlock, Instruction, Terminator, Opcode, Value, Constant, IrType};
 use crate::error::{OvieError, OvieResult};
 use super::CodegenBackend;
 use wasm_encoder::*;
@@ -19,6 +19,8 @@ pub struct WasmOptimizationConfig {
     pub constant_folding: bool,
     /// Enable function inlining
     pub function_inlining: bool,
+    /// Enable constant pooling
+    pub constant_pooling: bool,
     /// Maximum function size for inlining
     pub inline_threshold: usize,
 }
@@ -31,6 +33,7 @@ impl Default for WasmOptimizationConfig {
             dead_code_elimination: true,
             constant_folding: true,
             function_inlining: false,
+            constant_pooling: false,
             inline_threshold: 50,
         }
     }
@@ -45,6 +48,7 @@ impl WasmOptimizationConfig {
             dead_code_elimination: true,
             constant_folding: true,
             function_inlining: false,
+            constant_pooling: true,
             inline_threshold: 20,
         }
     }
@@ -57,6 +61,7 @@ impl WasmOptimizationConfig {
             dead_code_elimination: true,
             constant_folding: true,
             function_inlining: true,
+            constant_pooling: false,
             inline_threshold: 100,
         }
     }
@@ -69,6 +74,7 @@ impl WasmOptimizationConfig {
             dead_code_elimination: false,
             constant_folding: false,
             function_inlining: false,
+            constant_pooling: false,
             inline_threshold: 0,
         }
     }
@@ -235,7 +241,7 @@ impl WasmBackend {
                 if instruction.operands.len() >= 2 {
                     if let (Value::Constant(Constant::Number(a)), Value::Constant(Constant::Number(b))) = 
                         (&instruction.operands[0], &instruction.operands[1]) {
-                        return Some(a + b);
+                        return Some((a + b) as i32);
                     }
                 }
             }
@@ -243,7 +249,7 @@ impl WasmBackend {
                 if instruction.operands.len() >= 2 {
                     if let (Value::Constant(Constant::Number(a)), Value::Constant(Constant::Number(b))) = 
                         (&instruction.operands[0], &instruction.operands[1]) {
-                        return Some(a - b);
+                        return Some((a - b) as i32);
                     }
                 }
             }
@@ -251,7 +257,7 @@ impl WasmBackend {
                 if instruction.operands.len() >= 2 {
                     if let (Value::Constant(Constant::Number(a)), Value::Constant(Constant::Number(b))) = 
                         (&instruction.operands[0], &instruction.operands[1]) {
-                        return Some(a * b);
+                        return Some((a * b) as i32);
                     }
                 }
             }
@@ -259,8 +265,8 @@ impl WasmBackend {
                 if instruction.operands.len() >= 2 {
                     if let (Value::Constant(Constant::Number(a)), Value::Constant(Constant::Number(b))) = 
                         (&instruction.operands[0], &instruction.operands[1]) {
-                        if *b != 0 {
-                            return Some(a / b);
+                        if *b != 0.0 {
+                            return Some((a / b) as i32);
                         }
                     }
                 }
@@ -310,8 +316,8 @@ impl WasmBackend {
         let mut memories = MemorySection::new();
         
         let memory_type = MemoryType {
-            minimum: self.target_config.memory_config.initial_pages,
-            maximum: self.target_config.memory_config.maximum_pages,
+            minimum: self.target_config.memory_config.initial_pages as u64,
+            maximum: self.target_config.memory_config.maximum_pages.map(|p| p as u64),
             memory64: self.target_config.memory_config.memory64,
             shared: self.target_config.memory_config.shared,
         };
@@ -339,7 +345,7 @@ impl WasmBackend {
         // Add function types
         for (ir_id, function) in functions {
             let params = vec![ValType::I32; function.parameters.len()];
-            let results = if function.return_type.is_some() { vec![ValType::I32] } else { vec![] };
+            let results = if function.return_type != IrType::Void { vec![ValType::I32] } else { vec![] };
             
             types.function(params, results);
             self.function_types.insert(function.name.clone(), self.next_type_index);
@@ -442,7 +448,7 @@ impl WasmBackend {
     fn generate_optimized_function_body(&mut self, func: &mut wasm_encoder::Function, ir_func: &Function) -> OvieResult<()> {
         // Get the entry block
         let entry_block = ir_func.basic_blocks.get(&ir_func.entry_block)
-            .ok_or_else(|| OvieError::CodegenError("Entry block not found".to_string()))?;
+            .ok_or_else(|| OvieError::CodegenError { message: "Entry block not found".to_string() })?;
         
         // Generate code for the entry block
         self.generate_optimized_block_code(func, entry_block)?;
@@ -523,6 +529,7 @@ impl WasmBackend {
                 func.instruction(&wasm_encoder::Instruction::I32Load(wasm_encoder::MemArg {
                     offset: 0,
                     align: 2,
+                    memory_index: 0,
                 }));
             }
             Opcode::Store => {
@@ -533,6 +540,7 @@ impl WasmBackend {
                 func.instruction(&wasm_encoder::Instruction::I32Store(wasm_encoder::MemArg {
                     offset: 0,
                     align: 2,
+                    memory_index: 0,
                 }));
             }
             _ => {
@@ -553,15 +561,15 @@ impl WasmBackend {
                     Constant::Number(n) => {
                         // Use constant pool if enabled
                         if self.optimization_config.constant_pooling {
-                            if let Some(&pool_index) = self.constant_pool.get(n) {
+                            if let Some(&pool_index) = self.constant_pool.get(&(*n as i32)) {
                                 func.instruction(&wasm_encoder::Instruction::I32Const(pool_index as i32));
                                 return Ok(());
                             } else {
                                 let pool_index = self.constant_pool.len() as u32;
-                                self.constant_pool.insert(*n, pool_index);
+                                self.constant_pool.insert(*n as i32, pool_index);
                             }
                         }
-                        func.instruction(&wasm_encoder::Instruction::I32Const(*n));
+                        func.instruction(&wasm_encoder::Instruction::I32Const(*n as i32));
                     }
                     Constant::String(s) => {
                         // For strings, we'll use the length as a simple representation
@@ -570,30 +578,22 @@ impl WasmBackend {
                     Constant::Boolean(b) => {
                         func.instruction(&wasm_encoder::Instruction::I32Const(if *b { 1 } else { 0 }));
                     }
+                    Constant::Void => {
+                        func.instruction(&wasm_encoder::Instruction::I32Const(0));
+                    }
                 }
             }
-            Value::Variable(var) => {
-                // Look up local variable index
-                if let Some(&local_index) = self.local_indices.get(&var.name) {
-                    func.instruction(&wasm_encoder::Instruction::LocalGet(local_index));
-                } else {
-                    // Assign new local index
-                    let local_index = self.next_local_index;
-                    self.local_indices.insert(var.name.clone(), local_index);
-                    self.next_local_index += 1;
-                    func.instruction(&wasm_encoder::Instruction::LocalGet(local_index));
-                }
+            Value::Instruction(value_id) => {
+                // For now, just push a placeholder value
+                func.instruction(&wasm_encoder::Instruction::I32Const(*value_id as i32));
             }
-            Value::FunctionCall { function_id, arguments } => {
-                // Generate code for arguments
-                for arg in arguments {
-                    self.generate_enhanced_value_code(func, arg)?;
-                }
-                
-                // Call the function
-                if let Some(&wasm_index) = self.function_indices.get(function_id) {
-                    func.instruction(&wasm_encoder::Instruction::Call(wasm_index + 1)); // +1 for imported print
-                }
+            Value::Global(name) => {
+                // For now, just push a placeholder value
+                func.instruction(&wasm_encoder::Instruction::I32Const(name.len() as i32));
+            }
+            Value::Parameter(param_id) => {
+                // For now, just push a placeholder value
+                func.instruction(&wasm_encoder::Instruction::I32Const(*param_id as i32));
             }
         }
         Ok(())
@@ -608,373 +608,20 @@ impl WasmBackend {
                 }
                 func.instruction(&wasm_encoder::Instruction::Return);
             }
-            Terminator::Jump { target } => {
-                // For now, just return (simplified)
-                func.instruction(&wasm_encoder::Instruction::Return);
-            }
-            Terminator::ConditionalJump { condition, true_target, false_target } => {
-                // Generate condition code
-                self.generate_enhanced_value_code(func, condition)?;
-                // For now, just return (simplified)
-                func.instruction(&wasm_encoder::Instruction::Return);
-            }
-        }
-        Ok(())
-    }
-}
-impl WasmBackend {
-    /// Generate WASM module from IR with enhanced optimizations
-    fn generate_module(&mut self, ir: &Program) -> OvieResult<Vec<u8>> {
-        // Add memory section if needed
-        if self.target_config.memory_config.initial_pages > 0 {
-            self.add_memory()?;
-        }
-        
-        // Add type section
-        self.add_types(ir)?;
-        
-        // Add import section (for print function)
-        self.add_imports()?;
-        
-        // Add function section
-        self.add_functions(ir)?;
-        
-        // Add export section
-        self.add_exports(ir)?;
-        
-        // Add code section with optimizations
-        self.add_code_with_optimizations(ir)?;
-        
-        // Clone the module to avoid move issues
-        let module = std::mem::replace(&mut self.module, Module::new());
-        Ok(module.finish())
-    }
-
-    /// Add memory section
-    fn add_memory(&mut self) -> OvieResult<()> {
-        let mut memories = MemorySection::new();
-        
-        let memory_type = MemoryType {
-            minimum: self.target_config.memory_config.initial_pages,
-            maximum: self.target_config.memory_config.maximum_pages,
-            memory64: self.target_config.memory_config.memory64,
-            shared: self.target_config.memory_config.shared,
-        };
-        
-        memories.memory(memory_type);
-        self.module.section(&memories);
-        Ok(())
-    }
-
-    /// Add type definitions
-    fn add_types(&mut self, ir: &Program) -> OvieResult<()> {
-        let mut types = TypeSection::new();
-        
-        // Add print function type: (i32) -> ()
-        types.function([ValType::I32], []);
-        self.function_types.insert("print".to_string(), self.next_type_index);
-        self.next_type_index += 1;
-        
-        // Add main function type: () -> ()
-        types.function([], []);
-        self.function_types.insert("main".to_string(), self.next_type_index);
-        self.next_type_index += 1;
-        
-        // Add types for other functions
-        for (_, function) in &ir.functions {
-            if function.name != "main" {
-                // For now, assume all functions take no parameters and return nothing
-                types.function([], []);
-                self.function_types.insert(function.name.clone(), self.next_type_index);
-                self.next_type_index += 1;
-            }
-        }
-        
-        self.module.section(&types);
-        Ok(())
-    }
-
-    /// Add import section
-    fn add_imports(&mut self) -> OvieResult<()> {
-        let mut imports = ImportSection::new();
-        
-        // Import print function from host
-        imports.import(
-            "env",
-            "print",
-            EntityType::Function(self.function_types["print"])
-        );
-        
-        self.module.section(&imports);
-        Ok(())
-    }
-
-    /// Add function declarations
-    fn add_functions(&mut self, ir: &Program) -> OvieResult<()> {
-        let mut functions = FunctionSection::new();
-        
-        // Add all IR functions
-        for (ir_id, function) in &ir.functions {
-            let type_index = self.function_types.get(&function.name)
-                .ok_or_else(|| OvieError::CodegenError { 
-                    message: format!("No type found for function {}", function.name) 
-                })?;
-            
-            functions.function(*type_index);
-            self.function_indices.insert(*ir_id, self.next_function_index);
-            self.next_function_index += 1;
-        }
-        
-        self.module.section(&functions);
-        Ok(())
-    }
-
-    /// Add exports
-    fn add_exports(&mut self, ir: &Program) -> OvieResult<()> {
-        let mut exports = ExportSection::new();
-        
-        // Export main function if it exists
-        if let Some(entry_id) = ir.entry_point {
-            if let Some(&wasm_index) = self.function_indices.get(&entry_id) {
-                exports.export("main", ExportKind::Func, wasm_index + 1); // +1 for imported print
-            }
-        }
-        
-        self.module.section(&exports);
-        Ok(())
-    }
-
-    /// Add code section with function bodies and optimizations
-    fn add_code_with_optimizations(&mut self, ir: &Program) -> OvieResult<()> {
-        let mut code = CodeSection::new();
-        
-        // Sort functions deterministically if in deterministic mode
-        let mut functions: Vec<_> = ir.functions.iter().collect();
-        if self.deterministic_mode {
-            functions.sort_by_key(|(_, func)| &func.name);
-        }
-        
-        for (ir_id, function) in functions {
-            self.local_indices.clear();
-            self.next_local_index = 0;
-            
-            // Determine local variables needed
-            let locals = self.analyze_function_locals(function)?;
-            let mut func_body = wasm_encoder::Function::new(locals);
-            
-            // Generate optimized code for the function
-            self.generate_optimized_function_body(&mut func_body, function)?;
-            
-            code.function(&func_body);
-        }
-        
-        self.module.section(&code);
-        Ok(())
-    }
-
-    /// Analyze function to determine local variables needed
-    fn analyze_function_locals(&mut self, ir_func: &Function) -> OvieResult<Vec<(u32, ValType)>> {
-        let mut locals = Vec::new();
-        
-        // For now, assume we need some i32 locals for temporary values
-        // In a full implementation, this would analyze the IR to determine exact needs
-        locals.push((2, ValType::I32)); // 2 i32 locals for temporary calculations
-        
-        Ok(locals)
-    }
-
-    /// Generate optimized WASM code for a function body
-    fn generate_optimized_function_body(&mut self, func: &mut wasm_encoder::Function, ir_func: &Function) -> OvieResult<()> {
-        // Get the entry block
-        let entry_block = ir_func.basic_blocks.get(&ir_func.entry_block)
-            .ok_or_else(|| OvieError::CodegenError { 
-                message: "Entry block not found".to_string() 
-            })?;
-        
-        // Generate optimized code for the entry block
-        self.generate_optimized_block_code(func, entry_block)?;
-        
-        Ok(())
-    }
-
-    /// Generate optimized WASM code for a basic block
-    fn generate_optimized_block_code(&mut self, func: &mut wasm_encoder::Function, block: &BasicBlock) -> OvieResult<()> {
-        // Generate instructions with optimizations
-        for instruction in &block.instructions {
-            // Skip eliminated instructions
-            if self.should_eliminate_instruction(instruction) {
-                continue;
-            }
-            
-            // Apply constant folding
-            if let Some(folded_value) = self.apply_constant_folding(instruction) {
-                func.instruction(&wasm_encoder::Instruction::I32Const(folded_value));
-                continue;
-            }
-            
-            // Generate normal instruction
-            self.generate_enhanced_instruction_code(func, instruction)?;
-        }
-        
-        // Generate terminator
-        self.generate_enhanced_terminator_code(func, &block.terminator)?;
-        
-        Ok(())
-    }
-
-    /// Generate enhanced WASM code for an instruction
-    fn generate_enhanced_instruction_code(&mut self, func: &mut wasm_encoder::Function, instruction: &Instruction) -> OvieResult<()> {
-        match instruction.opcode {
-            Opcode::Print => {
-                // For print, we need to get the value and call the imported print function
-                if let Some(operand) = instruction.operands.first() {
-                    self.generate_enhanced_value_code(func, operand)?;
-                    func.instruction(&wasm_encoder::Instruction::Call(0)); // Call imported print function
-                }
-            }
-            Opcode::Add => {
-                // Generate code for operands with optimization
-                if instruction.operands.len() >= 2 {
-                    self.generate_enhanced_value_code(func, &instruction.operands[0])?;
-                    self.generate_enhanced_value_code(func, &instruction.operands[1])?;
-                    func.instruction(&wasm_encoder::Instruction::I32Add);
-                }
-            }
-            Opcode::Sub => {
-                if instruction.operands.len() >= 2 {
-                    self.generate_enhanced_value_code(func, &instruction.operands[0])?;
-                    self.generate_enhanced_value_code(func, &instruction.operands[1])?;
-                    func.instruction(&wasm_encoder::Instruction::I32Sub);
-                }
-            }
-            Opcode::Mul => {
-                if instruction.operands.len() >= 2 {
-                    self.generate_enhanced_value_code(func, &instruction.operands[0])?;
-                    self.generate_enhanced_value_code(func, &instruction.operands[1])?;
-                    func.instruction(&wasm_encoder::Instruction::I32Mul);
-                }
-            }
-            Opcode::Div => {
-                if instruction.operands.len() >= 2 {
-                    self.generate_enhanced_value_code(func, &instruction.operands[0])?;
-                    self.generate_enhanced_value_code(func, &instruction.operands[1])?;
-                    func.instruction(&wasm_encoder::Instruction::I32DivS);
-                }
-            }
-            Opcode::Load => {
-                if let Some(operand) = instruction.operands.first() {
-                    self.generate_enhanced_value_code(func, operand)?;
-                    func.instruction(&wasm_encoder::Instruction::I32Load(MemArg { offset: 0, align: 2 }));
-                }
-            }
-            Opcode::Store => {
-                if instruction.operands.len() >= 2 {
-                    self.generate_enhanced_value_code(func, &instruction.operands[0])?; // address
-                    self.generate_enhanced_value_code(func, &instruction.operands[1])?; // value
-                    func.instruction(&wasm_encoder::Instruction::I32Store(MemArg { offset: 0, align: 2 }));
-                }
-            }
-            Opcode::Compare => {
-                if instruction.operands.len() >= 2 {
-                    self.generate_enhanced_value_code(func, &instruction.operands[0])?;
-                    self.generate_enhanced_value_code(func, &instruction.operands[1])?;
-                    func.instruction(&wasm_encoder::Instruction::I32Eq);
-                }
-            }
-            _ => {
-                // For now, ignore other opcodes
-            }
-        }
-        
-        Ok(())
-    }
-
-    /// Generate enhanced WASM code for a value with optimizations
-    fn generate_enhanced_value_code(&mut self, func: &mut wasm_encoder::Function, value: &Value) -> OvieResult<()> {
-        match value {
-            Value::Constant(constant) => {
-                match constant {
-                    Constant::Number(n) => {
-                        // Use constant pool for frequently used constants if optimizing for size
-                        if self.optimization_config.optimize_size {
-                            if let Some(&pool_index) = self.constant_pool.get(n) {
-                                func.instruction(&wasm_encoder::Instruction::LocalGet(pool_index));
-                                return Ok(());
-                            }
-                        }
-                        func.instruction(&wasm_encoder::Instruction::I32Const(*n as i32));
-                    }
-                    Constant::String(_s) => {
-                        // For now, represent strings as integers (simplified)
-                        func.instruction(&wasm_encoder::Instruction::I32Const(42)); // Placeholder
-                    }
-                    Constant::Boolean(b) => {
-                        func.instruction(&wasm_encoder::Instruction::I32Const(if *b { 1 } else { 0 }));
-                    }
-                    Constant::Void => {
-                        func.instruction(&wasm_encoder::Instruction::I32Const(0));
-                    }
-                    Constant::Float(f) => {
-                        func.instruction(&wasm_encoder::Instruction::F64Const(*f));
-                    }
-                }
-            }
-            Value::Variable(name) => {
-                if let Some(&local_index) = self.local_indices.get(name) {
-                    func.instruction(&wasm_encoder::Instruction::LocalGet(local_index));
-                } else {
-                    // Allocate new local variable
-                    let local_index = self.next_local_index;
-                    self.local_indices.insert(name.clone(), local_index);
-                    self.next_local_index += 1;
-                    func.instruction(&wasm_encoder::Instruction::LocalGet(local_index));
-                }
-            }
-            Value::Instruction(_) => {
-                // For now, just push a placeholder value
-                func.instruction(&wasm_encoder::Instruction::I32Const(0));
-            }
-            Value::Global(_) => {
-                // For now, just push a placeholder value
-                func.instruction(&wasm_encoder::Instruction::I32Const(0));
-            }
-            Value::Parameter(_) => {
-                // For now, just push a placeholder value
-                func.instruction(&wasm_encoder::Instruction::I32Const(0));
-            }
-            Value::Function(_) => {
-                // Function references not supported in value context
-                func.instruction(&wasm_encoder::Instruction::I32Const(0));
-            }
-        }
-        
-        Ok(())
-    }
-
-    /// Generate enhanced WASM code for a terminator
-    fn generate_enhanced_terminator_code(&mut self, func: &mut wasm_encoder::Function, terminator: &Terminator) -> OvieResult<()> {
-        match terminator {
-            Terminator::Return { value } => {
-                if let Some(return_value) = value {
-                    self.generate_enhanced_value_code(func, return_value)?;
-                }
-                func.instruction(&wasm_encoder::Instruction::Return);
-            }
             Terminator::Branch { target: _ } => {
                 // For now, just return (simplified)
                 func.instruction(&wasm_encoder::Instruction::Return);
             }
             Terminator::ConditionalBranch { condition, true_target: _, false_target: _ } => {
-                // Generate condition and use br_if for conditional branching
+                // Generate condition code
                 self.generate_enhanced_value_code(func, condition)?;
-                func.instruction(&wasm_encoder::Instruction::BrIf(0));
+                // For now, just return (simplified)
                 func.instruction(&wasm_encoder::Instruction::Return);
             }
             Terminator::Unreachable => {
                 func.instruction(&wasm_encoder::Instruction::Unreachable);
             }
         }
-        
         Ok(())
     }
 }

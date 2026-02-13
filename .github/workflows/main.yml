@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 env:
-  OVIE_VERSION: "2.1.0"
+  OVIE_VERSION: "2.2.0"
 
 jobs:
   # Quick CI build and test

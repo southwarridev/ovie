@@ -68,8 +68,12 @@ impl Normalizer {
         self.corrections.clear();
 
         // Normalize statements
-        for statement in &mut ast.statements {
-            self.normalize_statement(statement)?;
+        match &mut ast {
+            AstNode::Program(statements) => {
+                for statement in statements {
+                    self.normalize_statement(statement)?;
+                }
+            }
         }
 
         // Normalize whitespace and formatting
@@ -88,7 +92,20 @@ impl Normalizer {
                 self.normalize_identifier(identifier)?;
                 self.normalize_expression(value)?;
             }
+            Statement::VariableDeclaration { identifier, value, .. } => {
+                self.normalize_identifier(identifier)?;
+                self.normalize_expression(value)?;
+            }
             Statement::Function { name, parameters, body } => {
+                self.normalize_identifier(name)?;
+                for param in parameters {
+                    self.normalize_identifier(param)?;
+                }
+                for stmt in body {
+                    self.normalize_statement(stmt)?;
+                }
+            }
+            Statement::FunctionDeclaration { name, parameters, body } => {
                 self.normalize_identifier(name)?;
                 for param in parameters {
                     self.normalize_identifier(param)?;
@@ -173,6 +190,22 @@ impl Normalizer {
             Expression::Range { start, end } => {
                 self.normalize_expression(start)?;
                 self.normalize_expression(end)?;
+            }
+            Expression::EnumVariantConstruction { enum_name, variant_name, data } => {
+                self.normalize_identifier(enum_name)?;
+                self.normalize_identifier(variant_name)?;
+                if let Some(data_expr) = data {
+                    self.normalize_expression(data_expr)?;
+                }
+            }
+            Expression::Index { object, index } => {
+                self.normalize_expression(object)?;
+                self.normalize_expression(index)?;
+            }
+            Expression::ArrayLiteral { elements } => {
+                for element in elements {
+                    self.normalize_expression(element)?;
+                }
             }
             Expression::Literal(_) => {
                 // Literals don't need normalization

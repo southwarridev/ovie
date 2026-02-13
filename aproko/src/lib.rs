@@ -7,14 +7,14 @@
 pub mod analyzers;
 pub mod diagnostic;
 pub mod explanation;
+pub mod reasoning;
 #[cfg(test)]
 mod integration_tests;
 #[cfg(test)]
 mod property_tests;
 
 use analyzers::{SyntaxAnalyzer, LogicAnalyzer, PerformanceAnalyzer, SecurityAnalyzer, CorrectnessAnalyzer, StyleAnalyzer};
-use diagnostic::{DiagnosticEngine, Diagnostic};
-use explanation::ExplanationEngine;
+// Removed duplicate imports - these are re-exported below
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -185,6 +185,7 @@ pub struct AprokoEngine {
     analyzers: HashMap<AnalysisCategory, Box<dyn Analyzer>>,
     diagnostic_engine: DiagnosticEngine,
     explanation_engine: ExplanationEngine,
+    reasoning_engine: ReasoningEngine,
 }
 
 /// Trait for category-specific analyzers
@@ -212,6 +213,7 @@ impl AprokoEngine {
             analyzers: HashMap::new(),
             diagnostic_engine: DiagnosticEngine::new(),
             explanation_engine: ExplanationEngine::new(),
+            reasoning_engine: ReasoningEngine::new(),
         };
         
         // Register default analyzers
@@ -348,6 +350,26 @@ impl AprokoEngine {
     pub fn explain_finding(&self, finding: &Finding) -> AprokoResult<explanation::Explanation> {
         self.explanation_engine.explain_finding(finding)
     }
+
+    /// Get the reasoning engine
+    pub fn reasoning_engine(&self) -> &ReasoningEngine {
+        &self.reasoning_engine
+    }
+
+    /// Get a mutable reference to the reasoning engine
+    pub fn reasoning_engine_mut(&mut self) -> &mut ReasoningEngine {
+        &mut self.reasoning_engine
+    }
+
+    /// Explain a diagnostic with full reasoning chain
+    pub fn explain_diagnostic_with_reasoning(&mut self, diagnostic: &Diagnostic) -> AprokoResult<(explanation::Explanation, reasoning::ReasoningChain)> {
+        self.reasoning_engine.explain_diagnostic(diagnostic)
+    }
+
+    /// Explain a finding with full reasoning chain
+    pub fn explain_finding_with_reasoning(&mut self, finding: &Finding) -> AprokoResult<(explanation::Explanation, reasoning::ReasoningChain)> {
+        self.reasoning_engine.explain_finding(finding)
+    }
 }
 
 impl Default for AprokoEngine {
@@ -360,6 +382,7 @@ impl Default for AprokoEngine {
 pub use oviec;
 pub use diagnostic::{DiagnosticEngine, Diagnostic, DiagnosticCategory, DiagnosticRule, SourceLocation};
 pub use explanation::{ExplanationEngine, Explanation, ExplanationType, FixSuggestion, CodeExample};
+pub use reasoning::{ReasoningEngine, InferenceEngine, KnowledgeBase, ReasoningChain, ReasoningStep, KnowledgeEntry, KnowledgeCategory};
 
 #[cfg(test)]
 mod tests {

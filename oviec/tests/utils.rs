@@ -1,6 +1,6 @@
 //! Test utilities and helper functions
 
-use crate::{Compiler, OvieResult};
+use crate::{Compiler, OvieResult, OvieError};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -47,7 +47,7 @@ impl TestAssert {
     pub fn compilation_fails(source: &str) -> OvieResult<()> {
         let mut compiler = Compiler::new();
         match compiler.compile_to_ast(source) {
-            Ok(_) => Err(crate::OvieError::compile_error("Expected compilation to fail")),
+            Ok(_) => Err(OvieError::CompileError { message: "Expected compilation to fail".to_string() }),
             Err(_) => Ok(()),
         }
     }
@@ -63,7 +63,7 @@ impl TestAssert {
     pub fn type_checking_fails(source: &str) -> OvieResult<()> {
         let mut compiler = Compiler::new();
         match compiler.compile_to_hir(source) {
-            Ok(_) => Err(crate::OvieError::compile_error("Expected type checking to fail")),
+            Ok(_) => Err(OvieError::CompileError { message: "Expected type checking to fail".to_string() }),
             Err(_) => Ok(()),
         }
     }
@@ -78,7 +78,7 @@ impl TestAssert {
         if result1 == result2 {
             Ok(())
         } else {
-            Err(crate::OvieError::compile_error("Compilation is not deterministic"))
+            Err(OvieError::CompileError { message: "Compilation is not deterministic".to_string() })
         }
     }
 }

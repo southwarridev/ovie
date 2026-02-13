@@ -44,7 +44,10 @@ fn main() {
             let parse_time = start.elapsed();
             
             if let Ok(ast) = ast {
-                println!("  Parsing: {:?} ({} statements)", parse_time, ast.statements.len());
+                let statement_count = match &ast {
+                    oviec::ast::AstNode::Program(statements) => statements.len(),
+                };
+                println!("  Parsing: {:?} ({} statements)", parse_time, statement_count);
                 
                 // Time IR generation
                 let start = Instant::now();
@@ -133,7 +136,10 @@ fn main() {
         let mut parser = Parser::new(tokens);
         if let Ok(ast) = parser.parse() {
             let parse_time = start.elapsed();
-            println!("  Parsing large program: {:?} ({} statements)", parse_time, ast.statements.len());
+            let statement_count = match &ast {
+                oviec::ast::AstNode::Program(statements) => statements.len(),
+            };
+            println!("  Parsing large program: {:?} ({} statements)", parse_time, statement_count);
             
             let start = Instant::now();
             let mut ir_builder = IrBuilder::new();

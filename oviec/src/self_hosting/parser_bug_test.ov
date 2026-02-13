@@ -1,0 +1,29 @@
+// Test to isolate the Ovie parser bug
+// Bug: "if parameter == parameter" with else blocks causes parse error
+
+// Test 1: Simple if with else (no parameters) - SHOULD WORK
+fn test1() {
+    if true {
+        seeAm "then";
+    } else {
+        seeAm "else";
+    }
+}
+
+// Test 2: If with parameter comparison (no else) - SHOULD WORK
+fn test2(a, b) {
+    if a == b {
+        seeAm "equal";
+    }
+}
+
+// Test 3: If with parameter comparison AND else - THIS FAILS
+fn test3(a, b) {
+    if a == b {
+        seeAm "equal";
+    } else {
+        seeAm "not equal";
+    }
+}
+
+seeAm "Testing parser bug...";

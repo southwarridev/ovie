@@ -34,6 +34,8 @@ pub enum TokenType {
     False,
     #[token("seeAm")]
     SeeAm,
+    #[token("let")]
+    Let,
 
     // Identifiers and literals
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
@@ -47,6 +49,12 @@ pub enum TokenType {
     
     #[regex(r"\d+")]
     IntegerLiteral,
+    
+    // Number token (alias for IntegerLiteral)
+    Number,
+    
+    // String token (alias for StringLiteral)
+    String,
 
     // Operators
     #[token("+")]
@@ -64,6 +72,9 @@ pub enum TokenType {
     EqualEqual,
     #[token("!=")]
     NotEqual,
+    
+    // BangEqual token (alias for NotEqual)
+    BangEqual,
     #[token("<")]
     Less,
     #[token("<=")]
@@ -82,6 +93,9 @@ pub enum TokenType {
     
     #[token("=")]
     Equal,
+    
+    // Assignment operator (alias for Equal)
+    Assign,
 
     // Delimiters
     #[token("(")]
@@ -228,6 +242,7 @@ impl<'a> Lexer<'a> {
         match lexeme {
             "fn" => TokenType::Fn,
             "mut" => TokenType::Mut,
+            "let" => TokenType::Let,
             "if" => TokenType::If,
             "else" => TokenType::Else,
             "for" => TokenType::For,
@@ -250,6 +265,7 @@ impl fmt::Display for TokenType {
         let name = match self {
             TokenType::Fn => "fn",
             TokenType::Mut => "mut",
+            TokenType::Let => "let",
             TokenType::If => "if",
             TokenType::Else => "else",
             TokenType::For => "for",
@@ -265,6 +281,8 @@ impl fmt::Display for TokenType {
             TokenType::StringLiteral => "string",
             TokenType::FloatLiteral => "float",
             TokenType::IntegerLiteral => "integer",
+            TokenType::Number => "number",
+            TokenType::String => "string",
             TokenType::Plus => "+",
             TokenType::Minus => "-",
             TokenType::Star => "*",
@@ -272,6 +290,7 @@ impl fmt::Display for TokenType {
             TokenType::Percent => "%",
             TokenType::EqualEqual => "==",
             TokenType::NotEqual => "!=",
+            TokenType::BangEqual => "!=",
             TokenType::Less => "<",
             TokenType::LessEqual => "<=",
             TokenType::Greater => ">",
@@ -280,6 +299,7 @@ impl fmt::Display for TokenType {
             TokenType::OrOr => "||",
             TokenType::Bang => "!",
             TokenType::Equal => "=",
+            TokenType::Assign => "=",
             TokenType::LeftParen => "(",
             TokenType::RightParen => ")",
             TokenType::LeftBrace => "{",

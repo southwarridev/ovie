@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::diagnostic::*;
+    use crate::diagnostic::*;
     use crate::{Finding, Severity, AnalysisCategory};
 
     #[test]
@@ -119,10 +119,13 @@ mod tests {
 
         assert!(result.is_err()); // Should fail because rule is disabled
 
-        // Test severity override
+        // Test severity override - create new config with updated rule
         rule_config.enabled = true;
         rule_config.severity_override = Some(Severity::Critical);
-        engine.get_config().rule_configs.insert("E001".to_string(), rule_config);
+        
+        let mut config2 = DiagnosticConfig::default();
+        config2.rule_configs.insert("E001".to_string(), rule_config);
+        let mut engine2 = DiagnosticEngine::with_config(config2);
 
         let location = SourceLocation {
             file: "test.ov".to_string(),
@@ -132,7 +135,7 @@ mod tests {
             source_excerpt: None,
         };
 
-        let result = engine.generate_diagnostic(
+        let result = engine2.generate_diagnostic(
             &"E001".to_string(),
             "Test message".to_string(),
             location,

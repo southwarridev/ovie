@@ -1,0 +1,22 @@
+// Test 6: Test the exact failing function
+fn parser_report_error(message, line, column) {
+    seeAm "SYNTAX ERROR";
+    seeAm "Error: ";
+    seeAm message;
+}
+
+fn expect_token_check(expected, actual, line, column) {
+    if expected == actual {
+        seeAm "✓ Token matched: ";
+        seeAm expected;
+    } else {
+        parser_report_error("Expected token mismatch", line, column);
+        seeAm "Expected: ";
+        seeAm expected;
+        seeAm "Got: ";
+        seeAm actual;
+    }
+}
+
+seeAm "Test 6: Exact failing function";
+expect_token_check("fn", "fn", 1, 1);

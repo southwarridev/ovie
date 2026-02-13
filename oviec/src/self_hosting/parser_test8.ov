@@ -1,0 +1,17 @@
+// Test 8: Function call in else block
+fn helper() {
+    seeAm "Helper called";
+}
+
+fn test_else_with_call() {
+    let x = 2;
+    if x == 1 {
+        seeAm "x is 1";
+    } else {
+        helper();
+        seeAm "After helper";
+    }
+}
+
+seeAm "Test 8: Function call in else";
+test_else_with_call();

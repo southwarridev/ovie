@@ -1,0 +1,70 @@
+// Test 4: Add parser functions with error handling
+fn NODE_PROGRAM() { return "NODE_PROGRAM"; }
+
+let parser_position = 0;
+let parser_current_token = "";
+
+fn parser_init() {
+    parser_position = 0;
+    parser_current_token = "";
+}
+
+fn parser_advance() {
+    parser_position = parser_position + 1;
+}
+
+fn parse_primary() {
+    seeAm "  Parsing primary expression...";
+    let token = parser_current_token;
+    if token == "42" {
+        seeAm "  Found literal 42";
+        parser_advance();
+        return true;
+    }
+    return false;
+}
+
+// Error handling
+let parser_error_state = 0;
+let parser_error_msg = "";
+let parser_error_ln = 0;
+let parser_error_col = 0;
+
+fn parser_has_error() {
+    if parser_error_state == 1 {
+        seeAm "Parser has error";
+    } else {
+        seeAm "Parser has no error";
+    }
+}
+
+fn parser_report_error(message, line, column) {
+    seeAm "SYNTAX ERROR";
+    seeAm "Error: ";
+    seeAm message;
+    seeAm "Location: Line ";
+    seeAm line;
+    seeAm ", Column ";
+    seeAm column;
+}
+
+fn expect_token_check(expected, actual, line, column) {
+    if expected == actual {
+        seeAm "✓ Token matched: ";
+        seeAm expected;
+    } else {
+        parser_report_error("Expected token mismatch", line, column);
+        seeAm "Expected: ";
+        seeAm expected;
+        seeAm "Got: ";
+        seeAm actual;
+    }
+}
+
+seeAm "Test 4: Parser with error handling";
+parser_init();
+parser_current_token = "42";
+parse_primary();
+parser_has_error();
+expect_token_check("fn", "fn", 1, 1);
+expect_token_check("fn", "let", 1, 1);

@@ -1,0 +1,75 @@
+// Minimal Ovie Parser - Stage 1 Self-Hosting (FIXED)
+// Workaround: Ovie parser bug - cannot use "if param == param" with else blocks
+
+// AST Node Type Constants
+fn NODE_PROGRAM() { return "NODE_PROGRAM"; }
+fn NODE_FUNCTION() { return "NODE_FUNCTION"; }
+fn NODE_VARIABLE() { return "NODE_VARIABLE"; }
+
+// Global node storage
+let current_node_type = "";
+let current_node_value = "";
+
+fn create_node(node_type, value) {
+    current_node_type = node_type;
+    current_node_value = value;
+}
+
+fn create_program_node() {
+    create_node(NODE_PROGRAM(), "");
+    seeAm "Created: PROGRAM node";
+}
+
+fn create_function_node(name) {
+    create_node(NODE_FUNCTION(), name);
+    seeAm "Created: FUNCTION node";
+}
+
+fn create_variable_node(name) {
+    create_node(NODE_VARIABLE(), name);
+    seeAm "Created: VARIABLE node";
+}
+
+// Parser state
+let parser_position = 0;
+
+fn parser_init() {
+    parser_position = 0;
+}
+
+// Error handling - simplified to avoid parser bug
+fn parser_report_error(message) {
+    seeAm "SYNTAX ERROR: ";
+    seeAm message;
+}
+
+// Test functions
+fn test_node_creation() {
+    seeAm "=== Test: Node Creation ===";
+    create_program_node();
+    create_function_node("main");
+    create_variable_node("x");
+    seeAm "✓ All nodes created";
+    seeAm "";
+}
+
+fn run_tests() {
+    seeAm "╔════════════════════════════════════════════╗";
+    seeAm "║  PARSER TEST SUITE                        ║";
+    seeAm "╚════════════════════════════════════════════╝";
+    seeAm "";
+    
+    test_node_creation();
+    
+    seeAm "╔════════════════════════════════════════════╗";
+    seeAm "║  TESTS COMPLETE                           ║";
+    seeAm "╚════════════════════════════════════════════╝";
+}
+
+// Main execution
+seeAm "Ovie Self-Hosting Parser - Minimal (Fixed)";
+seeAm "";
+run_tests();
+seeAm "";
+seeAm "Note: Full parser blocked by Ovie parser bug";
+seeAm "Bug: Cannot use 'if param == param' with else blocks";

@@ -11,6 +11,8 @@ pub enum Value {
     Number(f64),
     Boolean(bool),
     Array(Vec<Value>),
+    Struct(HashMap<String, Value>),
+    Enum { variant: String, data: Option<Box<Value>> },
     Null,
 }
 
@@ -31,6 +33,20 @@ impl Value {
                 let elements: Vec<String> = arr.iter().map(|v| v.to_string()).collect();
                 format!("[{}]", elements.join(", "))
             }
+            Value::Struct(fields) => {
+                let field_strs: Vec<String> = fields
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v.to_string()))
+                    .collect();
+                format!("{{ {} }}", field_strs.join(", "))
+            }
+            Value::Enum { variant, data } => {
+                if let Some(d) = data {
+                    format!("{}({})", variant, d.to_string())
+                } else {
+                    variant.clone()
+                }
+            }
             Value::Null => "null".to_string(),
         }
     }
@@ -43,6 +59,8 @@ impl Value {
             Value::Number(n) => *n != 0.0,
             Value::String(s) => !s.is_empty(),
             Value::Array(arr) => !arr.is_empty(),
+            Value::Struct(_) => true,
+            Value::Enum { .. } => true,
         }
     }
 }
@@ -60,6 +78,8 @@ pub struct Function {
 pub struct Environment {
     variables: HashMap<String, Value>,
     functions: HashMap<String, Function>,
+    struct_types: HashMap<String, Vec<String>>, // struct_name -> field_names
+    enum_types: HashMap<String, Vec<String>>,   // enum_name -> variant_names
     parent: Option<Box<Environment>>,
 }
 
@@ -68,6 +88,8 @@ impl Environment {
         Self {
             variables: HashMap::new(),
             functions: HashMap::new(),
+            struct_types: HashMap::new(),
+            enum_types: HashMap::new(),
             parent: None,
         }
     }
@@ -76,6 +98,8 @@ impl Environment {
         Self {
             variables: HashMap::new(),
             functions: HashMap::new(),
+            struct_types: HashMap::new(),
+            enum_types: HashMap::new(),
             parent: Some(Box::new(parent)),
         }
     }
@@ -107,6 +131,34 @@ impl Environment {
             None
         }
     }
+
+    pub fn define_struct_type(&mut self, name: String, fields: Vec<String>) {
+        self.struct_types.insert(name, fields);
+    }
+
+    pub fn get_struct_type(&self, name: &str) -> Option<Vec<String>> {
+        if let Some(fields) = self.struct_types.get(name) {
+            Some(fields.clone())
+        } else if let Some(parent) = &self.parent {
+            parent.get_struct_type(name)
+        } else {
+            None
+        }
+    }
+
+    pub fn define_enum_type(&mut self, name: String, variants: Vec<String>) {
+        self.enum_types.insert(name, variants);
+    }
+
+    pub fn get_enum_type(&self, name: &str) -> Option<Vec<String>> {
+        if let Some(variants) = self.enum_types.get(name) {
+            Some(variants.clone())
+        } else if let Some(parent) = &self.parent {
+            parent.get_enum_type(name)
+        } else {
+            None
+        }
+    }
 }
 
 /// Interpreter for Ovie programs
@@ -123,10 +175,14 @@ impl Interpreter {
 
     /// Interpret an AST
     pub fn interpret(&mut self, ast: &AstNode) -> OvieResult<()> {
-        for statement in &ast.statements {
-            self.execute_statement(statement)?;
+        match ast {
+            AstNode::Program(statements) => {
+                for statement in statements {
+                    self.execute_statement(statement)?;
+                }
+                Ok(())
+            }
         }
-        Ok(())
     }
 
     /// Execute a statement
@@ -144,7 +200,23 @@ impl Interpreter {
                 Ok(None)
             }
 
+            Statement::VariableDeclaration { identifier, value, .. } => {
+                let evaluated_value = self.evaluate_expression(value)?;
+                self.environment.define_variable(identifier.clone(), evaluated_value);
+                Ok(None)
+            }
+
             Statement::Function { name, parameters, body } => {
+                let function = Function {
+                    name: name.clone(),
+                    parameters: parameters.clone(),
+                    body: body.clone(),
+                };
+                self.environment.define_function(function);
+                Ok(None)
+            }
+
+            Statement::FunctionDeclaration { name, parameters, body } => {
                 let function = Function {
                     name: name.clone(),
                     parameters: parameters.clone(),
@@ -240,13 +312,17 @@ impl Interpreter {
                 Ok(None)
             }
 
-            Statement::Struct { .. } => {
-                // TODO: Implement struct definitions
+            Statement::Struct { name, fields } => {
+                // Register struct type with field names
+                let field_names: Vec<String> = fields.iter().map(|f| f.name.clone()).collect();
+                self.environment.define_struct_type(name.clone(), field_names);
                 Ok(None)
             }
 
-            Statement::Enum { .. } => {
-                // TODO: Implement enum definitions
+            Statement::Enum { name, variants } => {
+                // Register enum type with variant names
+                let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
+                self.environment.define_enum_type(name.clone(), variant_names);
                 Ok(None)
             }
         }
@@ -329,14 +405,59 @@ impl Interpreter {
                 }
             }
 
-            Expression::FieldAccess { .. } => {
-                // TODO: Implement field access
-                Err(OvieError::runtime_error("Field access not yet implemented"))
+            Expression::FieldAccess { object, field } => {
+                let object_value = self.evaluate_expression(object)?;
+                
+                match object_value {
+                    Value::Struct(fields) => {
+                        // Try exact match first
+                        if let Some(value) = fields.get(field) {
+                            return Ok(value.clone());
+                        }
+                        
+                        // Convert camelCase to snake_case for lookup
+                        let field_snake = self.camel_to_snake(field);
+                        if let Some(value) = fields.get(&field_snake) {
+                            return Ok(value.clone());
+                        }
+                        
+                        // Convert snake_case to camelCase for lookup
+                        let field_camel = self.snake_to_camel(field);
+                        if let Some(value) = fields.get(&field_camel) {
+                            return Ok(value.clone());
+                        }
+                        
+                        // Debug: show available fields
+                        let available: Vec<String> = fields.keys().cloned().collect();
+                        Err(OvieError::runtime_error(format!(
+                            "Field '{}' not found in struct. Available fields: {:?}",
+                            field, available
+                        )))
+                    }
+                    _ => Err(OvieError::runtime_error(format!(
+                        "Cannot access field '{}' on non-struct value",
+                        field
+                    ))),
+                }
             }
 
-            Expression::StructInstantiation { .. } => {
-                // TODO: Implement struct instantiation
-                Err(OvieError::runtime_error("Struct instantiation not yet implemented"))
+            Expression::StructInstantiation { struct_name, fields } => {
+                // Verify struct type exists
+                if self.environment.get_struct_type(struct_name).is_none() {
+                    return Err(OvieError::runtime_error(format!(
+                        "Undefined struct type: {}",
+                        struct_name
+                    )));
+                }
+
+                // Evaluate field values
+                let mut field_values = HashMap::new();
+                for field_init in fields {
+                    let value = self.evaluate_expression(&field_init.value)?;
+                    field_values.insert(field_init.name.clone(), value);
+                }
+
+                Ok(Value::Struct(field_values))
             }
 
             Expression::Range { start, end } => {
@@ -353,6 +474,74 @@ impl Interpreter {
                         Ok(Value::Array(range_values))
                     }
                     _ => Err(OvieError::runtime_error("Range expressions require numeric values"))
+                }
+            }
+
+            Expression::EnumVariantConstruction { enum_name, variant_name, data } => {
+                // Verify enum type exists
+                if self.environment.get_enum_type(enum_name).is_none() {
+                    return Err(OvieError::runtime_error(format!(
+                        "Undefined enum type: {}",
+                        enum_name
+                    )));
+                }
+
+                // Evaluate data if present
+                let variant_data = if let Some(data_expr) = data {
+                    Some(Box::new(self.evaluate_expression(data_expr)?))
+                } else {
+                    None
+                };
+
+                Ok(Value::Enum {
+                    variant: variant_name.clone(),
+                    data: variant_data,
+                })
+            }
+
+            Expression::ArrayLiteral { elements } => {
+                let mut array_values = Vec::new();
+                for element in elements {
+                    array_values.push(self.evaluate_expression(element)?);
+                }
+                Ok(Value::Array(array_values))
+            }
+
+            Expression::Index { object, index } => {
+                let object_value = self.evaluate_expression(object)?;
+                let index_value = self.evaluate_expression(index)?;
+                
+                match (object_value, index_value) {
+                    (Value::Array(arr), Value::Number(idx)) => {
+                        let index = idx as usize;
+                        if index < arr.len() {
+                            Ok(arr[index].clone())
+                        } else {
+                            Err(OvieError::runtime_error(format!(
+                                "Array index out of bounds: {} (length: {})",
+                                index, arr.len()
+                            )))
+                        }
+                    }
+                    (Value::String(s), Value::Number(idx)) => {
+                        let index = idx as usize;
+                        let chars: Vec<char> = s.chars().collect();
+                        if index < chars.len() {
+                            Ok(Value::String(chars[index].to_string()))
+                        } else {
+                            Err(OvieError::runtime_error(format!(
+                                "String index out of bounds: {} (length: {})",
+                                index, chars.len()
+                            )))
+                        }
+                    }
+                    (obj, idx) => {
+                        Err(OvieError::runtime_error(format!(
+                            "Cannot index {} with {}",
+                            self.value_type_name(&obj),
+                            self.value_type_name(&idx)
+                        )))
+                    }
                 }
             }
         }
@@ -400,6 +589,13 @@ impl Interpreter {
             }
             (a, BinaryOperator::Add, Value::String(b)) => {
                 Ok(Value::String(format!("{}{}", a.to_string(), b)))
+            }
+
+            // Array concatenation
+            (Value::Array(a), BinaryOperator::Add, Value::Array(b)) => {
+                let mut result = a.clone();
+                result.extend(b.clone());
+                Ok(Value::Array(result))
             }
 
             // Comparison operations
@@ -478,8 +674,44 @@ impl Interpreter {
             Value::Number(_) => "number",
             Value::Boolean(_) => "boolean",
             Value::Array(_) => "array",
+            Value::Struct(_) => "struct",
+            Value::Enum { .. } => "enum",
             Value::Null => "null",
         }
+    }
+
+    /// Convert camelCase to snake_case
+    fn camel_to_snake(&self, input: &str) -> String {
+        let mut result = String::new();
+        for (i, ch) in input.chars().enumerate() {
+            if ch.is_uppercase() && i > 0 {
+                result.push('_');
+                result.push(ch.to_lowercase().next().unwrap());
+            } else {
+                result.push(ch);
+            }
+        }
+        result
+    }
+
+    /// Convert snake_case to camelCase
+    fn snake_to_camel(&self, input: &str) -> String {
+        let parts: Vec<&str> = input.split('_').collect();
+        if parts.len() <= 1 {
+            return input.to_string();
+        }
+
+        let mut result = parts[0].to_string();
+        for part in &parts[1..] {
+            if !part.is_empty() {
+                let mut chars = part.chars();
+                if let Some(first) = chars.next() {
+                    result.push(first.to_uppercase().next().unwrap_or(first));
+                    result.extend(chars);
+                }
+            }
+        }
+        result
     }
 }
 

@@ -11,6 +11,10 @@ description = "The Ovie programming language toolchain CLI"
 keywords = ["cli", "toolchain", "ovie", "programming-language"]
 categories = ["command-line-utilities", "development-tools"]
 
+[[bin]]
+name = "ovie"
+path = "src/main.rs"
+
 [dependencies]
 # CLI argument parsing
 clap.workspace = true
@@ -19,6 +23,7 @@ thiserror.workspace = true
 miette.workspace = true
 # Serialization
 serde.workspace = true
+serde_json.workspace = true
 toml.workspace = true
 # Async runtime
 tokio.workspace = true

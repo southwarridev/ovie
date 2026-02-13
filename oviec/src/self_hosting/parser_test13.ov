@@ -1,0 +1,14 @@
+// Test 13: Minimal if-else with function call
+fn helper() {
+    seeAm "helper";
+}
+
+fn test() {
+    if true {
+        seeAm "if";
+    } else {
+        helper();
+    }
+}
+
+test();

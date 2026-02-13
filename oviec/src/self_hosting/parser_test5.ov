@@ -1,0 +1,12 @@
+// Test 5: Test if-else blocks
+fn test_if_else() {
+    let x = 1;
+    if x == 1 {
+        seeAm "x is 1";
+    } else {
+        seeAm "x is not 1";
+    }
+}
+
+seeAm "Test 5: If-else blocks";
+test_if_else();

@@ -1,0 +1,16 @@
+// Test 11: Function name starting with parser_
+fn parser_helper(msg) {
+    seeAm msg;
+}
+
+fn test_func() {
+    let x = 2;
+    if x == 1 {
+        seeAm "one";
+    } else {
+        parser_helper("two");
+    }
+}
+
+seeAm "Test 11";
+test_func();

@@ -1,0 +1,27 @@
+    /// Detect consistency regression for a test case
+    fn detect_consistency_regression(&mut self, test_case: &str) -> OvieResult<Option<ConsistencyRegression>> {
+        // Clone baseline data to avoid borrow conflicts
+        let baseline = self.baseline_data.cross_platform_baselines.get(test_case).cloned();
+        
+        if let Some(baseline) = baseline {
+            let current_result = self.validate_single_test_cross_platform(test_case)?;
+            
+            let consistency_change = current_result.consistency_analysis.consistency_percentage - 
+                baseline.consistency_percentage;
+            
+            if consistency_change < -self.config.cross_platform_requirements.minimum_consistency_percentage {
+                return Ok(Some(ConsistencyRegression {
+                    test_case: test_case.to_string(),
+                    affected_platforms: current_result.inconsistencies.iter()
+                        .flat_map(|i| i.platforms.clone())
+                        .collect(),
+                    baseline_consistency: baseline.consistency_percentage,
+                    current_consistency: current_result.consistency_analysis.consistency_percentage,
+                    consistency_change,
+                    new_inconsistencies: current_result.inconsistencies,
+                }));
+            }
+        }
+        
+        Ok(None)
+    }

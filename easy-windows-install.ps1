@@ -13,19 +13,19 @@ Write-Host "  ██║   ██║╚██╗ ██╔╝██║██╔�
 Write-Host "  ╚██████╔╝ ╚████╔╝ ██║███████╗" -ForegroundColor Cyan
 Write-Host "   ╚═════╝   ╚═══╝  ╚═╝╚══════╝" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  🚀 STAGE 2 - SELF-HOSTED PROGRAMMING LANGUAGE" -ForegroundColor Green
-Write-Host "  📦 Easy Windows Installation v2.1.0" -ForegroundColor Yellow
+Write-Host "  🚀 LOW-LEVEL LANGUAGE WITH HIGH-LEVEL FEATURES" -ForegroundColor Green
+Write-Host "  📦 Easy Windows Installation v2.2.0" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "============================================================================" -ForegroundColor Gray
 
 $InstallDir = "$env:USERPROFILE\ovie"
 $BinDir = "$env:USERPROFILE\ovie\bin"
-$OvieVersion = "2.1.0"
+$OvieVersion = "2.2.0"
 
 Write-Host "🎯 Welcome to Ovie Easy Installer!" -ForegroundColor Green
 Write-Host ""
 Write-Host "This installer will:" -ForegroundColor White
-Write-Host "  ✅ Download Ovie v2.1.0 from GitHub" -ForegroundColor Green
+Write-Host "  ✅ Download Ovie v2.2.0 from GitHub" -ForegroundColor Green
 Write-Host "  ✅ Install to: $InstallDir" -ForegroundColor Green
 Write-Host "  ✅ Add Ovie to your PATH" -ForegroundColor Green
 Write-Host "  ✅ Set up examples and documentation" -ForegroundColor Green

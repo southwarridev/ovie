@@ -112,8 +112,12 @@ impl UnsafeOperationAnalyzer {
     /// Analyze a single AST node for unsafe operations
     fn analyze_node(&self, node: &AstNode, file_name: &str, unsafe_ops: &mut Vec<UnsafeAuditEntry>) -> OvieResult<()> {
         // Analyze all statements in the AST
-        for stmt in &node.statements {
-            self.analyze_statement(stmt, file_name, unsafe_ops)?;
+        match node {
+            AstNode::Program(statements) => {
+                for stmt in statements {
+                    self.analyze_statement(stmt, file_name, unsafe_ops)?;
+                }
+            }
         }
         Ok(())
     }
@@ -122,6 +126,9 @@ impl UnsafeOperationAnalyzer {
     fn analyze_statement(&self, stmt: &Statement, file_name: &str, unsafe_ops: &mut Vec<UnsafeAuditEntry>) -> OvieResult<()> {
         match stmt {
             Statement::Assignment { mutable: _, identifier: _, value } => {
+                self.analyze_expression(value, file_name, unsafe_ops)?;
+            }
+            Statement::VariableDeclaration { mutable: _, identifier: _, value } => {
                 self.analyze_expression(value, file_name, unsafe_ops)?;
             }
             Statement::Print { expression } => {
@@ -145,6 +152,11 @@ impl UnsafeOperationAnalyzer {
                 }
             }
             Statement::Function { name: _, parameters: _, body } => {
+                for stmt in body {
+                    self.analyze_statement(stmt, file_name, unsafe_ops)?;
+                }
+            }
+            Statement::FunctionDeclaration { name: _, parameters: _, body } => {
                 for stmt in body {
                     self.analyze_statement(stmt, file_name, unsafe_ops)?;
                 }

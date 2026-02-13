@@ -124,8 +124,12 @@ impl CorrectnessAnalyzer {
 
         let mut tracker = OwnershipTracker::new();
         
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_ownership(statement, &mut tracker, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_ownership(statement, &mut tracker, i + 1));
+                }
+            }
         }
 
         findings
@@ -344,6 +348,20 @@ impl CorrectnessAnalyzer {
                 findings.extend(self.check_expression_ownership(start, tracker, line));
                 findings.extend(self.check_expression_ownership(end, tracker, line));
             }
+            Expression::EnumVariantConstruction { data, .. } => {
+                if let Some(data_expr) = data {
+                    findings.extend(self.check_expression_ownership(data_expr, tracker, line));
+                }
+            }
+            Expression::Index { object, index } => {
+                findings.extend(self.check_expression_ownership(object, tracker, line));
+                findings.extend(self.check_expression_ownership(index, tracker, line));
+            }
+            Expression::ArrayLiteral { elements } => {
+                for element in elements {
+                    findings.extend(self.check_expression_ownership(element, tracker, line));
+                }
+            }
             Expression::Literal(_) => {
                 // Literals don't have ownership issues
             }
@@ -372,8 +390,12 @@ impl CorrectnessAnalyzer {
         // Track state changes throughout the program
         let mut state_tracker = HashMap::new();
         
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_state_transitions(statement, &mut state_tracker, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_state_transitions(statement, &mut state_tracker, i + 1));
+                }
+            }
         }
 
         findings
@@ -474,13 +496,17 @@ impl CorrectnessAnalyzer {
         let mut allocated_resources = HashSet::new();
         let mut freed_resources = HashSet::new();
         
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_memory_safety_statement(
-                statement, 
-                &mut allocated_resources, 
-                &mut freed_resources, 
-                i + 1
-            ));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_memory_safety_statement(
+                        statement, 
+                        &mut allocated_resources, 
+                        &mut freed_resources, 
+                        i + 1
+                    ));
+                }
+            }
         }
 
         // Check for resource leaks

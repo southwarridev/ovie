@@ -6,10 +6,14 @@
 pub mod signing;
 pub mod verification;
 pub mod distribution;
+pub mod builder;
+pub mod installer;
 
 pub use signing::{ReleaseSigningManager, SigningKey, SigningConfig, SignatureResult};
 pub use verification::{ReleaseVerifier, VerificationResult, VerificationConfig};
 pub use distribution::{DistributionManager, ReleasePackage, ReleaseMetadata, DistributionConfig};
+pub use builder::{DistributionBuilder, Platform, PackageStructure};
+pub use installer::{Installer, InstallConfig, InstallationResult};
 
 /// Release security level
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]

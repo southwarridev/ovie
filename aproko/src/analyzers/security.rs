@@ -25,8 +25,12 @@ impl SecurityAnalyzer {
             return findings;
         }
 
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_safety(statement, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_safety(statement, i + 1));
+                }
+            }
         }
 
         findings
@@ -262,6 +266,20 @@ impl SecurityAnalyzer {
                     });
                 }
             }
+            Expression::EnumVariantConstruction { data, .. } => {
+                if let Some(data_expr) = data {
+                    findings.extend(self.check_expression_safety(data_expr, line));
+                }
+            }
+            Expression::Index { object, index } => {
+                findings.extend(self.check_expression_safety(object, line));
+                findings.extend(self.check_expression_safety(index, line));
+            }
+            Expression::ArrayLiteral { elements } => {
+                for element in elements {
+                    findings.extend(self.check_expression_safety(element, line));
+                }
+            }
             Expression::Literal(_) => {
                 // Other literals are generally safe
             }
@@ -385,8 +403,12 @@ impl SecurityAnalyzer {
         // - Null pointer dereferences
         // - etc.
 
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_memory_safety_statement(statement, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_memory_safety_statement(statement, i + 1));
+                }
+            }
         }
 
         findings

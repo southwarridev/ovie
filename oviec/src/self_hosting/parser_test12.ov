@@ -1,0 +1,16 @@
+// Test 12: Define functions in different order
+fn expect_token_check(expected, actual, line, column) {
+    if expected == actual {
+        seeAm "Match";
+    } else {
+        report_error("mismatch", line, column);
+    }
+}
+
+fn report_error(message, line, column) {
+    seeAm "Error: ";
+    seeAm message;
+}
+
+seeAm "Test 12";
+expect_token_check("fn", "let", 1, 1);

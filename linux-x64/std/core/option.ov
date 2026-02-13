@@ -1,0 +1,60 @@
+// Option<T> type - represents a value that may or may not exist
+// Maps to OvieOption<T> in oviec/src/stdlib/core.rs
+
+enum Option<T> {
+    Some(T),
+    None,
+}
+
+// Option methods
+fn is_some<T>(option: Option<T>) -> Boolean {
+    // Returns true if the option is Some
+    // Implementation: Rust runtime
+}
+
+fn is_none<T>(option: Option<T>) -> Boolean {
+    // Returns true if the option is None
+    // Implementation: Rust runtime
+}
+
+fn unwrap<T>(option: Option<T>) -> T {
+    // Returns the Some value, panics if None
+    // Implementation: Rust runtime
+}
+
+fn unwrap_or<T>(option: Option<T>, default: T) -> T {
+    // Returns the Some value, or default if None
+    // Implementation: Rust runtime
+}
+
+fn unwrap_or_else<T>(option: Option<T>, f: fn() -> T) -> T {
+    // Returns the Some value, or computes default from closure if None
+    // Implementation: Rust runtime
+}
+
+fn map<T, U>(option: Option<T>, f: fn(T) -> U) -> Option<U> {
+    // Maps an Option<T> to Option<U> by applying f to Some value
+    // Implementation: Rust runtime
+}
+
+fn and_then<T, U>(option: Option<T>, f: fn(T) -> Option<U>) -> Option<U> {
+    // Chains operations that return Options
+    // Implementation: Rust runtime
+}
+
+fn ok_or<T, E>(option: Option<T>, error: E) -> Result<T, E> {
+    // Converts Option<T> to Result<T, E>
+    // Some(v) becomes Ok(v), None becomes Err(error)
+    // Implementation: Rust runtime
+}
+
+// Helper constructors
+fn Some<T>(value: T) -> Option<T> {
+    // Creates a Some option
+    // Implementation: Rust runtime
+}
+
+fn None<T>() -> Option<T> {
+    // Creates a None option
+    // Implementation: Rust runtime
+}

@@ -201,7 +201,7 @@ pub struct PlatformValidationResult {
 }
 
 /// Compilation outcome for a platform
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CompilationOutcome {
     Success,
     SyntaxError,
@@ -341,6 +341,19 @@ pub enum InconsistencyType {
     ErrorHandling,
     Behavior,
     Optimization,
+}
+
+impl std::fmt::Display for InconsistencyType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InconsistencyType::CompilationResult => write!(f, "Compilation Result"),
+            InconsistencyType::CodeGeneration => write!(f, "Code Generation"),
+            InconsistencyType::Performance => write!(f, "Performance"),
+            InconsistencyType::ErrorHandling => write!(f, "Error Handling"),
+            InconsistencyType::Behavior => write!(f, "Behavior"),
+            InconsistencyType::Optimization => write!(f, "Optimization"),
+        }
+    }
 }
 
 /// Severity levels for inconsistencies
@@ -698,8 +711,11 @@ impl CrossPlatformValidator {
         let mut platform_results = HashMap::new();
         let mut inconsistencies = Vec::new();
         
+        // Collect platform configs to avoid borrow checker issues
+        let platform_configs: Vec<_> = self.config.target_platforms.clone();
+        
         // Test on each platform
-        for platform_config in &self.config.target_platforms {
+        for platform_config in &platform_configs {
             let platform_result = self.validate_on_platform(test_case, platform_config)?;
             platform_results.insert(platform_config.platform_id.clone(), platform_result);
         }
@@ -875,11 +891,11 @@ impl CrossPlatformValidator {
             .map(|r| &r.compilation_result)
             .collect();
         
-        let compilation_consistency = if compilation_results.iter().all(|&r| r == compilation_results[0]) {
+        let compilation_consistency = if compilation_results.iter().all(|r| r == &compilation_results[0]) {
             100.0
         } else {
             let consistent_count = compilation_results.iter()
-                .filter(|&r| r == compilation_results[0])
+                .filter(|&r| r == &compilation_results[0])
                 .count();
             (consistent_count as f64 / total_platforms as f64) * 100.0
         };
@@ -891,11 +907,11 @@ impl CrossPlatformValidator {
         
         let code_generation_consistency = if code_hashes.is_empty() {
             100.0 // No code generated, so consistent
-        } else if code_hashes.iter().all(|&h| h == code_hashes[0]) {
+        } else if code_hashes.iter().all(|h| h == &code_hashes[0]) {
             100.0
         } else {
             let consistent_count = code_hashes.iter()
-                .filter(|&h| h == code_hashes[0])
+                .filter(|&h| h == &code_hashes[0])
                 .count();
             (consistent_count as f64 / code_hashes.len() as f64) * 100.0
         };
@@ -923,11 +939,11 @@ impl CrossPlatformValidator {
         
         let error_handling_consistency = if error_types.is_empty() {
             100.0 // No errors, so consistent
-        } else if error_types.iter().all(|&t| t == error_types[0]) {
+        } else if error_types.iter().all(|t| t == &error_types[0]) {
             100.0
         } else {
             let consistent_count = error_types.iter()
-                .filter(|&t| t == error_types[0])
+                .filter(|&t| t == &error_types[0])
                 .count();
             (consistent_count as f64 / error_types.len() as f64) * 100.0
         };

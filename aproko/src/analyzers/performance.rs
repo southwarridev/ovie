@@ -25,8 +25,12 @@ impl PerformanceAnalyzer {
             return findings;
         }
 
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_complexity(statement, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_complexity(statement, i + 1));
+                }
+            }
         }
 
         findings
@@ -228,6 +232,15 @@ impl PerformanceAnalyzer {
             Expression::Range { start, end } => {
                 self.count_expression_operations(start) + self.count_expression_operations(end)
             }
+            Expression::EnumVariantConstruction { data, .. } => {
+                data.as_ref().map(|d| self.count_expression_operations(d)).unwrap_or(0)
+            }
+            Expression::Index { object, index } => {
+                1 + self.count_expression_operations(object) + self.count_expression_operations(index)
+            }
+            Expression::ArrayLiteral { elements } => {
+                elements.iter().map(|e| self.count_expression_operations(e)).sum()
+            }
             Expression::Identifier(_) | Expression::Literal(_) => 0,
         }
     }
@@ -236,8 +249,12 @@ impl PerformanceAnalyzer {
     fn check_optimization_opportunities(&self, ast: &AstNode) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_optimizations(statement, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_optimizations(statement, i + 1));
+                }
+            }
         }
 
         findings

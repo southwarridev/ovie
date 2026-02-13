@@ -1,0 +1,14 @@
+// Test 15: Function with string parameters
+fn helper(msg, line, col) {
+    seeAm msg;
+}
+
+fn test(expected, actual, line, column) {
+    if expected == actual {
+        seeAm "match";
+    } else {
+        helper("error", line, column);
+    }
+}
+
+test("a", "b", 1, 2);

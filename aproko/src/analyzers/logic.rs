@@ -26,8 +26,12 @@ impl LogicAnalyzer {
             return findings;
         }
 
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_reachability(statement, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_reachability(statement, i + 1));
+                }
+            }
         }
 
         findings
@@ -167,8 +171,12 @@ impl LogicAnalyzer {
         // Check for variable usage before declaration
         let mut declared_vars = HashSet::new();
         
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_variable_usage(statement, &mut declared_vars, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_variable_usage(statement, &mut declared_vars, i + 1));
+                }
+            }
         }
 
         findings
@@ -290,6 +298,20 @@ impl LogicAnalyzer {
             Expression::Range { start, end } => {
                 findings.extend(self.check_expression_variables(start, declared_vars, line));
                 findings.extend(self.check_expression_variables(end, declared_vars, line));
+            }
+            Expression::EnumVariantConstruction { data, .. } => {
+                if let Some(data_expr) = data {
+                    findings.extend(self.check_expression_variables(data_expr, declared_vars, line));
+                }
+            }
+            Expression::Index { object, index } => {
+                findings.extend(self.check_expression_variables(object, declared_vars, line));
+                findings.extend(self.check_expression_variables(index, declared_vars, line));
+            }
+            Expression::ArrayLiteral { elements } => {
+                for element in elements {
+                    findings.extend(self.check_expression_variables(element, declared_vars, line));
+                }
             }
             Expression::Literal(_) => {
                 // Literals don't reference variables

@@ -3,20 +3,23 @@
   
   # Getting Started with Ovie
   
-  ### ✅ **SELF-HOSTED PROGRAMMING LANGUAGE**
+  ### ✅ **COMPLETE PROGRAMMING LANGUAGE**
 </div>
 
 Welcome to Ovie! This guide will help you get started with the Ovie Programming Language, whether you're new to programming or an experienced developer.
 
-**🎉 Status: You're learning a production-ready, self-hosted programming language!**
+**🎉 Status: You're learning a complete, trustworthy programming language (v2.2)!**
 
 ## What is Ovie?
 
-Ovie is a **self-hosted** programming language designed to be:
+Ovie is a **complete, self-hosted** programming language designed to be:
+- **Trustworthy**: Enforced compiler invariants ensure correctness at every stage
+- **Complete**: Full runtime environment with comprehensive standard library
+- **Self-Diagnosing**: Aproko explains compiler decisions and type inference
+- **Deterministic**: Reproducible builds with proven bootstrap verification
 - **Accessible**: Uses natural language patterns that are easy to read and understand
-- **Secure**: Built with enterprise-grade security and deterministic builds
+- **Secure**: Built with enterprise-grade security and offline-first development
 - **AI-Friendly**: Designed to work seamlessly with AI and code generation tools
-- **✅ Self-Hosted**: The Ovie compiler is now written in Ovie itself!
 
 ## For Non-Technical Users
 

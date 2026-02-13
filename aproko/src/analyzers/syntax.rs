@@ -25,22 +25,26 @@ impl SyntaxAnalyzer {
             return findings;
         }
 
-        // Check for empty programs
-        if ast.statements.is_empty() {
-            findings.push(Finding {
-                category: AnalysisCategory::Syntax,
-                severity: Severity::Warning,
-                message: "Empty program detected".to_string(),
-                suggestion: Some("Consider adding at least one statement".to_string()),
-                location: (1, 1),
-                span_length: 0,
-                rule_id: "empty_program".to_string(),
-            });
-        }
+        match ast {
+            AstNode::Program(statements) => {
+                // Check for empty programs
+                if statements.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Warning,
+                        message: "Empty program detected".to_string(),
+                        suggestion: Some("Consider adding at least one statement".to_string()),
+                        location: (1, 1),
+                        span_length: 0,
+                        rule_id: "empty_program".to_string(),
+                    });
+                }
 
-        // Check each statement for syntax issues
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_syntax(statement, i + 1));
+                // Check each statement for syntax issues
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_syntax(statement, i + 1));
+                }
+            }
         }
 
         findings
@@ -96,6 +100,48 @@ impl SyntaxAnalyzer {
 
                 findings.extend(self.check_expression_syntax(value, line));
             }
+            Statement::VariableDeclaration { identifier, value, mutable } => {
+                // Check identifier naming
+                if identifier.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Error,
+                        message: "Empty identifier in variable declaration".to_string(),
+                        suggestion: Some("Provide a valid identifier name".to_string()),
+                        location: (line, 1),
+                        span_length: 0,
+                        rule_id: "empty_identifier".to_string(),
+                    });
+                }
+
+                // Check for reserved keywords used as identifiers
+                if self.is_reserved_keyword(identifier) {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Error,
+                        message: format!("Reserved keyword '{}' used as identifier", identifier),
+                        suggestion: Some("Use a different identifier name".to_string()),
+                        location: (line, 1),
+                        span_length: identifier.len(),
+                        rule_id: "reserved_keyword_identifier".to_string(),
+                    });
+                }
+
+                // Check if mutable variable uses proper syntax
+                if *mutable && !identifier.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Warning,
+                        message: "Mutable variable identifier contains special characters".to_string(),
+                        suggestion: Some("Use only alphanumeric characters and underscores".to_string()),
+                        location: (line, 1),
+                        span_length: identifier.len(),
+                        rule_id: "invalid_mutable_identifier".to_string(),
+                    });
+                }
+
+                findings.extend(self.check_expression_syntax(value, line));
+            }
             Statement::Function { name, parameters, body } => {
                 // Check function name
                 if name.is_empty() {
@@ -131,6 +177,53 @@ impl SyntaxAnalyzer {
                         category: AnalysisCategory::Syntax,
                         severity: Severity::Warning,
                         message: "Empty function body".to_string(),
+                        suggestion: Some("Consider adding function implementation or return statement".to_string()),
+                        location: (line, 1),
+                        span_length: 0,
+                        rule_id: "empty_function_body".to_string(),
+                    });
+                }
+
+                // Recursively check body statements
+                for (i, stmt) in body.iter().enumerate() {
+                    findings.extend(self.check_statement_syntax(stmt, line + i + 1));
+                }
+            }
+            Statement::FunctionDeclaration { name, parameters, body } => {
+                // Check function name
+                if name.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Error,
+                        message: "Empty function name in declaration".to_string(),
+                        suggestion: Some("Provide a valid function name".to_string()),
+                        location: (line, 1),
+                        span_length: 0,
+                        rule_id: "empty_function_name".to_string(),
+                    });
+                }
+
+                // Check parameter names
+                for param in parameters {
+                    if param.is_empty() {
+                        findings.push(Finding {
+                            category: AnalysisCategory::Syntax,
+                            severity: Severity::Error,
+                            message: "Empty parameter name in function declaration".to_string(),
+                            suggestion: Some("Provide valid parameter names".to_string()),
+                            location: (line, 1),
+                            span_length: 0,
+                            rule_id: "empty_parameter_name".to_string(),
+                        });
+                    }
+                }
+
+                // Check function body
+                if body.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Warning,
+                        message: "Empty function body in declaration".to_string(),
                         suggestion: Some("Consider adding function implementation or return statement".to_string()),
                         location: (line, 1),
                         span_length: 0,
@@ -331,6 +424,42 @@ impl SyntaxAnalyzer {
             Expression::Range { start, end } => {
                 findings.extend(self.check_expression_syntax(start, line));
                 findings.extend(self.check_expression_syntax(end, line));
+            }
+            Expression::EnumVariantConstruction { enum_name, variant_name, data } => {
+                if enum_name.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Error,
+                        message: "Empty enum name in variant construction".to_string(),
+                        suggestion: Some("Provide a valid enum name".to_string()),
+                        location: (line, 1),
+                        span_length: 0,
+                        rule_id: "empty_enum_variant_construction".to_string(),
+                    });
+                }
+                if variant_name.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Error,
+                        message: "Empty variant name in enum construction".to_string(),
+                        suggestion: Some("Provide a valid variant name".to_string()),
+                        location: (line, 1),
+                        span_length: 0,
+                        rule_id: "empty_enum_variant_name".to_string(),
+                    });
+                }
+                if let Some(data_expr) = data {
+                    findings.extend(self.check_expression_syntax(data_expr, line));
+                }
+            }
+            Expression::Index { object, index } => {
+                findings.extend(self.check_expression_syntax(object, line));
+                findings.extend(self.check_expression_syntax(index, line));
+            }
+            Expression::ArrayLiteral { elements } => {
+                for element in elements {
+                    findings.extend(self.check_expression_syntax(element, line));
+                }
             }
             Expression::Literal(_) => {
                 // Literals are generally fine syntactically

@@ -385,7 +385,41 @@ impl DiagnosticEngine {
                 source_excerpt: None,
             };
 
-            if let Ok(diagnostic) = self.generate_diagnostic(&finding.rule_id, finding.message, location) {
+            // Try to generate diagnostic using the finding's rule_id
+            let diagnostic_result = self.generate_diagnostic(&finding.rule_id, finding.message.clone(), location.clone());
+            
+            if let Ok(diagnostic) = diagnostic_result {
+                diagnostics.push(diagnostic);
+            } else {
+                // If the rule_id doesn't exist, create a diagnostic directly
+                // Map the finding category to a diagnostic category
+                let category = match finding.category {
+                    AnalysisCategory::Syntax => DiagnosticCategory::SyntaxError,
+                    AnalysisCategory::Logic => DiagnosticCategory::LogicError,
+                    AnalysisCategory::Performance => DiagnosticCategory::PerformanceWarning,
+                    AnalysisCategory::Security => DiagnosticCategory::SecurityWarning,
+                    AnalysisCategory::Correctness => DiagnosticCategory::OwnershipError,
+                    AnalysisCategory::Style => DiagnosticCategory::StyleWarning,
+                };
+
+                let diagnostic = Diagnostic {
+                    rule_id: finding.rule_id.clone(),
+                    category,
+                    severity: finding.severity,
+                    message: finding.message,
+                    explanation: finding.suggestion.clone(),
+                    suggestion: finding.suggestion,
+                    location,
+                    related_locations: Vec::new(),
+                    metadata: HashMap::new(),
+                };
+
+                // Update stats
+                *self.stats.by_severity.entry(diagnostic.severity).or_insert(0) += 1;
+                *self.stats.by_category.entry(diagnostic.category).or_insert(0) += 1;
+                *self.stats.by_rule.entry(diagnostic.rule_id.clone()).or_insert(0) += 1;
+                self.stats.total_diagnostics += 1;
+
                 diagnostics.push(diagnostic);
             }
         }

@@ -1,0 +1,14 @@
+// Test 14: Function with 4 parameters
+fn helper(a, b, c, d) {
+    seeAm "helper";
+}
+
+fn test() {
+    if true {
+        seeAm "if";
+    } else {
+        helper(1, 2, 3, 4);
+    }
+}
+
+test();

@@ -162,8 +162,8 @@ impl PackageRegistry {
             content,
             source_url,
             &metadata.id.content_hash,
-            signatures,
-            key_id,
+            signatures.map(|s| s.as_str()),
+            key_id.map(|k| k.as_str()),
         )?;
 
         if !is_valid {
@@ -1325,6 +1325,7 @@ impl ProjectConfig {
         }
     }
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DependencySpec {
     /// Exact version: "1.0.0"

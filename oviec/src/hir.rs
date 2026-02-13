@@ -8,6 +8,12 @@ use crate::error::{OvieError, OvieResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// HIR invariant validation trait
+pub trait HirInvariantValidation {
+    /// Validate HIR invariants according to Stage 2.2 compiler invariants
+    fn validate(&self) -> Result<(), crate::ast::InvariantError>;
+}
+
 /// Unique identifier for HIR nodes
 pub type NodeId = u32;
 
@@ -233,6 +239,24 @@ pub enum HirExpressionKind {
         start: Box<HirExpression>,
         end: Box<HirExpression>,
     },
+    
+    /// Enum variant construction
+    EnumVariant {
+        enum_name: String,
+        variant_name: String,
+        data: Option<Box<HirExpression>>,
+    },
+    
+    /// Array/String indexing
+    Index {
+        object: Box<HirExpression>,
+        index: Box<HirExpression>,
+    },
+    
+    /// Array literal
+    ArrayLiteral {
+        elements: Vec<HirExpression>,
+    },
 }
 
 /// HIR Place (assignable location)
@@ -310,6 +334,9 @@ pub enum HirType {
     
     /// Range type
     Range(Box<HirType>),
+    
+    /// Array type
+    Array(Box<HirType>),
     
     /// Error type (for error recovery)
     Error,
@@ -439,96 +466,112 @@ impl HirBuilder {
         let mut has_main = false;
 
         // First pass: collect type definitions and validate them
-        for statement in &ast.statements {
-            match statement {
-                Statement::Struct { name, fields } => {
-                    if let Err(e) = self.validate_struct_definition(name, fields) {
-                        self.errors.push(e);
-                        continue;
+        match &ast {
+            AstNode::Program(statements) => {
+                for statement in statements {
+                    match statement {
+                        Statement::Struct { name, fields } => {
+                            if let Err(e) = self.validate_struct_definition(name, fields) {
+                                self.errors.push(e);
+                                continue;
+                            }
+                            let hir_struct = self.transform_struct(name, fields)?;
+                            self.register_struct_type(name, fields)?;
+                            items.push(HirItem::Struct(hir_struct));
+                        }
+                        Statement::Enum { name, variants } => {
+                            if let Err(e) = self.validate_enum_definition(name, variants) {
+                                self.errors.push(e);
+                                continue;
+                            }
+                            let hir_enum = self.transform_enum(name, variants)?;
+                            self.register_enum_type(name, variants)?;
+                            items.push(HirItem::Enum(hir_enum));
+                        }
+                        _ => {}
                     }
-                    let hir_struct = self.transform_struct(name, fields)?;
-                    self.register_struct_type(name, fields)?;
-                    items.push(HirItem::Struct(hir_struct));
                 }
-                Statement::Enum { name, variants } => {
-                    if let Err(e) = self.validate_enum_definition(name, variants) {
-                        self.errors.push(e);
-                        continue;
-                    }
-                    let hir_enum = self.transform_enum(name, variants)?;
-                    self.register_enum_type(name, variants)?;
-                    items.push(HirItem::Enum(hir_enum));
-                }
-                _ => {}
             }
         }
 
         // Second pass: collect function signatures and validate them
-        for statement in &ast.statements {
-            if let Statement::Function { name, parameters, body: _ } = statement {
-                if let Err(e) = self.validate_function_signature(name, parameters) {
-                    self.errors.push(e);
-                    continue;
+        match &ast {
+            AstNode::Program(statements) => {
+                for statement in statements {
+                    if let Statement::Function { name, parameters, body: _ } = statement {
+                        if let Err(e) = self.validate_function_signature(name, parameters) {
+                            self.errors.push(e);
+                            continue;
+                        }
+                        self.register_function(name, parameters)?;
+                    }
                 }
-                self.register_function(name, parameters)?;
             }
         }
 
         // Third pass: transform functions and other items with full context
-        for statement in &ast.statements {
-            match statement {
-                Statement::Function { name, parameters, body } => {
-                    match self.transform_function(name, parameters, body) {
-                        Ok(hir_function) => {
-                            if name == "main" {
-                                has_main = true;
+        match &ast {
+            AstNode::Program(statements) => {
+                for statement in statements {
+                    match statement {
+                        Statement::Function { name, parameters, body } => {
+                            match self.transform_function(name, parameters, body) {
+                                Ok(hir_function) => {
+                                    if name == "main" {
+                                        has_main = true;
+                                    }
+                                    items.push(HirItem::Function(hir_function));
+                                }
+                                Err(e) => {
+                                    self.errors.push(e);
+                                }
                             }
-                            items.push(HirItem::Function(hir_function));
                         }
-                        Err(e) => {
-                            self.errors.push(e);
+                        Statement::Assignment { identifier, value, mutable } => {
+                            // Global variable
+                            match self.transform_global(identifier, value, *mutable) {
+                                Ok(hir_global) => {
+                                    items.push(HirItem::Global(hir_global));
+                                }
+                                Err(e) => {
+                                    self.errors.push(e);
+                                }
+                            }
+                        }
+                        Statement::Struct { .. } | Statement::Enum { .. } => {
+                            // Already handled in first pass
+                        }
+                        _ => {
+                            // Other statements at top level - create implicit main
                         }
                     }
-                }
-                Statement::Assignment { identifier, value, mutable } => {
-                    // Global variable
-                    match self.transform_global(identifier, value, *mutable) {
-                        Ok(hir_global) => {
-                            items.push(HirItem::Global(hir_global));
-                        }
-                        Err(e) => {
-                            self.errors.push(e);
-                        }
-                    }
-                }
-                Statement::Struct { .. } | Statement::Enum { .. } => {
-                    // Already handled in first pass
-                }
-                _ => {
-                    // Other statements at top level - create implicit main
                 }
             }
         }
 
         // If no main function found, create an implicit one from top-level statements
         if !has_main {
-            let main_statements: Vec<_> = ast.statements.iter()
-                .filter(|stmt| !matches!(stmt, 
-                    Statement::Function { .. } | 
-                    Statement::Struct { .. } | 
-                    Statement::Enum { .. } |
-                    Statement::Assignment { .. }
-                ))
-                .collect();
+            match &ast {
+                AstNode::Program(statements) => {
+                    let main_statements: Vec<_> = statements.iter()
+                        .filter(|stmt| !matches!(stmt, 
+                            Statement::Function { .. } | 
+                            Statement::Struct { .. } | 
+                            Statement::Enum { .. } |
+                            Statement::Assignment { .. }
+                        ))
+                        .collect();
 
-            if !main_statements.is_empty() {
-                match self.create_implicit_main(&main_statements) {
-                    Ok(main_function) => {
-                        items.push(HirItem::Function(main_function));
-                        has_main = true;
-                    }
-                    Err(e) => {
-                        self.errors.push(e);
+                    if !main_statements.is_empty() {
+                        match self.create_implicit_main(&main_statements) {
+                            Ok(main_function) => {
+                                items.push(HirItem::Function(main_function));
+                                has_main = true;
+                            }
+                            Err(e) => {
+                                self.errors.push(e);
+                            }
+                        }
                     }
                 }
             }
@@ -771,6 +814,8 @@ impl HirBuilder {
             }
             _ => {
                 return Err(OvieError::SemanticError {
+                    line: 0,
+                    column: 0,
                     message: "Unsupported statement type in HIR transformation".to_string(),
                 });
             }
@@ -880,6 +925,56 @@ impl HirBuilder {
                     end: Box::new(hir_end),
                 }, range_type)
             }
+            Expression::EnumVariantConstruction { enum_name, variant_name, data } => {
+                // Transform data if present
+                let hir_data = if let Some(data_expr) = data {
+                    Some(Box::new(self.transform_expression(data_expr)?))
+                } else {
+                    None
+                };
+                
+                // Type is the enum type
+                let enum_type = HirType::Enum(enum_name.clone());
+                
+                (HirExpressionKind::EnumVariant {
+                    enum_name: enum_name.clone(),
+                    variant_name: variant_name.clone(),
+                    data: hir_data,
+                }, enum_type)
+            }
+            Expression::Index { object, index } => {
+                let hir_object = self.transform_expression(object)?;
+                let hir_index = self.transform_expression(index)?;
+                
+                // Determine result type based on object type
+                let result_type = match &hir_object.expr_type {
+                    HirType::Array(elem_type) => (**elem_type).clone(),
+                    HirType::String => HirType::String, // String indexing returns a single character string
+                    _ => HirType::Infer(self.next_id()), // Unknown, will be inferred
+                };
+                
+                (HirExpressionKind::Index {
+                    object: Box::new(hir_object),
+                    index: Box::new(hir_index),
+                }, result_type)
+            }
+            Expression::ArrayLiteral { elements } => {
+                let mut hir_elements = Vec::new();
+                let mut element_type = HirType::Infer(self.next_id());
+                
+                for element in elements {
+                    let hir_element = self.transform_expression(element)?;
+                    // Use the first element's type as the array element type
+                    if hir_elements.is_empty() {
+                        element_type = hir_element.expr_type.clone();
+                    }
+                    hir_elements.push(hir_element);
+                }
+                
+                (HirExpressionKind::ArrayLiteral {
+                    elements: hir_elements,
+                }, HirType::Array(Box::new(element_type)))
+            }
         };
 
         Ok(HirExpression {
@@ -941,9 +1036,12 @@ impl HirBuilder {
                 Ok(HirType::Boolean)
             }
             _ => {
-                Err(OvieError::TypeError {
-                    message: format!("Type mismatch in binary operation: {:?} {:?} {:?}", left, op, right),
-                })
+                Err(OvieError::type_error(
+                    0, 0,
+                    &format!("{:?}", left),
+                    &format!("{:?}", right),
+                    vec![]
+                ))
             }
         }
     }
@@ -954,9 +1052,12 @@ impl HirBuilder {
             (HirUnaryOp::Not, HirType::Boolean) => Ok(HirType::Boolean),
             (HirUnaryOp::Neg, HirType::Number) => Ok(HirType::Number),
             _ => {
-                Err(OvieError::TypeError {
-                    message: format!("Type mismatch in unary operation: {:?} {:?}", op, operand),
-                })
+                Err(OvieError::type_error(
+                    0, 0,
+                    "Number",
+                    &format!("{:?}", operand),
+                    vec![]
+                ))
             }
         }
     }
@@ -968,19 +1069,24 @@ impl HirBuilder {
                 if let Some(field_type) = fields.get(field_name) {
                     Ok(field_type.clone())
                 } else {
-                    Err(OvieError::TypeError {
-                        message: format!("Field '{}' not found in struct '{}'", field_name, struct_name),
-                    })
+                    Err(OvieError::semantic_error(
+                        0, 0,
+                        format!("Field '{}' not found in struct '{}'", field_name, struct_name)
+                    ))
                 }
             } else {
-                Err(OvieError::TypeError {
-                    message: format!("Struct '{}' not found", struct_name),
-                })
+                Err(OvieError::semantic_error(
+                    0, 0,
+                    format!("Struct '{}' not found", struct_name)
+                ))
             }
         } else {
-            Err(OvieError::TypeError {
-                message: format!("Cannot access field '{}' on non-struct type {:?}", field_name, struct_type),
-            })
+            Err(OvieError::type_error(
+                0, 0,
+                "struct",
+                &format!("{:?}", struct_type),
+                vec![]
+            ))
         }
     }
 
@@ -996,9 +1102,10 @@ impl HirBuilder {
                 if self.type_table.types.contains_key(type_name) {
                     Ok(HirType::Struct(type_name.to_string()))
                 } else {
-                    Err(OvieError::TypeError {
-                        message: format!("Unknown type: {}", type_name),
-                    })
+                    Err(OvieError::semantic_error(
+                        0, 0,
+                        format!("Unknown type: {}", type_name)
+                    ))
                 }
             }
         }
@@ -1065,6 +1172,8 @@ impl HirBuilder {
         for field in fields {
             if !field_names.insert(&field.name) {
                 return Err(OvieError::SemanticError {
+                    line: 0,
+                    column: 0,
                     message: format!("Duplicate field '{}' in struct '{}'", field.name, name),
                 });
             }
@@ -1078,6 +1187,8 @@ impl HirBuilder {
         // Check for reserved names
         if matches!(name, "String" | "Number" | "Boolean" | "Unit") {
             return Err(OvieError::SemanticError {
+                line: 0,
+                column: 0,
                 message: format!("Cannot use reserved type name '{}' for struct", name),
             });
         }
@@ -1092,6 +1203,8 @@ impl HirBuilder {
         for variant in variants {
             if !variant_names.insert(&variant.name) {
                 return Err(OvieError::SemanticError {
+                    line: 0,
+                    column: 0,
                     message: format!("Duplicate variant '{}' in enum '{}'", variant.name, name),
                 });
             }
@@ -1107,6 +1220,8 @@ impl HirBuilder {
         // Check for reserved names
         if matches!(name, "String" | "Number" | "Boolean" | "Unit") {
             return Err(OvieError::SemanticError {
+                line: 0,
+                column: 0,
                 message: format!("Cannot use reserved type name '{}' for enum", name),
             });
         }
@@ -1114,6 +1229,8 @@ impl HirBuilder {
         // Ensure at least one variant
         if variants.is_empty() {
             return Err(OvieError::SemanticError {
+                line: 0,
+                column: 0,
                 message: format!("Enum '{}' must have at least one variant", name),
             });
         }
@@ -1128,6 +1245,8 @@ impl HirBuilder {
         for param in parameters {
             if !param_names.insert(param) {
                 return Err(OvieError::SemanticError {
+                    line: 0,
+                    column: 0,
                     message: format!("Duplicate parameter '{}' in function '{}'", param, name),
                 });
             }
@@ -1136,6 +1255,8 @@ impl HirBuilder {
         // Check for reserved function names
         if matches!(name, "print" | "to_string") {
             return Err(OvieError::SemanticError {
+                line: 0,
+                column: 0,
                 message: format!("Cannot redefine built-in function '{}'", name),
             });
         }
@@ -1151,9 +1272,10 @@ impl HirBuilder {
                 if self.type_table.types.contains_key(type_name) {
                     Ok(())
                 } else {
-                    Err(OvieError::TypeError {
-                        message: format!("Unknown type: {}", type_name),
-                    })
+                    Err(OvieError::semantic_error(
+                        0, 0,
+                        format!("Unknown type: {}", type_name)
+                    ))
                 }
             }
         }
@@ -1199,9 +1321,12 @@ impl HirBuilder {
                 if matches!(*return_type, HirType::Unit | HirType::Infer(_)) {
                     *return_type = expr.expr_type.clone();
                 } else if *return_type != expr.expr_type {
-                    return Err(OvieError::TypeError {
-                        message: "Inconsistent return types in function".to_string(),
-                    });
+                    return Err(OvieError::type_error(
+                        0, 0,
+                        &format!("{:?}", return_type),
+                        &format!("{:?}", expr.expr_type),
+                        vec![]
+                    ));
                 }
             }
         }
@@ -1279,6 +1404,8 @@ impl HirBuilder {
                 // Check if function exists
                 if let Err(_) = self.symbol_table.lookup(function) {
                     return Err(OvieError::SemanticError {
+                        line: 0,
+                        column: 0,
                         message: format!("Function '{}' not found", function),
                     });
                 }
@@ -1422,6 +1549,8 @@ impl SymbolTable {
     pub fn insert(&mut self, name: Symbol, info: SymbolInfo) -> OvieResult<()> {
         if self.scopes[self.current_scope].symbols.contains_key(&name) {
             return Err(OvieError::SemanticError {
+                line: 0,
+                column: 0,
                 message: format!("Symbol '{}' already defined in current scope", name),
             });
         }
@@ -1447,6 +1576,8 @@ impl SymbolTable {
         }
         
         Err(OvieError::SemanticError {
+            line: 0,
+            column: 0,
             message: format!("Symbol '{}' not found", name),
         })
     }
@@ -1492,6 +1623,8 @@ impl HirProgram {
 
         if !has_main && self.metadata.has_main_function {
             return Err(OvieError::SemanticError {
+                line: 0,
+                column: 0,
                 message: "Main function not found".to_string(),
             });
         }
@@ -1512,23 +1645,8 @@ impl HirProgram {
     /// - Function signatures are resolved
     /// - Struct/enum definitions are complete
     pub fn validate_invariants(&self) -> Result<(), crate::ast::InvariantError> {
-        // Check that all items have valid invariants
-        for item in &self.items {
-            self.validate_item_invariants(item)?;
-        }
-
-        // Check symbol table is populated
-        if self.symbol_table.scopes.is_empty() {
-            return Err(crate::ast::InvariantError {
-                message: "HIR must have populated symbol table".to_string(),
-                location: Some("symbol_table".to_string()),
-            });
-        }
-
-        // Check that no error types remain (type inference should be complete)
-        self.validate_no_error_types()?;
-
-        Ok(())
+        // Delegate to trait implementation
+        HirInvariantValidation::validate(self)
     }
 
     fn validate_item_invariants(&self, item: &HirItem) -> Result<(), crate::ast::InvariantError> {
@@ -1546,7 +1664,7 @@ impl HirProgram {
                 for param in &func.parameters {
                     if matches!(param.param_type, HirType::Error | HirType::Infer(_)) {
                         return Err(crate::ast::InvariantError {
-                            message: format!("Parameter '{}' has unresolved type", param.name),
+                            message: format!("Function '{}' has unresolved parameter type", func.name),
                             location: Some(format!("function:{}:param:{}", func.name, param.name)),
                         });
                     }
@@ -1560,19 +1678,19 @@ impl HirProgram {
                 for field in &struct_def.fields {
                     if matches!(field.field_type, HirType::Error | HirType::Infer(_)) {
                         return Err(crate::ast::InvariantError {
-                            message: format!("Struct field '{}' has unresolved type", field.name),
+                            message: format!("Struct '{}' has unresolved field type", struct_def.name),
                             location: Some(format!("struct:{}:field:{}", struct_def.name, field.name)),
                         });
                     }
                 }
             }
             HirItem::Enum(enum_def) => {
-                // All variants must have resolved types (if they have data)
+                // All variant data types must be resolved
                 for variant in &enum_def.variants {
                     if let Some(ref data_type) = variant.data_type {
                         if matches!(data_type, HirType::Error | HirType::Infer(_)) {
                             return Err(crate::ast::InvariantError {
-                                message: format!("Enum variant '{}' has unresolved data type", variant.name),
+                                message: format!("Enum '{}' has unresolved variant type", enum_def.name),
                                 location: Some(format!("enum:{}:variant:{}", enum_def.name, variant.name)),
                             });
                         }
@@ -1588,7 +1706,7 @@ impl HirProgram {
                     });
                 }
 
-                // If there's an initializer, validate it
+                // Validate initializer if present
                 if let Some(ref init) = global.initializer {
                     self.validate_expression_invariants(init)?;
                 }
@@ -1607,13 +1725,16 @@ impl HirProgram {
     fn validate_statement_invariants(&self, stmt: &HirStatement) -> Result<(), crate::ast::InvariantError> {
         match &stmt.kind {
             HirStatementKind::Local { var_type, initializer, .. } => {
+                // Local variable must have resolved type
                 if matches!(var_type, HirType::Error | HirType::Infer(_)) {
                     return Err(crate::ast::InvariantError {
                         message: "Local variable has unresolved type".to_string(),
-                        location: Some(format!("statement:{}", stmt.id)),
+                        location: Some("local_variable".to_string()),
                     });
                 }
-                if let Some(init) = initializer {
+
+                // Validate initializer if present
+                if let Some(ref init) = initializer {
                     self.validate_expression_invariants(init)?;
                 }
             }
@@ -1656,17 +1777,17 @@ impl HirProgram {
         if matches!(expr.expr_type, HirType::Error | HirType::Infer(_)) {
             return Err(crate::ast::InvariantError {
                 message: "Expression has unresolved type".to_string(),
-                location: Some(format!("expression:{}", expr.id)),
+                location: Some("expression".to_string()),
             });
         }
 
+        // Recursively validate sub-expressions
         match &expr.kind {
             HirExpressionKind::Literal(_) => {
                 // Literals are always valid
             }
-            HirExpressionKind::Variable(symbol) => {
-                // Variable must be resolved (this is checked by having a Symbol type)
-                // The fact that we have a Symbol means it was resolved
+            HirExpressionKind::Variable(_) => {
+                // Variables should be resolved (checked by symbol table)
             }
             HirExpressionKind::Binary { left, right, .. } => {
                 self.validate_expression_invariants(left)?;
@@ -1684,19 +1805,34 @@ impl HirProgram {
                 self.validate_expression_invariants(object)?;
             }
             HirExpressionKind::StructInit { fields, .. } => {
-                for field in fields {
-                    self.validate_expression_invariants(&field.value)?;
+                for field_init in fields {
+                    self.validate_expression_invariants(&field_init.value)?;
                 }
             }
             HirExpressionKind::Range { start, end } => {
                 self.validate_expression_invariants(start)?;
                 self.validate_expression_invariants(end)?;
             }
+            HirExpressionKind::EnumVariant { data, .. } => {
+                if let Some(data_expr) = data {
+                    self.validate_expression_invariants(data_expr)?;
+                }
+            }
+            HirExpressionKind::Index { object, index } => {
+                self.validate_expression_invariants(object)?;
+                self.validate_expression_invariants(index)?;
+            }
+            HirExpressionKind::ArrayLiteral { elements } => {
+                for element in elements {
+                    self.validate_expression_invariants(element)?;
+                }
+            }
         }
         Ok(())
     }
 
     fn validate_place_invariants(&self, place: &HirPlace) -> Result<(), crate::ast::InvariantError> {
+        // Place must have resolved type
         if matches!(place.place_type, HirType::Error | HirType::Infer(_)) {
             return Err(crate::ast::InvariantError {
                 message: "Place has unresolved type".to_string(),
@@ -1704,9 +1840,10 @@ impl HirProgram {
             });
         }
 
+        // Recursively validate nested places
         match &place.kind {
             HirPlaceKind::Local(_) => {
-                // Local places are valid if they have resolved types
+                // Local places are always valid if type is resolved
             }
             HirPlaceKind::Field { object, .. } => {
                 self.validate_place_invariants(object)?;
@@ -1716,7 +1853,6 @@ impl HirProgram {
     }
 
     fn validate_no_error_types(&self) -> Result<(), crate::ast::InvariantError> {
-        // This is a comprehensive check that no Error or Infer types remain
         // The individual checks above should catch most cases, but this is a final safety net
         
         for item in &self.items {
@@ -1775,97 +1911,37 @@ impl HirProgram {
             _ => false,
         }
     }
+}
 
-    /// Generate human-readable HIR report
-    pub fn generate_hir_report(&self) -> OvieResult<String> {
-        let mut report = String::new();
-        
-        report.push_str("=== HIR Program Analysis Report ===\n\n");
-        
-        // Program overview
-        report.push_str(&format!("Source File: {}\n", self.metadata.source_file));
-        report.push_str(&format!("Compiler Version: {}\n", self.metadata.compiler_version));
-        report.push_str(&format!("Has Main Function: {}\n", self.metadata.has_main_function));
-        report.push_str(&format!("Errors: {}\n", self.metadata.error_count));
-        report.push_str(&format!("Warnings: {}\n\n", self.metadata.warning_count));
-        
-        // Items summary
-        let mut function_count = 0;
-        let mut struct_count = 0;
-        let mut enum_count = 0;
-        let mut global_count = 0;
-        
+impl HirInvariantValidation for HirProgram {
+    /// Validate HIR invariants according to Stage 2.2 compiler invariants
+    /// 
+    /// HIR Invariants (from docs/compiler_invariants.md):
+    /// - All identifiers are resolved to symbols
+    /// - No unresolved names exist
+    /// - Every expression has a known type
+    /// - Type inference is complete
+    /// - Symbol table is fully populated
+    /// - Semantic errors have been caught
+    /// - Function signatures are resolved
+    /// - Struct/enum definitions are complete
+    fn validate(&self) -> Result<(), crate::ast::InvariantError> {
+        // Check that all items have valid invariants
         for item in &self.items {
-            match item {
-                HirItem::Function(_) => function_count += 1,
-                HirItem::Struct(_) => struct_count += 1,
-                HirItem::Enum(_) => enum_count += 1,
-                HirItem::Global(_) => global_count += 1,
-            }
+            self.validate_item_invariants(item)?;
         }
-        
-        report.push_str(&format!("Functions: {}\n", function_count));
-        report.push_str(&format!("Structs: {}\n", struct_count));
-        report.push_str(&format!("Enums: {}\n", enum_count));
-        report.push_str(&format!("Globals: {}\n\n", global_count));
-        
-        // Symbol table summary
-        report.push_str("=== Symbol Table ===\n");
-        report.push_str(&format!("Scopes: {}\n\n", self.symbol_table.scopes.len()));
-        
-        // Type table summary
-        report.push_str("=== Type Definitions ===\n");
-        for (type_name, type_info) in &self.type_table.types {
-            match type_info {
-                crate::hir::TypeInfo::Struct { fields } => {
-                    report.push_str(&format!("Struct {}: {} fields\n", type_name, fields.len()));
-                }
-                crate::hir::TypeInfo::Enum { variants } => {
-                    report.push_str(&format!("Enum {}: {} variants\n", type_name, variants.len()));
-                }
-            }
+
+        // Check symbol table is populated
+        if self.symbol_table.scopes.is_empty() {
+            return Err(crate::ast::InvariantError {
+                message: "HIR must have populated symbol table".to_string(),
+                location: Some("symbol_table".to_string()),
+            });
         }
-        report.push_str("\n");
-        
-        // Item details
-        report.push_str("=== Item Details ===\n\n");
-        for item in &self.items {
-            match item {
-                HirItem::Function(func) => {
-                    report.push_str(&format!("Function: {} (ID: {})\n", func.name, func.id));
-                    report.push_str(&format!("  Is Main: {}\n", func.is_main));
-                    report.push_str(&format!("  Parameters: {}\n", func.parameters.len()));
-                    report.push_str(&format!("  Return Type: {:?}\n", func.return_type));
-                    report.push_str(&format!("  Statements: {}\n\n", func.body.statements.len()));
-                }
-                HirItem::Struct(s) => {
-                    report.push_str(&format!("Struct: {} (ID: {})\n", s.name, s.id));
-                    report.push_str(&format!("  Fields: {}\n", s.fields.len()));
-                    for field in &s.fields {
-                        report.push_str(&format!("    {}: {:?}\n", field.name, field.field_type));
-                    }
-                    report.push_str("\n");
-                }
-                HirItem::Enum(e) => {
-                    report.push_str(&format!("Enum: {} (ID: {})\n", e.name, e.id));
-                    report.push_str(&format!("  Variants: {}\n", e.variants.len()));
-                    for variant in &e.variants {
-                        let data_info = variant.data_type.as_ref()
-                            .map(|t| format!("{:?}", t))
-                            .unwrap_or_else(|| "()".to_string());
-                        report.push_str(&format!("    {}: {}\n", variant.name, data_info));
-                    }
-                    report.push_str("\n");
-                }
-                HirItem::Global(g) => {
-                    report.push_str(&format!("Global: {} (ID: {})\n", g.name, g.id));
-                    report.push_str(&format!("  Type: {:?}\n", g.global_type));
-                    report.push_str(&format!("  Mutable: {}\n", g.is_mutable));
-                    report.push_str(&format!("  Has Initializer: {}\n\n", g.initializer.is_some()));
-                }
-            }
-        }
-        
-        Ok(report)
+
+        // Check that no error types remain (type inference should be complete)
+        self.validate_no_error_types()?;
+
+        Ok(())
     }
 }

@@ -1,0 +1,114 @@
+// HashMap<K, V> type - hash map with deterministic iteration order
+// Maps to OvieHashMap<K, V> in oviec/src/stdlib/core.rs
+
+struct HashMap<K, V> {
+    // Internal implementation managed by Rust runtime
+}
+
+// HashMap methods
+fn new<K, V>() -> HashMap<K, V> {
+    // Create a new empty hash map
+    // Implementation: Rust runtime
+}
+
+fn len<K, V>(map: HashMap<K, V>) -> Number {
+    // Get the number of key-value pairs
+    // Implementation: Rust runtime
+}
+
+fn is_empty<K, V>(map: HashMap<K, V>) -> Boolean {
+    // Check if the map is empty
+    // Implementation: Rust runtime
+}
+
+fn insert<K, V>(map: mut HashMap<K, V>, key: K, value: V) -> Option<V> {
+    // Insert a key-value pair
+    // Returns Some(old_value) if key existed, None otherwise
+    // Implementation: Rust runtime
+}
+
+fn get<K, V>(map: HashMap<K, V>, key: K) -> Option<V> {
+    // Get a value by key
+    // Returns Some(value) if key exists, None otherwise
+    // Implementation: Rust runtime
+}
+
+fn remove<K, V>(map: mut HashMap<K, V>, key: K) -> Option<V> {
+    // Remove a key-value pair
+    // Returns Some(value) if key existed, None otherwise
+    // Implementation: Rust runtime
+}
+
+fn contains_key<K, V>(map: HashMap<K, V>, key: K) -> Boolean {
+    // Check if a key exists
+    // Implementation: Rust runtime
+}
+
+fn clear<K, V>(map: mut HashMap<K, V>) {
+    // Clear all key-value pairs
+    // Implementation: Rust runtime
+}
+
+fn try_insert<K, V>(map: mut HashMap<K, V>, key: K, value: V) -> Result<(), V> {
+    // Insert key-value pair only if key doesn't exist
+    // Returns Ok(()) if successful, Err(value) if key already exists
+    // Implementation: Rust runtime
+}
+
+fn iter<K, V>(map: HashMap<K, V>) -> HashMapIterator<K, V> {
+    // Get iterator over key-value pairs in insertion order
+    // Implementation: Rust runtime
+}
+
+fn keys<K, V>(map: HashMap<K, V>) -> HashMapKeysIterator<K, V> {
+    // Get iterator over keys in insertion order
+    // Implementation: Rust runtime
+}
+
+fn values<K, V>(map: HashMap<K, V>) -> HashMapValuesIterator<K, V> {
+    // Get iterator over values in insertion order
+    // Implementation: Rust runtime
+}
+
+fn get_key_at<K, V>(map: HashMap<K, V>, index: Number) -> Option<K> {
+    // Get key at specific index in insertion order
+    // Implementation: Rust runtime
+}
+
+fn get_value_at<K, V>(map: HashMap<K, V>, index: Number) -> Option<V> {
+    // Get value at specific index in insertion order
+    // Implementation: Rust runtime
+}
+
+// HashMapIterator type
+struct HashMapIterator<K, V> {
+    // Internal implementation managed by Rust runtime
+}
+
+// HashMapIterator methods
+fn next<K, V>(iter: mut HashMapIterator<K, V>) -> Option<(K, V)> {
+    // Get the next key-value pair
+    // Implementation: Rust runtime
+}
+
+// HashMapKeysIterator type
+struct HashMapKeysIterator<K, V> {
+    // Internal implementation managed by Rust runtime
+}
+
+// HashMapKeysIterator methods
+fn next<K, V>(iter: mut HashMapKeysIterator<K, V>) -> Option<K> {
+    // Get the next key
+    // Implementation: Rust runtime
+}
+
+// HashMapValuesIterator type
+struct HashMapValuesIterator<K, V> {
+    // Internal implementation managed by Rust runtime
+}
+
+// HashMapValuesIterator methods
+fn next<K, V>(iter: mut HashMapValuesIterator<K, V>) -> Option<V> {
+    // Get the next value
+    // Implementation: Rust runtime
+}

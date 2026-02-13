@@ -3,7 +3,7 @@ members = ["oviec", "ovie", "aproko"]
 resolver = "2"
 
 [workspace.package]
-version = "2.1.0"
+version = "2.2.0"
 edition = "2021"
 license = "MIT"
 authors = ["Ovie Language Team <team@ovie-lang.org>"]
@@ -43,3 +43,11 @@ wasm-encoder = "0.38"
 wasmparser = "0.118"
 # LLVM backend (optional)
 inkwell = { version = "0.4", features = ["llvm17-0"] }
+# Environment module dependencies
+hostname = "0.3"
+whoami = "1.4"
+libc = "0.2"
+# Archive creation
+zip = "0.6"
+tar = "0.4"
+flate2 = "1.0"

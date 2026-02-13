@@ -7,9 +7,13 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-description = "Ovie v2.1 compiler - Low-level self-hosted programming language compiler with formal invariants, AST→HIR→MIR pipeline, and bootstrap verification"
+description = "Ovie v2.2.0 compiler - Low-level self-hosted programming language compiler with formal invariants, AST→HIR→MIR pipeline, and bootstrap verification"
 keywords = ["compiler", "programming-language", "ovie", "low-level", "self-hosted", "formal-verification"]
 categories = ["compilers", "development-tools"]
+
+[[bin]]
+name = "oviec"
+path = "src/main.rs"
 
 [[bin]]
 name = "test_runner"
@@ -38,6 +42,16 @@ sha2.workspace = true
 dirs.workspace = true
 chrono.workspace = true
 toml.workspace = true
+# Environment module dependencies
+hostname.workspace = true
+whoami.workspace = true
+# Archive creation
+zip.workspace = true
+tar.workspace = true
+flate2.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
 
 [features]
 default = []

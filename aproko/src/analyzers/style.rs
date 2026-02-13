@@ -27,8 +27,12 @@ impl StyleAnalyzer {
             return findings;
         }
 
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_naming(statement, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_naming(statement, i + 1));
+                }
+            }
         }
 
         findings
@@ -292,8 +296,12 @@ impl StyleAnalyzer {
     fn check_best_practices(&self, ast: &AstNode) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        for (i, statement) in ast.statements.iter().enumerate() {
-            findings.extend(self.check_statement_best_practices(statement, i + 1));
+        match ast {
+            AstNode::Program(statements) => {
+                for (i, statement) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_best_practices(statement, i + 1));
+                }
+            }
         }
 
         findings

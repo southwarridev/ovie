@@ -1,0 +1,46 @@
+// Test 3: Add helper functions
+fn NODE_PROGRAM() { return "NODE_PROGRAM"; }
+fn NODE_FUNCTION() { return "NODE_FUNCTION"; }
+
+let current_node_type = "";
+let current_node_value = "";
+let current_node_line = 0;
+let current_node_column = 0;
+
+fn create_node(node_type, value, line, column) {
+    current_node_type = node_type;
+    current_node_value = value;
+    current_node_line = line;
+    current_node_column = column;
+}
+
+fn get_node_type() {
+    return current_node_type;
+}
+
+fn get_node_value() {
+    return current_node_value;
+}
+
+fn get_node_location() {
+    seeAm "Line: ";
+    seeAm current_node_line;
+    seeAm ", Column: ";
+    seeAm current_node_column;
+}
+
+fn create_program_node() {
+    create_node(NODE_PROGRAM(), "", 1, 1);
+    seeAm "Created: PROGRAM node";
+}
+
+fn create_function_node(name, line, column) {
+    create_node(NODE_FUNCTION(), name, line, column);
+    seeAm "Created: FUNCTION node '";
+    seeAm name;
+    seeAm "'";
+}
+
+seeAm "Test 3: Helper functions work";
+create_program_node();
+create_function_node("main", 1, 1);

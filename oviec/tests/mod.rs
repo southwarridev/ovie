@@ -1,16 +1,16 @@
-//! Comprehensive Testing Framework for Ovie Compiler
-//! 
-//! This module provides the complete testing infrastructure for the Ovie Stage 2 compiler,
-//! including unit tests, property-based tests, integration tests, and conformance tests.
-//! 
-//! ## Test Suite Organization
-//! 
-//! - `unit/`: Component-specific unit tests
-//! - `property/`: Property-based tests for universal correctness properties
-//! - `integration/`: End-to-end and cross-component integration tests
-//! - `conformance/`: Language specification compliance tests
-//! - `performance/`: Performance benchmarking and regression tests
-//! - `regression/`: Regression test suite for compiler behavior
+// Comprehensive Testing Framework for Ovie Compiler
+// 
+// This module provides the complete testing infrastructure for the Ovie Stage 2 compiler,
+// including unit tests, property-based tests, integration tests, and conformance tests.
+// 
+// ## Test Suite Organization
+// 
+// - `unit/`: Component-specific unit tests
+// - `property/`: Property-based tests for universal correctness properties
+// - `integration/`: End-to-end and cross-component integration tests
+// - `conformance/`: Language specification compliance tests
+// - `performance/`: Performance benchmarking and regression tests
+// - `regression/`: Regression test suite for compiler behavior
 
 pub mod unit;
 pub mod property;

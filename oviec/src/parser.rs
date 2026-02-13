@@ -401,13 +401,59 @@ impl Parser {
             };
         }
         
-        // Handle field access
-        while self.match_token(&TokenType::Dot) {
-            let field = self.consume_identifier("Expected field name after '.'")?;
-            expr = Expression::FieldAccess {
-                object: Box::new(expr),
-                field,
-            };
+        // Handle field access, array indexing, and enum variant construction
+        loop {
+            if self.match_token(&TokenType::Dot) {
+                let field = self.consume_identifier("Expected field name after '.'")?;
+                
+                // Check if this is an enum variant construction with data
+                if self.match_token(&TokenType::LeftParen) {
+                    // This is EnumName.VariantName(data)
+                    // The expr should be an identifier (enum name)
+                    if let Expression::Identifier(enum_name) = expr {
+                        let data = self.expression()?;
+                        self.consume(&TokenType::RightParen, "Expected ')' after enum variant data")?;
+                        expr = Expression::EnumVariantConstruction {
+                            enum_name,
+                            variant_name: field,
+                            data: Some(Box::new(data)),
+                        };
+                    } else {
+                        return Err(self.error("Enum variant construction requires enum name before '.'"));
+                    }
+                } else {
+                    // Check if this might be an enum variant without data
+                    // We need to distinguish between field access and enum variant
+                    // For now, we'll treat EnumName.VariantName as enum variant if EnumName is capitalized
+                    if let Expression::Identifier(ref name) = expr {
+                        if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                            // This looks like an enum variant construction without data
+                            expr = Expression::EnumVariantConstruction {
+                                enum_name: name.clone(),
+                                variant_name: field,
+                                data: None,
+                            };
+                            continue;
+                        }
+                    }
+                    
+                    // Regular field access
+                    expr = Expression::FieldAccess {
+                        object: Box::new(expr),
+                        field,
+                    };
+                }
+            } else if self.match_token(&TokenType::LeftBracket) {
+                // Array/String indexing: expr[index]
+                let index = self.expression()?;
+                self.consume(&TokenType::RightBracket, "Expected ']' after index")?;
+                expr = Expression::Index {
+                    object: Box::new(expr),
+                    index: Box::new(index),
+                };
+            } else {
+                break;
+            }
         }
         
         Ok(expr)
@@ -466,8 +512,9 @@ impl Parser {
                         function: name,
                         arguments,
                     })
-                } else if self.check(&TokenType::LeftBrace) {
-                    // Struct instantiation
+                } else if self.check(&TokenType::LeftBrace) && self.looks_like_struct_instantiation() {
+                    // Struct instantiation - only if it looks like field initialization
+                    // This prevents treating "if a == b {" as struct instantiation
                     self.advance(); // consume '{'
                     
                     let mut fields = Vec::new();
@@ -502,6 +549,24 @@ impl Parser {
                 let expr = self.expression()?;
                 self.consume(&TokenType::RightParen, "Expected ')' after expression")?;
                 Ok(expr)
+            }
+            TokenType::LeftBracket => {
+                // Array literal: [element1, element2, ...]
+                self.advance(); // consume '['
+                
+                let mut elements = Vec::new();
+                if !self.check(&TokenType::RightBracket) {
+                    loop {
+                        elements.push(self.expression()?);
+                        if !self.match_token(&TokenType::Comma) {
+                            break;
+                        }
+                    }
+                }
+                
+                self.consume(&TokenType::RightBracket, "Expected ']' after array elements")?;
+                
+                Ok(Expression::ArrayLiteral { elements })
             }
             _ => Err(self.error("Expected expression")),
         }
@@ -623,6 +688,27 @@ impl Parser {
     }
 
     /// Utility methods
+    fn looks_like_struct_instantiation(&self) -> bool {
+        // Look ahead to see if this looks like struct instantiation
+        // Pattern: { identifier : ...
+        // We need to check if after the '{' there's an identifier followed by ':'
+        if self.current + 1 >= self.tokens.len() {
+            return false;
+        }
+        
+        // Check if next token after '{' is an identifier
+        if self.tokens[self.current + 1].token_type != TokenType::Identifier {
+            return false;
+        }
+        
+        // Check if token after identifier is ':'
+        if self.current + 2 >= self.tokens.len() {
+            return false;
+        }
+        
+        self.tokens[self.current + 2].token_type == TokenType::Colon
+    }
+    
     fn match_token(&mut self, token_type: &TokenType) -> bool {
         if self.check(token_type) {
             self.advance();
@@ -700,131 +786,160 @@ mod tests {
     #[test]
     fn test_simple_print() {
         let ast = parse_source(r#"seeAm "Hello, World!";"#).unwrap();
-        assert_eq!(ast.statements.len(), 1);
         
-        match &ast.statements[0] {
-            Statement::Print { expression } => {
-                match expression {
-                    Expression::Literal(Literal::String(s)) => {
-                        assert_eq!(s, "Hello, World!");
+        match &ast {
+            AstNode::Program(statements) => {
+                assert_eq!(statements.len(), 1);
+                
+                match &statements[0] {
+                    Statement::Print { expression } => {
+                        match expression {
+                            Expression::Literal(Literal::String(s)) => {
+                                assert_eq!(s, "Hello, World!");
+                            }
+                            _ => panic!("Expected string literal"),
+                        }
                     }
-                    _ => panic!("Expected string literal"),
+                    _ => panic!("Expected print statement"),
                 }
             }
-            _ => panic!("Expected print statement"),
         }
     }
 
     #[test]
     fn test_assignment() {
         let ast = parse_source("name = \"Ovie\";").unwrap();
-        assert_eq!(ast.statements.len(), 1);
-        
-        match &ast.statements[0] {
-            Statement::Assignment { mutable, identifier, value } => {
-                assert!(!mutable);
-                assert_eq!(identifier, "name");
-                match value {
-                    Expression::Literal(Literal::String(s)) => {
-                        assert_eq!(s, "Ovie");
+        match &ast {
+            AstNode::Program(statements) => {
+                assert_eq!(statements.len(), 1);
+                
+                match &statements[0] {
+                    Statement::Assignment { mutable, identifier, value } => {
+                        assert!(!mutable);
+                        assert_eq!(identifier, "name");
+                        match value {
+                            Expression::Literal(Literal::String(s)) => {
+                                assert_eq!(s, "Ovie");
+                            }
+                            _ => panic!("Expected string literal"),
+                        }
                     }
-                    _ => panic!("Expected string literal"),
+                    _ => panic!("Expected assignment statement"),
                 }
             }
-            _ => panic!("Expected assignment statement"),
         }
     }
 
     #[test]
     fn test_mutable_assignment() {
         let ast = parse_source("mut counter = 42;").unwrap();
-        assert_eq!(ast.statements.len(), 1);
         
-        match &ast.statements[0] {
-            Statement::Assignment { mutable, identifier, value } => {
-                assert!(mutable);
-                assert_eq!(identifier, "counter");
-                match value {
-                    Expression::Literal(Literal::Number(n)) => {
-                        assert_eq!(*n, 42.0);
+        match &ast {
+            AstNode::Program(statements) => {
+                assert_eq!(statements.len(), 1);
+                
+                match &statements[0] {
+                    Statement::Assignment { mutable, identifier, value } => {
+                        assert!(mutable);
+                        assert_eq!(identifier, "counter");
+                        match value {
+                            Expression::Literal(Literal::Number(n)) => {
+                                assert_eq!(*n, 42.0);
+                            }
+                            _ => panic!("Expected number literal"),
+                        }
                     }
-                    _ => panic!("Expected number literal"),
+                    _ => panic!("Expected assignment statement"),
                 }
             }
-            _ => panic!("Expected assignment statement"),
         }
     }
 
     #[test]
     fn test_function_definition() {
         let ast = parse_source("fn greet(name) { seeAm \"Hello, \" + name + \"!\"; }").unwrap();
-        assert_eq!(ast.statements.len(), 1);
         
-        match &ast.statements[0] {
-            Statement::Function { name, parameters, body } => {
-                assert_eq!(name, "greet");
-                assert_eq!(parameters.len(), 1);
-                assert_eq!(parameters[0], "name");
-                assert_eq!(body.len(), 1);
+        match &ast {
+            AstNode::Program(statements) => {
+                assert_eq!(statements.len(), 1);
+                
+                match &statements[0] {
+                    Statement::Function { name, parameters, body } => {
+                        assert_eq!(name, "greet");
+                        assert_eq!(parameters.len(), 1);
+                        assert_eq!(parameters[0], "name");
+                        assert_eq!(body.len(), 1);
+                    }
+                    _ => panic!("Expected function statement"),
+                }
             }
-            _ => panic!("Expected function statement"),
         }
     }
 
     #[test]
     fn test_binary_expression() {
         let ast = parse_source("result = 10 + 5 * 2;").unwrap();
-        assert_eq!(ast.statements.len(), 1);
         
-        match &ast.statements[0] {
-            Statement::Assignment { identifier, value, .. } => {
-                assert_eq!(identifier, "result");
-                // Should parse as 10 + (5 * 2) due to precedence
-                match value {
-                    Expression::Binary { left, operator, right } => {
-                        assert_eq!(*operator, BinaryOperator::Add);
-                        match left.as_ref() {
-                            Expression::Literal(Literal::Number(n)) => assert_eq!(*n, 10.0),
-                            _ => panic!("Expected number literal"),
-                        }
-                        match right.as_ref() {
-                            Expression::Binary { operator, .. } => {
-                                assert_eq!(*operator, BinaryOperator::Multiply);
+        match &ast {
+            AstNode::Program(statements) => {
+                assert_eq!(statements.len(), 1);
+                
+                match &statements[0] {
+                    Statement::Assignment { identifier, value, .. } => {
+                        assert_eq!(identifier, "result");
+                        // Should parse as 10 + (5 * 2) due to precedence
+                        match value {
+                            Expression::Binary { left, operator, right } => {
+                                assert_eq!(*operator, BinaryOperator::Add);
+                                match left.as_ref() {
+                                    Expression::Literal(Literal::Number(n)) => assert_eq!(*n, 10.0),
+                                    _ => panic!("Expected number literal"),
+                                }
+                                match right.as_ref() {
+                                    Expression::Binary { operator, .. } => {
+                                        assert_eq!(*operator, BinaryOperator::Multiply);
+                                    }
+                                    _ => panic!("Expected binary expression"),
+                                }
                             }
                             _ => panic!("Expected binary expression"),
                         }
                     }
-                    _ => panic!("Expected binary expression"),
+                    _ => panic!("Expected assignment statement"),
                 }
             }
-            _ => panic!("Expected assignment statement"),
         }
     }
 
     #[test]
     fn test_range_expression() {
         let ast = parse_source("for i in 1..6 { seeAm i; }").unwrap();
-        assert_eq!(ast.statements.len(), 1);
         
-        match &ast.statements[0] {
-            Statement::For { identifier, iterable, body } => {
-                assert_eq!(identifier, "i");
-                match iterable {
-                    Expression::Range { start, end } => {
-                        match start.as_ref() {
-                            Expression::Literal(Literal::Number(n)) => assert_eq!(*n, 1.0),
-                            _ => panic!("Expected number literal for range start"),
+        match &ast {
+            AstNode::Program(statements) => {
+                assert_eq!(statements.len(), 1);
+                
+                match &statements[0] {
+                    Statement::For { identifier, iterable, body } => {
+                        assert_eq!(identifier, "i");
+                        match iterable {
+                            Expression::Range { start, end } => {
+                                match start.as_ref() {
+                                    Expression::Literal(Literal::Number(n)) => assert_eq!(*n, 1.0),
+                                    _ => panic!("Expected number literal for range start"),
+                                }
+                                match end.as_ref() {
+                                    Expression::Literal(Literal::Number(n)) => assert_eq!(*n, 6.0),
+                                    _ => panic!("Expected number literal for range end"),
+                                }
+                            }
+                            _ => panic!("Expected range expression"),
                         }
-                        match end.as_ref() {
-                            Expression::Literal(Literal::Number(n)) => assert_eq!(*n, 6.0),
-                            _ => panic!("Expected number literal for range end"),
-                        }
+                        assert_eq!(body.len(), 1);
                     }
-                    _ => panic!("Expected range expression"),
+                    _ => panic!("Expected for statement"),
                 }
-                assert_eq!(body.len(), 1);
             }
-            _ => panic!("Expected for statement"),
         }
     }
 }

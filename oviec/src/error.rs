@@ -14,14 +14,88 @@ pub type OvieResult<T> = Result<T, OvieError>;
 /// Error severity levels
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ErrorSeverity {
-    /// Fatal errors that prevent compilation
+    /// Fatal errors that prevent compilation and require immediate attention
+    Fatal,
+    /// Errors that prevent compilation but allow partial analysis
     Error,
-    /// Warnings that should be addressed
+    /// Warnings that should be addressed but don't prevent compilation
     Warning,
-    /// Informational messages
+    /// Informational messages about code quality or style
     Info,
-    /// Hints for improvement
+    /// Hints for improvement or optimization
     Hint,
+}
+
+impl ErrorSeverity {
+    /// Get the severity as a string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ErrorSeverity::Fatal => "fatal",
+            ErrorSeverity::Error => "error",
+            ErrorSeverity::Warning => "warning",
+            ErrorSeverity::Info => "info",
+            ErrorSeverity::Hint => "hint",
+        }
+    }
+
+    /// Get the severity as an uppercase string for display
+    pub fn as_display_str(&self) -> &'static str {
+        match self {
+            ErrorSeverity::Fatal => "FATAL",
+            ErrorSeverity::Error => "ERROR",
+            ErrorSeverity::Warning => "WARNING",
+            ErrorSeverity::Info => "INFO",
+            ErrorSeverity::Hint => "HINT",
+        }
+    }
+
+    /// Get the numeric priority of this severity (higher = more severe)
+    pub fn priority(&self) -> u8 {
+        match self {
+            ErrorSeverity::Fatal => 5,
+            ErrorSeverity::Error => 4,
+            ErrorSeverity::Warning => 3,
+            ErrorSeverity::Info => 2,
+            ErrorSeverity::Hint => 1,
+        }
+    }
+
+    /// Check if this severity should stop compilation
+    pub fn stops_compilation(&self) -> bool {
+        matches!(self, ErrorSeverity::Fatal | ErrorSeverity::Error)
+    }
+
+    /// Check if this severity should be treated as an error when warnings-as-errors is enabled
+    pub fn is_error_level(&self) -> bool {
+        matches!(self, ErrorSeverity::Fatal | ErrorSeverity::Error)
+    }
+
+    /// Get the appropriate exit code for this severity
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            ErrorSeverity::Fatal => 2,  // Internal compiler error
+            ErrorSeverity::Error => 1,  // Compilation error
+            ErrorSeverity::Warning => 0, // Success with warnings
+            ErrorSeverity::Info => 0,   // Success
+            ErrorSeverity::Hint => 0,   // Success
+        }
+    }
+
+    /// Get ANSI color code for terminal display
+    pub fn color_code(&self) -> &'static str {
+        match self {
+            ErrorSeverity::Fatal => "\x1b[91m",    // Bright red
+            ErrorSeverity::Error => "\x1b[31m",    // Red
+            ErrorSeverity::Warning => "\x1b[33m",  // Yellow
+            ErrorSeverity::Info => "\x1b[36m",     // Cyan
+            ErrorSeverity::Hint => "\x1b[32m",     // Green
+        }
+    }
+
+    /// Get the reset ANSI code
+    pub fn reset_code() -> &'static str {
+        "\x1b[0m"
+    }
 }
 
 /// Error categories for better organization
@@ -49,6 +123,319 @@ pub enum ErrorCategory {
     Style,
 }
 
+/// Error code taxonomy for structured error reporting
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ErrorCode {
+    // Lexical Analysis Errors (E_LEX_xxx)
+    /// Invalid character in source code
+    E_LEX_001,
+    /// Unterminated string literal
+    E_LEX_002,
+    /// Invalid number format
+    E_LEX_003,
+    /// Invalid identifier
+    E_LEX_004,
+    /// Unexpected end of file
+    E_LEX_005,
+
+    // Syntax Parsing Errors (E_PARSE_xxx)
+    /// Expected token not found
+    E_PARSE_001,
+    /// Unexpected token
+    E_PARSE_002,
+    /// Missing semicolon
+    E_PARSE_003,
+    /// Unmatched parentheses
+    E_PARSE_004,
+    /// Unmatched braces
+    E_PARSE_005,
+    /// Invalid expression
+    E_PARSE_006,
+    /// Invalid statement
+    E_PARSE_007,
+
+    // Semantic Analysis Errors (E_SEM_xxx)
+    /// Undefined variable
+    E_SEM_001,
+    /// Undefined function
+    E_SEM_002,
+    /// Undefined type
+    E_SEM_003,
+    /// Duplicate definition
+    E_SEM_004,
+    /// Invalid scope access
+    E_SEM_005,
+    /// Circular dependency
+    E_SEM_006,
+
+    // Type System Errors (E_TYPE_xxx)
+    /// Type mismatch
+    E_TYPE_001,
+    /// Cannot infer type
+    E_TYPE_002,
+    /// Invalid type conversion
+    E_TYPE_003,
+    /// Undefined method
+    E_TYPE_004,
+    /// Invalid trait implementation
+    E_TYPE_005,
+    /// Lifetime error
+    E_TYPE_006,
+
+    // Control Flow Errors (E_FLOW_xxx)
+    /// Unreachable code
+    E_FLOW_001,
+    /// Missing return statement
+    E_FLOW_002,
+    /// Invalid break/continue
+    E_FLOW_003,
+    /// Infinite loop detected
+    E_FLOW_004,
+
+    // Memory Safety Errors (E_MEM_xxx)
+    /// Use after free
+    E_MEM_001,
+    /// Double free
+    E_MEM_002,
+    /// Buffer overflow
+    E_MEM_003,
+    /// Null pointer dereference
+    E_MEM_004,
+    /// Memory leak detected
+    E_MEM_005,
+
+    // I/O Errors (E_IO_xxx)
+    /// File not found
+    E_IO_001,
+    /// Permission denied
+    E_IO_002,
+    /// Read error
+    E_IO_003,
+    /// Write error
+    E_IO_004,
+    /// Network error
+    E_IO_005,
+
+    // Internal Compiler Errors (E_ICE_xxx)
+    /// Invariant violation
+    E_ICE_001,
+    /// Unexpected compiler state
+    E_ICE_002,
+    /// Code generation failure
+    E_ICE_003,
+    /// Optimization failure
+    E_ICE_004,
+
+    // Configuration Errors (E_CONFIG_xxx)
+    /// Invalid configuration file
+    E_CONFIG_001,
+    /// Missing required setting
+    E_CONFIG_002,
+    /// Invalid setting value
+    E_CONFIG_003,
+    /// Environment setup error
+    E_CONFIG_004,
+
+    // Runtime Errors (E_RUNTIME_xxx)
+    /// Division by zero
+    E_RUNTIME_001,
+    /// Array index out of bounds
+    E_RUNTIME_002,
+    /// Stack overflow
+    E_RUNTIME_003,
+    /// Assertion failure
+    E_RUNTIME_004,
+    /// Panic
+    E_RUNTIME_005,
+}
+
+impl ErrorCode {
+    /// Get the error code as a string
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            // Lexical errors
+            ErrorCode::E_LEX_001 => "E_LEX_001",
+            ErrorCode::E_LEX_002 => "E_LEX_002",
+            ErrorCode::E_LEX_003 => "E_LEX_003",
+            ErrorCode::E_LEX_004 => "E_LEX_004",
+            ErrorCode::E_LEX_005 => "E_LEX_005",
+            
+            // Parse errors
+            ErrorCode::E_PARSE_001 => "E_PARSE_001",
+            ErrorCode::E_PARSE_002 => "E_PARSE_002",
+            ErrorCode::E_PARSE_003 => "E_PARSE_003",
+            ErrorCode::E_PARSE_004 => "E_PARSE_004",
+            ErrorCode::E_PARSE_005 => "E_PARSE_005",
+            ErrorCode::E_PARSE_006 => "E_PARSE_006",
+            ErrorCode::E_PARSE_007 => "E_PARSE_007",
+            
+            // Semantic errors
+            ErrorCode::E_SEM_001 => "E_SEM_001",
+            ErrorCode::E_SEM_002 => "E_SEM_002",
+            ErrorCode::E_SEM_003 => "E_SEM_003",
+            ErrorCode::E_SEM_004 => "E_SEM_004",
+            ErrorCode::E_SEM_005 => "E_SEM_005",
+            ErrorCode::E_SEM_006 => "E_SEM_006",
+            
+            // Type errors
+            ErrorCode::E_TYPE_001 => "E_TYPE_001",
+            ErrorCode::E_TYPE_002 => "E_TYPE_002",
+            ErrorCode::E_TYPE_003 => "E_TYPE_003",
+            ErrorCode::E_TYPE_004 => "E_TYPE_004",
+            ErrorCode::E_TYPE_005 => "E_TYPE_005",
+            ErrorCode::E_TYPE_006 => "E_TYPE_006",
+            
+            // Control flow errors
+            ErrorCode::E_FLOW_001 => "E_FLOW_001",
+            ErrorCode::E_FLOW_002 => "E_FLOW_002",
+            ErrorCode::E_FLOW_003 => "E_FLOW_003",
+            ErrorCode::E_FLOW_004 => "E_FLOW_004",
+            
+            // Memory errors
+            ErrorCode::E_MEM_001 => "E_MEM_001",
+            ErrorCode::E_MEM_002 => "E_MEM_002",
+            ErrorCode::E_MEM_003 => "E_MEM_003",
+            ErrorCode::E_MEM_004 => "E_MEM_004",
+            ErrorCode::E_MEM_005 => "E_MEM_005",
+            
+            // I/O errors
+            ErrorCode::E_IO_001 => "E_IO_001",
+            ErrorCode::E_IO_002 => "E_IO_002",
+            ErrorCode::E_IO_003 => "E_IO_003",
+            ErrorCode::E_IO_004 => "E_IO_004",
+            ErrorCode::E_IO_005 => "E_IO_005",
+            
+            // Internal compiler errors
+            ErrorCode::E_ICE_001 => "E_ICE_001",
+            ErrorCode::E_ICE_002 => "E_ICE_002",
+            ErrorCode::E_ICE_003 => "E_ICE_003",
+            ErrorCode::E_ICE_004 => "E_ICE_004",
+            
+            // Configuration errors
+            ErrorCode::E_CONFIG_001 => "E_CONFIG_001",
+            ErrorCode::E_CONFIG_002 => "E_CONFIG_002",
+            ErrorCode::E_CONFIG_003 => "E_CONFIG_003",
+            ErrorCode::E_CONFIG_004 => "E_CONFIG_004",
+            
+            // Runtime errors
+            ErrorCode::E_RUNTIME_001 => "E_RUNTIME_001",
+            ErrorCode::E_RUNTIME_002 => "E_RUNTIME_002",
+            ErrorCode::E_RUNTIME_003 => "E_RUNTIME_003",
+            ErrorCode::E_RUNTIME_004 => "E_RUNTIME_004",
+            ErrorCode::E_RUNTIME_005 => "E_RUNTIME_005",
+        }
+    }
+
+    /// Get a human-readable description of the error
+    pub fn description(&self) -> &'static str {
+        match self {
+            // Lexical errors
+            ErrorCode::E_LEX_001 => "Invalid character in source code",
+            ErrorCode::E_LEX_002 => "Unterminated string literal",
+            ErrorCode::E_LEX_003 => "Invalid number format",
+            ErrorCode::E_LEX_004 => "Invalid identifier",
+            ErrorCode::E_LEX_005 => "Unexpected end of file",
+            
+            // Parse errors
+            ErrorCode::E_PARSE_001 => "Expected token not found",
+            ErrorCode::E_PARSE_002 => "Unexpected token",
+            ErrorCode::E_PARSE_003 => "Missing semicolon",
+            ErrorCode::E_PARSE_004 => "Unmatched parentheses",
+            ErrorCode::E_PARSE_005 => "Unmatched braces",
+            ErrorCode::E_PARSE_006 => "Invalid expression",
+            ErrorCode::E_PARSE_007 => "Invalid statement",
+            
+            // Semantic errors
+            ErrorCode::E_SEM_001 => "Undefined variable",
+            ErrorCode::E_SEM_002 => "Undefined function",
+            ErrorCode::E_SEM_003 => "Undefined type",
+            ErrorCode::E_SEM_004 => "Duplicate definition",
+            ErrorCode::E_SEM_005 => "Invalid scope access",
+            ErrorCode::E_SEM_006 => "Circular dependency",
+            
+            // Type errors
+            ErrorCode::E_TYPE_001 => "Type mismatch",
+            ErrorCode::E_TYPE_002 => "Cannot infer type",
+            ErrorCode::E_TYPE_003 => "Invalid type conversion",
+            ErrorCode::E_TYPE_004 => "Undefined method",
+            ErrorCode::E_TYPE_005 => "Invalid trait implementation",
+            ErrorCode::E_TYPE_006 => "Lifetime error",
+            
+            // Control flow errors
+            ErrorCode::E_FLOW_001 => "Unreachable code",
+            ErrorCode::E_FLOW_002 => "Missing return statement",
+            ErrorCode::E_FLOW_003 => "Invalid break/continue",
+            ErrorCode::E_FLOW_004 => "Infinite loop detected",
+            
+            // Memory errors
+            ErrorCode::E_MEM_001 => "Use after free",
+            ErrorCode::E_MEM_002 => "Double free",
+            ErrorCode::E_MEM_003 => "Buffer overflow",
+            ErrorCode::E_MEM_004 => "Null pointer dereference",
+            ErrorCode::E_MEM_005 => "Memory leak detected",
+            
+            // I/O errors
+            ErrorCode::E_IO_001 => "File not found",
+            ErrorCode::E_IO_002 => "Permission denied",
+            ErrorCode::E_IO_003 => "Read error",
+            ErrorCode::E_IO_004 => "Write error",
+            ErrorCode::E_IO_005 => "Network error",
+            
+            // Internal compiler errors
+            ErrorCode::E_ICE_001 => "Invariant violation",
+            ErrorCode::E_ICE_002 => "Unexpected compiler state",
+            ErrorCode::E_ICE_003 => "Code generation failure",
+            ErrorCode::E_ICE_004 => "Optimization failure",
+            
+            // Configuration errors
+            ErrorCode::E_CONFIG_001 => "Invalid configuration file",
+            ErrorCode::E_CONFIG_002 => "Missing required setting",
+            ErrorCode::E_CONFIG_003 => "Invalid setting value",
+            ErrorCode::E_CONFIG_004 => "Environment setup error",
+            
+            // Runtime errors
+            ErrorCode::E_RUNTIME_001 => "Division by zero",
+            ErrorCode::E_RUNTIME_002 => "Array index out of bounds",
+            ErrorCode::E_RUNTIME_003 => "Stack overflow",
+            ErrorCode::E_RUNTIME_004 => "Assertion failure",
+            ErrorCode::E_RUNTIME_005 => "Panic",
+        }
+    }
+
+    /// Get the category this error belongs to
+    pub fn category(&self) -> ErrorCategory {
+        match self {
+            ErrorCode::E_LEX_001 | ErrorCode::E_LEX_002 | ErrorCode::E_LEX_003 | ErrorCode::E_LEX_004 | ErrorCode::E_LEX_005 => ErrorCategory::Syntax,
+            ErrorCode::E_PARSE_001 | ErrorCode::E_PARSE_002 | ErrorCode::E_PARSE_003 | ErrorCode::E_PARSE_004 | ErrorCode::E_PARSE_005 | ErrorCode::E_PARSE_006 | ErrorCode::E_PARSE_007 => ErrorCategory::Syntax,
+            ErrorCode::E_SEM_001 | ErrorCode::E_SEM_002 | ErrorCode::E_SEM_003 | ErrorCode::E_SEM_004 | ErrorCode::E_SEM_005 | ErrorCode::E_SEM_006 => ErrorCategory::Semantic,
+            ErrorCode::E_TYPE_001 | ErrorCode::E_TYPE_002 | ErrorCode::E_TYPE_003 | ErrorCode::E_TYPE_004 | ErrorCode::E_TYPE_005 | ErrorCode::E_TYPE_006 => ErrorCategory::Type,
+            ErrorCode::E_FLOW_001 | ErrorCode::E_FLOW_002 | ErrorCode::E_FLOW_003 | ErrorCode::E_FLOW_004 => ErrorCategory::Semantic,
+            ErrorCode::E_MEM_001 | ErrorCode::E_MEM_002 | ErrorCode::E_MEM_003 | ErrorCode::E_MEM_004 | ErrorCode::E_MEM_005 => ErrorCategory::Security,
+            ErrorCode::E_IO_001 | ErrorCode::E_IO_002 | ErrorCode::E_IO_003 | ErrorCode::E_IO_004 | ErrorCode::E_IO_005 => ErrorCategory::Io,
+            ErrorCode::E_ICE_001 | ErrorCode::E_ICE_002 | ErrorCode::E_ICE_003 | ErrorCode::E_ICE_004 => ErrorCategory::Codegen,
+            ErrorCode::E_CONFIG_001 | ErrorCode::E_CONFIG_002 | ErrorCode::E_CONFIG_003 | ErrorCode::E_CONFIG_004 => ErrorCategory::Package,
+            ErrorCode::E_RUNTIME_001 | ErrorCode::E_RUNTIME_002 | ErrorCode::E_RUNTIME_003 | ErrorCode::E_RUNTIME_004 | ErrorCode::E_RUNTIME_005 => ErrorCategory::Runtime,
+        }
+    }
+
+    /// Get the default severity for this error code
+    pub fn default_severity(&self) -> ErrorSeverity {
+        match self {
+            // Internal compiler errors are fatal
+            ErrorCode::E_ICE_001 | ErrorCode::E_ICE_002 | ErrorCode::E_ICE_003 | ErrorCode::E_ICE_004 => ErrorSeverity::Fatal,
+            
+            // Runtime errors are typically fatal
+            ErrorCode::E_RUNTIME_003 | ErrorCode::E_RUNTIME_005 => ErrorSeverity::Fatal,
+            
+            // Memory errors are fatal
+            ErrorCode::E_MEM_001 | ErrorCode::E_MEM_002 | ErrorCode::E_MEM_003 | ErrorCode::E_MEM_004 | ErrorCode::E_MEM_005 => ErrorSeverity::Fatal,
+            
+            // Most other errors are regular errors
+            _ => ErrorSeverity::Error,
+        }
+    }
+}
+
 /// Structured error suggestion
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ErrorSuggestion {
@@ -58,6 +445,117 @@ pub struct ErrorSuggestion {
     pub code_fix: Option<CodeFix>,
     /// Confidence level (0.0 to 1.0)
     pub confidence: f32,
+    /// Category of suggestion
+    pub category: SuggestionCategory,
+    /// Priority level
+    pub priority: SuggestionPriority,
+}
+
+/// Categories of error suggestions
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum SuggestionCategory {
+    /// Syntax correction
+    SyntaxFix,
+    /// Type annotation or conversion
+    TypeFix,
+    /// Import or dependency fix
+    ImportFix,
+    /// Security improvement
+    SecurityFix,
+    /// Performance optimization
+    PerformanceFix,
+    /// Style improvement
+    StyleFix,
+    /// General guidance
+    Guidance,
+}
+
+/// Priority levels for suggestions
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum SuggestionPriority {
+    /// Critical - must be fixed
+    Critical,
+    /// High - should be fixed soon
+    High,
+    /// Medium - should be addressed
+    Medium,
+    /// Low - nice to have
+    Low,
+    /// Info - informational only
+    Info,
+}
+
+impl ErrorSuggestion {
+    /// Create a new error suggestion
+    pub fn new(message: String, confidence: f32) -> Self {
+        Self {
+            message,
+            confidence: confidence.clamp(0.0, 1.0),
+            code_fix: None,
+            category: SuggestionCategory::Guidance,
+            priority: SuggestionPriority::Medium,
+        }
+    }
+
+    /// Create a syntax fix suggestion
+    pub fn syntax_fix(message: String, confidence: f32, code_fix: Option<CodeFix>) -> Self {
+        Self {
+            message,
+            confidence: confidence.clamp(0.0, 1.0),
+            code_fix,
+            category: SuggestionCategory::SyntaxFix,
+            priority: SuggestionPriority::High,
+        }
+    }
+
+    /// Create a type fix suggestion
+    pub fn type_fix(message: String, confidence: f32, code_fix: Option<CodeFix>) -> Self {
+        Self {
+            message,
+            confidence: confidence.clamp(0.0, 1.0),
+            code_fix,
+            category: SuggestionCategory::TypeFix,
+            priority: SuggestionPriority::High,
+        }
+    }
+
+    /// Create a security fix suggestion
+    pub fn security_fix(message: String, confidence: f32) -> Self {
+        Self {
+            message,
+            confidence: confidence.clamp(0.0, 1.0),
+            code_fix: None,
+            category: SuggestionCategory::SecurityFix,
+            priority: SuggestionPriority::Critical,
+        }
+    }
+
+    /// Create a guidance suggestion
+    pub fn guidance(message: String) -> Self {
+        Self {
+            message,
+            confidence: 0.7,
+            code_fix: None,
+            category: SuggestionCategory::Guidance,
+            priority: SuggestionPriority::Medium,
+        }
+    }
+
+    /// Check if this suggestion has an automatic fix
+    pub fn has_auto_fix(&self) -> bool {
+        self.code_fix.is_some()
+    }
+
+    /// Get the priority as a numeric value (higher = more important)
+    pub fn priority_value(&self) -> u8 {
+        match self.priority {
+            SuggestionPriority::Critical => 5,
+            SuggestionPriority::High => 4,
+            SuggestionPriority::Medium => 3,
+            SuggestionPriority::Low => 2,
+            SuggestionPriority::Info => 1,
+        }
+    }
 }
 
 /// Code fix that can be automatically applied
@@ -80,6 +578,152 @@ pub struct TextReplacement {
     pub new_text: String,
 }
 
+/// Explanation system for detailed error context
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ErrorExplanation {
+    /// Brief explanation of what went wrong
+    pub what_happened: String,
+    /// Why this error occurred
+    pub why_it_happened: String,
+    /// How to fix it
+    pub how_to_fix: String,
+    /// Related concepts to learn
+    pub related_concepts: Vec<String>,
+    /// Example of correct code
+    pub example_fix: Option<String>,
+    /// Common mistakes that lead to this error
+    pub common_mistakes: Vec<String>,
+    /// Learning resources
+    pub learning_resources: Vec<LearningResource>,
+}
+
+/// Learning resource for error explanations
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LearningResource {
+    /// Title of the resource
+    pub title: String,
+    /// URL to the resource
+    pub url: String,
+    /// Type of resource
+    pub resource_type: ResourceType,
+    /// Difficulty level
+    pub difficulty: DifficultyLevel,
+}
+
+/// Types of learning resources
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ResourceType {
+    /// Official documentation
+    Documentation,
+    /// Tutorial or guide
+    Tutorial,
+    /// Example code
+    Example,
+    /// Video explanation
+    Video,
+    /// Interactive exercise
+    Interactive,
+    /// Community discussion
+    Community,
+}
+
+/// Difficulty levels for learning resources
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum DifficultyLevel {
+    /// Beginner level
+    Beginner,
+    /// Intermediate level
+    Intermediate,
+    /// Advanced level
+    Advanced,
+    /// Expert level
+    Expert,
+}
+
+impl ErrorExplanation {
+    /// Create a comprehensive explanation for an error code
+    pub fn for_error_code(error_code: &ErrorCode) -> Self {
+        match error_code {
+            ErrorCode::E_LEX_001 => Self {
+                what_happened: "The lexer encountered an invalid character that is not part of the Ovie language syntax.".to_string(),
+                why_it_happened: "This usually happens when you have a typo, use a character that's not allowed in Ovie, or have encoding issues.".to_string(),
+                how_to_fix: "Check for typos, ensure you're using valid Ovie syntax, and verify your file encoding is UTF-8.".to_string(),
+                related_concepts: vec!["lexical analysis".to_string(), "character encoding".to_string(), "syntax rules".to_string()],
+                example_fix: Some("// Instead of: let x = 42@;\n// Use: let x = 42;".to_string()),
+                common_mistakes: vec![
+                    "Using special characters from other languages".to_string(),
+                    "Copy-pasting code with invisible characters".to_string(),
+                    "File encoding issues".to_string(),
+                ],
+                learning_resources: vec![
+                    LearningResource {
+                        title: "Ovie Lexical Rules".to_string(),
+                        url: "https://ovie-lang.org/docs/lexical-rules".to_string(),
+                        resource_type: ResourceType::Documentation,
+                        difficulty: DifficultyLevel::Beginner,
+                    }
+                ],
+            },
+            ErrorCode::E_PARSE_001 => Self {
+                what_happened: "The parser expected a specific token but found something else.".to_string(),
+                why_it_happened: "This occurs when the syntax doesn't match what the parser expects at this point in the code.".to_string(),
+                how_to_fix: "Check the syntax around the error location and ensure it follows Ovie's grammar rules.".to_string(),
+                related_concepts: vec!["parsing".to_string(), "grammar rules".to_string(), "syntax".to_string()],
+                example_fix: Some("// Instead of: if x == 42 { print(\"yes\") }\n// Use: if x == 42 { print(\"yes\"); }".to_string()),
+                common_mistakes: vec![
+                    "Missing semicolons".to_string(),
+                    "Incorrect bracket matching".to_string(),
+                    "Wrong keyword usage".to_string(),
+                ],
+                learning_resources: vec![
+                    LearningResource {
+                        title: "Ovie Syntax Guide".to_string(),
+                        url: "https://ovie-lang.org/docs/syntax".to_string(),
+                        resource_type: ResourceType::Documentation,
+                        difficulty: DifficultyLevel::Beginner,
+                    }
+                ],
+            },
+            ErrorCode::E_TYPE_001 => Self {
+                what_happened: "There's a mismatch between the expected type and the actual type of a value.".to_string(),
+                why_it_happened: "Ovie has a strong type system that prevents mixing incompatible types without explicit conversion.".to_string(),
+                how_to_fix: "Either change the value to match the expected type, or add an explicit type conversion.".to_string(),
+                related_concepts: vec!["type system".to_string(), "type safety".to_string(), "type conversion".to_string()],
+                example_fix: Some("// Instead of: let x: i32 = \"42\";\n// Use: let x: i32 = 42; or let x: i32 = \"42\".parse().unwrap();".to_string()),
+                common_mistakes: vec![
+                    "Mixing strings and numbers".to_string(),
+                    "Forgetting type annotations".to_string(),
+                    "Incorrect function return types".to_string(),
+                ],
+                learning_resources: vec![
+                    LearningResource {
+                        title: "Understanding Ovie's Type System".to_string(),
+                        url: "https://ovie-lang.org/docs/types".to_string(),
+                        resource_type: ResourceType::Documentation,
+                        difficulty: DifficultyLevel::Intermediate,
+                    }
+                ],
+            },
+            _ => Self {
+                what_happened: "An error occurred during compilation.".to_string(),
+                why_it_happened: "The specific cause depends on the error code and context.".to_string(),
+                how_to_fix: "Check the error message and location for specific guidance.".to_string(),
+                related_concepts: vec!["debugging".to_string(), "error handling".to_string()],
+                example_fix: None,
+                common_mistakes: vec!["Various syntax and semantic issues".to_string()],
+                learning_resources: vec![
+                    LearningResource {
+                        title: "Ovie Error Guide".to_string(),
+                        url: "https://ovie-lang.org/docs/errors".to_string(),
+                        resource_type: ResourceType::Documentation,
+                        difficulty: DifficultyLevel::Beginner,
+                    }
+                ],
+            },
+        }
+    }
+}
+
 /// Enhanced source position with file information
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SourcePosition {
@@ -91,6 +735,153 @@ pub struct SourcePosition {
     pub column: usize,
     /// Byte offset in the source
     pub offset: usize,
+}
+
+impl SourcePosition {
+    /// Create a new source position
+    pub fn new(file: Option<String>, line: usize, column: usize, offset: usize) -> Self {
+        Self { file, line, column, offset }
+    }
+
+    /// Create a source position without file information
+    pub fn at_line_column(line: usize, column: usize) -> Self {
+        Self {
+            file: None,
+            line,
+            column,
+            offset: 0,
+        }
+    }
+
+    /// Create a source position with file information
+    pub fn in_file(file: String, line: usize, column: usize, offset: usize) -> Self {
+        Self {
+            file: Some(file),
+            line,
+            column,
+            offset,
+        }
+    }
+
+    /// Get a display string for this position
+    pub fn display(&self) -> String {
+        match &self.file {
+            Some(file) => format!("{}:{}:{}", file, self.line, self.column),
+            None => format!("{}:{}", self.line, self.column),
+        }
+    }
+
+    /// Check if this position is valid
+    pub fn is_valid(&self) -> bool {
+        self.line > 0 && self.column > 0
+    }
+
+    /// Create a range from this position to another
+    pub fn to(&self, end: &SourcePosition) -> SourceRange {
+        SourceRange {
+            start: self.clone(),
+            end: end.clone(),
+        }
+    }
+}
+
+impl Default for SourcePosition {
+    fn default() -> Self {
+        Self {
+            file: None,
+            line: 1,
+            column: 1,
+            offset: 0,
+        }
+    }
+}
+
+impl std::fmt::Display for SourcePosition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.display())
+    }
+}
+
+/// Source range for multi-character spans
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SourceRange {
+    /// Start position
+    pub start: SourcePosition,
+    /// End position
+    pub end: SourcePosition,
+}
+
+impl SourceRange {
+    /// Create a new source range
+    pub fn new(start: SourcePosition, end: SourcePosition) -> Self {
+        Self { start, end }
+    }
+
+    /// Create a single-character range
+    pub fn single_char(position: SourcePosition) -> Self {
+        let mut end = position.clone();
+        end.column += 1;
+        end.offset += 1;
+        Self {
+            start: position,
+            end,
+        }
+    }
+
+    /// Get the length of this range in characters
+    pub fn length(&self) -> usize {
+        if self.start.line == self.end.line {
+            self.end.column.saturating_sub(self.start.column)
+        } else {
+            // Multi-line range - approximate
+            self.end.offset.saturating_sub(self.start.offset)
+        }
+    }
+
+    /// Check if this range contains a position
+    pub fn contains(&self, position: &SourcePosition) -> bool {
+        if self.start.line == self.end.line {
+            // Single line range
+            position.line == self.start.line
+                && position.column >= self.start.column
+                && position.column < self.end.column
+        } else {
+            // Multi-line range
+            (position.line > self.start.line && position.line < self.end.line)
+                || (position.line == self.start.line && position.column >= self.start.column)
+                || (position.line == self.end.line && position.column < self.end.column)
+        }
+    }
+
+    /// Get a display string for this range
+    pub fn display(&self) -> String {
+        if self.start.file == self.end.file {
+            match &self.start.file {
+                Some(file) => {
+                    if self.start.line == self.end.line {
+                        format!("{}:{}:{}-{}", file, self.start.line, self.start.column, self.end.column)
+                    } else {
+                        format!("{}:{}:{}-{}:{}", file, self.start.line, self.start.column, self.end.line, self.end.column)
+                    }
+                }
+                None => {
+                    if self.start.line == self.end.line {
+                        format!("{}:{}-{}", self.start.line, self.start.column, self.end.column)
+                    } else {
+                        format!("{}:{}-{}:{}", self.start.line, self.start.column, self.end.line, self.end.column)
+                    }
+                }
+            }
+        } else {
+            format!("{} to {}", self.start.display(), self.end.display())
+        }
+    }
+}
+
+impl std::fmt::Display for SourceRange {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.display())
+    }
 }
 
 /// Comprehensive diagnostic information
@@ -172,7 +963,13 @@ pub enum OvieError {
         message: String,
     },
 
-    #[error("Hardware error: {message}")]
+    #[error("Invariant violation in {stage}: {message}")]
+    InvariantViolation {
+        stage: String,
+        message: String,
+    },
+
+    #[error("Hardware error: {0}")]
     HardwareError(String),
 
     #[error("Compilation error: {message}")]
@@ -181,13 +978,21 @@ pub enum OvieError {
     },
 
     #[error("JSON serialization/deserialization error: {0}")]
-    SerdeJson(#[from] serde_json::Error),
+    SerdeJson(String),
 }
 
 impl OvieError {
     /// Create a comprehensive diagnostic error
     pub fn diagnostic(diagnostic: Diagnostic) -> Self {
         Self::Diagnostic { diagnostic }
+    }
+
+    /// Create an invariant violation error
+    pub fn invariant_violation(stage: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::InvariantViolation {
+            stage: stage.into(),
+            message: message.into(),
+        }
     }
 
     /// Create a new lexer error with suggestions
@@ -553,6 +1358,22 @@ impl OvieError {
                 context: HashMap::new(),
                 help_url: Some("https://ovie-lang.org/docs/errors/E0013".to_string()),
             },
+            Self::InvariantViolation { stage, message } => Diagnostic {
+                code: "E0014".to_string(),
+                severity: ErrorSeverity::Error,
+                category: ErrorCategory::Semantic,
+                message: format!("Invariant violation in {}: {}", stage, message),
+                location: SourcePosition {
+                    file: None,
+                    line: 1,
+                    column: 1,
+                    offset: 0,
+                },
+                related_locations: Vec::new(),
+                suggestions: Vec::new(),
+                context: HashMap::new(),
+                help_url: Some("https://ovie-lang.org/docs/errors/E0014".to_string()),
+            },
         }
     }
 }
@@ -753,6 +1574,7 @@ impl ErrorReporter {
         let mut score = 0.0;
         for diagnostic in &self.diagnostics {
             score += match diagnostic.severity {
+                ErrorSeverity::Fatal => 5.0,
                 ErrorSeverity::Error => 3.0,
                 ErrorSeverity::Warning => 1.5,
                 ErrorSeverity::Info => 0.5,
@@ -818,6 +1640,7 @@ impl ErrorReporter {
             output.push_str(&format!(
                 "{}: {} [{}]\n",
                 match diagnostic.severity {
+                    ErrorSeverity::Fatal => "fatal",
                     ErrorSeverity::Error => "error",
                     ErrorSeverity::Warning => "warning",
                     ErrorSeverity::Info => "info",
@@ -882,27 +1705,7 @@ impl Default for SourceLocation {
     }
 }
 
-impl Default for SourcePosition {
-    fn default() -> Self {
-        Self {
-            file: None,
-            line: 1,
-            column: 1,
-            offset: 0,
-        }
-    }
-}
-
 impl SourcePosition {
-    pub fn new(line: usize, column: usize, offset: usize) -> Self {
-        Self {
-            file: None,
-            line,
-            column,
-            offset,
-        }
-    }
-
     pub fn with_file(mut self, file: String) -> Self {
         self.file = Some(file);
         self
@@ -916,6 +1719,8 @@ impl ErrorSuggestion {
             message: message.into(),
             code_fix: None,
             confidence: 0.8,
+            category: SuggestionCategory::Guidance,
+            priority: SuggestionPriority::Medium,
         }
     }
 
@@ -925,6 +1730,8 @@ impl ErrorSuggestion {
             message: message.into(),
             code_fix: Some(code_fix),
             confidence: 0.9,
+            category: SuggestionCategory::SyntaxFix,
+            priority: SuggestionPriority::High,
         }
     }
 }
@@ -953,6 +1760,12 @@ impl From<std::io::Error> for OvieError {
         Self::IoError {
             message: error.to_string(),
         }
+    }
+}
+
+impl From<serde_json::Error> for OvieError {
+    fn from(error: serde_json::Error) -> Self {
+        Self::SerdeJson(error.to_string())
     }
 }
 

@@ -1,0 +1,20 @@
+// Test 9: Function call with parameters in else block
+fn helper(msg, line, col) {
+    seeAm "Helper: ";
+    seeAm msg;
+    seeAm " at ";
+    seeAm line;
+}
+
+fn test_else_with_params() {
+    let x = 2;
+    if x == 1 {
+        seeAm "x is 1";
+    } else {
+        helper("error", 1, 5);
+        seeAm "After helper";
+    }
+}
+
+seeAm "Test 9: Function call with params in else";
+test_else_with_params();

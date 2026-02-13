@@ -616,7 +616,8 @@ fn cmd_analyze(file: Option<String>, debug: bool, format: String, output: Option
     
     // Run Aproko analysis
     let mut aproko_engine = aproko::AprokoEngine::new();
-    let analysis_result = aproko_engine.analyze(&source, &ast)?;
+    let analysis_result = aproko_engine.analyze(&source, &ast)
+        .map_err(|e| oviec::OvieError::generic(format!("Aproko analysis error: {}", e)))?;
     
     let mut report = String::new();
     report.push_str(&format!("=== Aproko Analysis Report for {} ===\n\n", source_file));
@@ -995,8 +996,19 @@ fn cmd_cross_target(file: Option<String>, performance: bool, determinism: bool, 
 
     // Save report if requested
     if let Some(output_file) = output {
-        let report = serde_json::to_string_pretty(&results)
-            .map_err(|e| oviec::OvieError::generic(format!("Failed to serialize results: {}", e)))?;
+        // Generate a text report instead of JSON since CrossTargetValidationResults doesn't implement Serialize
+        let report = format!("Cross-Target Validation Report\n\
+                             ==============================\n\n\
+                             Overall Success: {}\n\
+                             Platforms Tested: {}\n\
+                             Semantic Consistency: {}\n\
+                             Deterministic Consistency: {}\n\
+                             \n\
+                             Detailed results available in console output.\n",
+                             results.overall_success,
+                             results.target_results.len(),
+                             results.consistency_results.semantic_consistency,
+                             results.consistency_results.deterministic_consistency);
         fs::write(&output_file, report)?;
         println!("\n📄 Validation report saved to: {}", output_file);
     }
@@ -1638,11 +1650,15 @@ fn format_ast(ast: &AstNode) -> String {
     let mut output = String::new();
     let mut indent_level = 0;
     
-    for (i, statement) in ast.statements.iter().enumerate() {
-        if i > 0 {
-            output.push('\n');
+    match ast {
+        AstNode::Program(statements) => {
+            for (i, statement) in statements.iter().enumerate() {
+                if i > 0 {
+                    output.push('\n');
+                }
+                format_statement(statement, &mut output, indent_level);
+            }
         }
-        format_statement(statement, &mut output, indent_level);
     }
     
     // Ensure file ends with newline
@@ -1662,6 +1678,10 @@ fn format_statement(stmt: &Statement, output: &mut String, indent_level: usize) 
         }
         Statement::Assignment { mutable: _, identifier, value } => {
             output.push_str(&format!("{}{} = {};", indent, identifier, format_expression(value)));
+        }
+        Statement::VariableDeclaration { mutable, identifier, value } => {
+            let mut_keyword = if *mutable { "mut " } else { "" };
+            output.push_str(&format!("{}let {}{} = {};", indent, mut_keyword, identifier, format_expression(value)));
         }
         Statement::If { condition, then_block, else_block } => {
             output.push_str(&format!("{}if {} {{", indent, format_expression(condition)));
@@ -1701,6 +1721,16 @@ fn format_statement(stmt: &Statement, output: &mut String, indent_level: usize) 
             output.push_str(&format!("{}}}", indent));
         }
         Statement::Function { name, parameters, body } => {
+            let params = parameters.join(", ");
+            output.push_str(&format!("{}fn {}({}) {{", indent, name, params));
+            for body_stmt in body {
+                output.push('\n');
+                format_statement(body_stmt, output, indent_level + 1);
+            }
+            output.push('\n');
+            output.push_str(&format!("{}}}", indent));
+        }
+        Statement::FunctionDeclaration { name, parameters, body } => {
             let params = parameters.join(", ");
             output.push_str(&format!("{}fn {}({}) {{", indent, name, params));
             for body_stmt in body {
@@ -1754,6 +1784,20 @@ fn format_expression(expr: &Expression) -> String {
         Expression::StructInstantiation { struct_name, fields: _ } => {
             // Basic struct instantiation formatting - can be expanded later
             format!("{} {{ /* fields */ }}", struct_name)
+        }
+        Expression::EnumVariantConstruction { enum_name, variant_name, data } => {
+            if let Some(data_expr) = data {
+                format!("{}::{}({})", enum_name, variant_name, format_expression(data_expr))
+            } else {
+                format!("{}::{}", enum_name, variant_name)
+            }
+        }
+        Expression::Index { object, index } => {
+            format!("{}[{}]", format_expression(object), format_expression(index))
+        }
+        Expression::ArrayLiteral { elements } => {
+            let elems: Vec<String> = elements.iter().map(format_expression).collect();
+            format!("[{}]", elems.join(", "))
         }
     }
 }
@@ -1832,6 +1876,10 @@ fn cmd_self_host_verify(test_files: Vec<String>, verbose: bool) -> OvieResult<()
         performance_benchmarking: true,
         max_performance_degradation: 5.0,
         verbose_logging: verbose,
+        rollback_enabled: true,
+        reproducible_builds: true,
+        work_dir: std::path::PathBuf::from("target/bootstrap_verification"),
+        reproducibility_iterations: 3,
     };
     
     println!("Initializing bootstrap verification...");

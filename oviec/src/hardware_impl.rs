@@ -1,6 +1,6 @@
 //! Implementation details for hardware abstraction layer
 
-use super::*;
+use crate::hardware::*;
 use crate::error::{OvieError, OvieResult};
 use std::collections::HashMap;
 

@@ -1,0 +1,331 @@
+// Complete Working Ovie Lexer
+// Uses structs and demonstrates tokenization
+// Ready for Vec integration once available
+
+// ============================================================================
+// TOKEN DEFINITION
+// ============================================================================
+
+struct Token {
+    token_type: String,
+    lexeme: String,
+    line: Number,
+    column: Number,
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+fn is_digit(ch) {
+    return ch == "0" || ch == "1" || ch == "2" || ch == "3" || ch == "4" ||
+           ch == "5" || ch == "6" || ch == "7" || ch == "8" || ch == "9";
+}
+
+fn is_alpha(ch) {
+    mut is_lower = ch >= "a" && ch <= "z";
+    mut is_upper = ch >= "A" && ch <= "Z";
+    mut is_underscore = ch == "_";
+    return is_lower || is_upper || is_underscore;
+}
+
+fn is_alphanumeric(ch) {
+    return is_alpha(ch) || is_digit(ch);
+}
+
+fn is_whitespace(ch) {
+    return ch == " " || ch == "\t" || ch == "\r" || ch == "\n";
+}
+
+fn is_keyword(word) {
+    return word == "fn" || word == "let" || word == "mut" || 
+           word == "if" || word == "else" || word == "for" || 
+           word == "while" || word == "struct" || word == "enum" ||
+           word == "return" || word == "true" || word == "false" ||
+           word == "seeAm" || word == "unsafe" || word == "in";
+}
+
+fn classify_token(lexeme) {
+    // Check if keyword
+    if is_keyword(lexeme) {
+        return "KEYWORD";
+    }
+    
+    // Check if number
+    mut first = char_at(lexeme, 0);
+    if is_digit(first) {
+        return "NUMBER";
+    }
+    
+    // Check if string
+    if first == "\"" {
+        return "STRING";
+    }
+    
+    // Check operators
+    if lexeme == "+" { return "PLUS"; }
+    if lexeme == "-" { return "MINUS"; }
+    if lexeme == "*" { return "STAR"; }
+    if lexeme == "/" { return "SLASH"; }
+    if lexeme == "=" { return "EQUAL"; }
+    if lexeme == "==" { return "EQUAL_EQUAL"; }
+    if lexeme == "!=" { return "BANG_EQUAL"; }
+    if lexeme == "<" { return "LESS"; }
+    if lexeme == ">" { return "GREATER"; }
+    if lexeme == "<=" { return "LESS_EQUAL"; }
+    if lexeme == ">=" { return "GREATER_EQUAL"; }
+    
+    // Check delimiters
+    if lexeme == "(" { return "LEFT_PAREN"; }
+    if lexeme == ")" { return "RIGHT_PAREN"; }
+    if lexeme == "{" { return "LEFT_BRACE"; }
+    if lexeme == "}" { return "RIGHT_BRACE"; }
+    if lexeme == "[" { return "LEFT_BRACKET"; }
+    if lexeme == "]" { return "RIGHT_BRACKET"; }
+    if lexeme == ";" { return "SEMICOLON"; }
+    if lexeme == "," { return "COMMA"; }
+    if lexeme == "." { return "DOT"; }
+    if lexeme == ":" { return "COLON"; }
+    
+    // Default to identifier
+    return "IDENTIFIER";
+}
+
+// ============================================================================
+// TOKENIZATION DEMONSTRATION
+// ============================================================================
+
+fn demonstrate_tokenization() {
+    seeAm "╔════════════════════════════════════════════╗";
+    seeAm "║  Complete Ovie Lexer - Working Demo      ║";
+    seeAm "╚════════════════════════════════════════════╝";
+    seeAm "";
+    
+    // Test Case 1: Simple variable
+    seeAm "=== Test 1: Variable Declaration ===";
+    mut t1 = Token {
+        token_type: classify_token("let"),
+        lexeme: "let",
+        line: 1,
+        column: 1,
+    };
+    
+    mut t2 = Token {
+        token_type: classify_token("x"),
+        lexeme: "x",
+        line: 1,
+        column: 5,
+    };
+    
+    mut t3 = Token {
+        token_type: classify_token("="),
+        lexeme: "=",
+        line: 1,
+        column: 7,
+    };
+    
+    mut t4 = Token {
+        token_type: classify_token("42"),
+        lexeme: "42",
+        line: 1,
+        column: 9,
+    };
+    
+    mut t5 = Token {
+        token_type: classify_token(";"),
+        lexeme: ";",
+        line: 1,
+        column: 11,
+    };
+    
+    seeAm "Source: let x = 42;";
+    seeAm "";
+    seeAm "Tokens:";
+    seeAm t1.token_type;
+    seeAm " '";
+    seeAm t1.lexeme;
+    seeAm "'";
+    seeAm t2.token_type;
+    seeAm " '";
+    seeAm t2.lexeme;
+    seeAm "'";
+    seeAm t3.token_type;
+    seeAm " '";
+    seeAm t3.lexeme;
+    seeAm "'";
+    seeAm t4.token_type;
+    seeAm " '";
+    seeAm t4.lexeme;
+    seeAm "'";
+    seeAm t5.token_type;
+    seeAm " '";
+    seeAm t5.lexeme;
+    seeAm "'";
+    seeAm "";
+    
+    // Test Case 2: Function
+    seeAm "=== Test 2: Function Definition ===";
+    mut f1 = Token {
+        token_type: classify_token("fn"),
+        lexeme: "fn",
+        line: 2,
+        column: 1,
+    };
+    
+    mut f2 = Token {
+        token_type: classify_token("add"),
+        lexeme: "add",
+        line: 2,
+        column: 4,
+    };
+    
+    mut f3 = Token {
+        token_type: classify_token("("),
+        lexeme: "(",
+        line: 2,
+        column: 7,
+    };
+    
+    mut f4 = Token {
+        token_type: classify_token("a"),
+        lexeme: "a",
+        line: 2,
+        column: 8,
+    };
+    
+    mut f5 = Token {
+        token_type: classify_token(","),
+        lexeme: ",",
+        line: 2,
+        column: 9,
+    };
+    
+    mut f6 = Token {
+        token_type: classify_token("b"),
+        lexeme: "b",
+        line: 2,
+        column: 11,
+    };
+    
+    mut f7 = Token {
+        token_type: classify_token(")"),
+        lexeme: ")",
+        line: 2,
+        column: 12,
+    };
+    
+    seeAm "Source: fn add(a, b) { ... }";
+    seeAm "";
+    seeAm "Tokens:";
+    seeAm f1.token_type;
+    seeAm " '";
+    seeAm f1.lexeme;
+    seeAm "'";
+    seeAm f2.token_type;
+    seeAm " '";
+    seeAm f2.lexeme;
+    seeAm "'";
+    seeAm f3.token_type;
+    seeAm " '";
+    seeAm f3.lexeme;
+    seeAm "'";
+    seeAm f4.token_type;
+    seeAm " '";
+    seeAm f4.lexeme;
+    seeAm "'";
+    seeAm f5.token_type;
+    seeAm " '";
+    seeAm f5.lexeme;
+    seeAm "'";
+    seeAm f6.token_type;
+    seeAm " '";
+    seeAm f6.lexeme;
+    seeAm "'";
+    seeAm f7.token_type;
+    seeAm " '";
+    seeAm f7.lexeme;
+    seeAm "'";
+    seeAm "";
+    
+    // Test Case 3: Struct
+    seeAm "=== Test 3: Struct Definition ===";
+    mut s1 = Token {
+        token_type: classify_token("struct"),
+        lexeme: "struct",
+        line: 3,
+        column: 1,
+    };
+    
+    mut s2 = Token {
+        token_type: classify_token("Point"),
+        lexeme: "Point",
+        line: 3,
+        column: 8,
+    };
+    
+    mut s3 = Token {
+        token_type: classify_token("{"),
+        lexeme: "{",
+        line: 3,
+        column: 14,
+    };
+    
+    mut s4 = Token {
+        token_type: classify_token("x"),
+        lexeme: "x",
+        line: 3,
+        column: 16,
+    };
+    
+    mut s5 = Token {
+        token_type: classify_token(":"),
+        lexeme: ":",
+        line: 3,
+        column: 17,
+    };
+    
+    seeAm "Source: struct Point { x: Number }";
+    seeAm "";
+    seeAm "Tokens:";
+    seeAm s1.token_type;
+    seeAm " '";
+    seeAm s1.lexeme;
+    seeAm "'";
+    seeAm s2.token_type;
+    seeAm " '";
+    seeAm s2.lexeme;
+    seeAm "'";
+    seeAm s3.token_type;
+    seeAm " '";
+    seeAm s3.lexeme;
+    seeAm "'";
+    seeAm s4.token_type;
+    seeAm " '";
+    seeAm s4.lexeme;
+    seeAm "'";
+    seeAm s5.token_type;
+    seeAm " '";
+    seeAm s5.lexeme;
+    seeAm "'";
+    seeAm "";
+}
+
+// ============================================================================
+// MAIN EXECUTION
+// ============================================================================
+
+demonstrate_tokenization();
+
+seeAm "╔════════════════════════════════════════════╗";
+seeAm "║  Lexer Implementation Status:             ║";
+seeAm "║  ✅ Token struct definition                ║";
+seeAm "║  ✅ Character classification               ║";
+seeAm "║  ✅ Keyword recognition                    ║";
+seeAm "║  ✅ Token classification                   ║";
+seeAm "║  ✅ Token creation and field access        ║";
+seeAm "║                                            ║";
+seeAm "║  Ready for:                                ║";
+seeAm "║  - Vec integration for token lists         ║";
+seeAm "║  - Full source scanning                    ║";
+seeAm "║  - Parser integration                      ║";
+seeAm "╚════════════════════════════════════════════╝";

@@ -205,8 +205,8 @@ impl EquivalenceTester {
 /// Bootstrap verification system
 pub struct BootstrapVerifier {
     config: BootstrapConfig,
-    ovie_lexer_ir: Option<IR>,
-    rollback_state: Option<RollbackState>,
+    pub ovie_lexer_ir: Option<IR>,
+    pub rollback_state: Option<RollbackState>,
     equivalence_tester: Option<EquivalenceTester>,
 }
 
@@ -544,7 +544,7 @@ impl BootstrapVerifier {
     }
 
     /// Compare two token streams for exact equality
-    fn compare_tokens(&self, rust_tokens: &[Token], ovie_tokens: &[Token], errors: &mut Vec<String>) -> bool {
+    pub fn compare_tokens(&self, rust_tokens: &[Token], ovie_tokens: &[Token], errors: &mut Vec<String>) -> bool {
         if rust_tokens.len() != ovie_tokens.len() {
             errors.push(format!(
                 "Token count mismatch: Rust={}, Ovie={}",
@@ -611,8 +611,12 @@ impl BootstrapVerifier {
 
     /// Run automated equivalence testing
     pub fn run_automated_equivalence_testing(&mut self) -> OvieResult<Vec<BootstrapVerificationResult>> {
-        if let Some(ref mut tester) = self.equivalence_tester {
-            tester.run_equivalence_tests(self)
+        if self.equivalence_tester.is_some() {
+            // Take ownership temporarily to avoid borrow checker issues
+            let mut tester = self.equivalence_tester.take().unwrap();
+            let result = tester.run_equivalence_tests(self);
+            self.equivalence_tester = Some(tester);
+            result
         } else {
             Err(OvieError::runtime_error("Equivalence tester not initialized".to_string()))
         }

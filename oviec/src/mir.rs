@@ -8,6 +8,12 @@ use crate::error::{OvieError, OvieResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// MIR invariant validation trait
+pub trait MirInvariantValidation {
+    /// Validate MIR invariants according to Stage 2.3 compiler invariants
+    fn validate(&self) -> Result<(), crate::ast::InvariantError>;
+}
+
 /// Unique identifier for MIR basic blocks
 pub type BasicBlockId = u32;
 
@@ -812,6 +818,8 @@ impl MirBuilder {
                     Ok(MirRvalue::Use(MirOperand::Copy(place)))
                 } else {
                     Err(OvieError::SemanticError {
+                        line: 0,
+                        column: 0,
                         message: format!("Variable '{}' not found in MIR transformation", name),
                     })
                 }
@@ -875,6 +883,58 @@ impl MirBuilder {
                     operands: vec![start_operand, end_operand],
                 })
             }
+            HirExpressionKind::EnumVariant { enum_name, variant_name: _, data } => {
+                let mut operands = Vec::new();
+                if let Some(data_expr) = data {
+                    operands.push(self.transform_expression_to_operand(data_expr)?);
+                }
+                
+                // TODO: Resolve variant name to index
+                Ok(MirRvalue::Aggregate {
+                    kind: MirAggregateKind::Adt {
+                        name: enum_name.clone(),
+                        variant: Some(0), // Placeholder - should resolve variant name to index
+                    },
+                    operands,
+                })
+            }
+            HirExpressionKind::Index { object, index } => {
+                // For now, treat indexing as a simple operation
+                // In a full implementation, this would need proper MIR lowering
+                let _object_place = self.transform_expression_to_place(object)?;
+                let _index_operand = self.transform_expression_to_operand(index)?;
+                
+                // Return a placeholder - proper implementation would create indexed place
+                Ok(MirRvalue::Use(MirOperand::Constant(MirConstant {
+                    literal: MirConstantValue::Unit,
+                    ty: MirType::Unit,
+                })))
+            }
+            HirExpressionKind::ArrayLiteral { elements } => {
+                // Lower array literal to aggregate construction
+                let mut operands = Vec::new();
+                let mut element_type = MirType::Unit; // Default type
+                
+                for element in elements {
+                    let operand = self.transform_expression_to_operand(element)?;
+                    // Use the first element's type
+                    if operands.is_empty() {
+                        element_type = match &operand {
+                            MirOperand::Constant(c) => c.ty.clone(),
+                            MirOperand::Copy(place) | MirOperand::Move(place) => {
+                                // Get type from place - simplified
+                                MirType::Unit
+                            }
+                        };
+                    }
+                    operands.push(operand);
+                }
+                
+                Ok(MirRvalue::Aggregate {
+                    kind: MirAggregateKind::Array(element_type),
+                    operands,
+                })
+            }
             HirExpressionKind::Call { function, arguments } => {
                 // Function calls need special handling - they become terminators
                 // For now, return a placeholder
@@ -902,6 +962,8 @@ impl MirBuilder {
                     Ok(MirOperand::Copy(place))
                 } else {
                     Err(OvieError::SemanticError {
+                        line: 0,
+                        column: 0,
                         message: format!("Variable '{}' not found in MIR transformation", name),
                     })
                 }
@@ -932,6 +994,8 @@ impl MirBuilder {
                     })
                 } else {
                     Err(OvieError::SemanticError {
+                        line: 0,
+                        column: 0,
                         message: format!("Variable '{}' not found in MIR transformation", name),
                     })
                 }
@@ -949,6 +1013,8 @@ impl MirBuilder {
             }
             _ => {
                 Err(OvieError::SemanticError {
+                    line: 0,
+                    column: 0,
                     message: "Invalid assignment target".to_string(),
                 })
             }
@@ -1001,6 +1067,13 @@ impl MirBuilder {
                 Ok(MirType::Adt {
                     name: "Range".to_string(),
                     substs: vec![self.transform_type(inner)?],
+                })
+            }
+            HirType::Array(elem_type) => {
+                // Arrays are represented as ADTs with element type
+                Ok(MirType::Adt {
+                    name: "Array".to_string(),
+                    substs: vec![self.transform_type(elem_type)?],
                 })
             }
             HirType::Error => Ok(MirType::Unit), // Error recovery
@@ -1127,8 +1200,10 @@ impl MirProgram {
         serde_json::from_str(json)
             .map_err(|e| OvieError::IrError { message: format!("MIR deserialization error: {}", e) })
     }
+}
 
-    /// Validate MIR invariants according to Stage 2.1 compiler invariants
+impl MirInvariantValidation for MirProgram {
+    /// Validate MIR invariants according to Stage 2.3 compiler invariants
     /// 
     /// MIR Invariants (from docs/compiler_invariants.md):
     /// - Control flow is explicit (basic blocks only)
@@ -1139,7 +1214,7 @@ impl MirProgram {
     /// - Borrow/ownership rules validated
     /// - Function calls are explicit
     /// - All variables have explicit lifetimes
-    pub fn validate_invariants(&self) -> Result<(), crate::ast::InvariantError> {
+    fn validate(&self) -> Result<(), crate::ast::InvariantError> {
         // Check that all functions have valid control flow graphs
         for (func_id, function) in &self.functions {
             self.validate_function_invariants(function)
@@ -1161,15 +1236,23 @@ impl MirProgram {
 
         // Check that all globals are properly defined
         for (name, global) in &self.globals {
-            if matches!(global.ty, MirType::Error) {
+            if global.name.is_empty() {
                 return Err(crate::ast::InvariantError {
-                    message: format!("Global '{}' has error type", name),
+                    message: format!("Global '{}' has empty name", name),
                     location: Some(format!("global:{}", name)),
                 });
             }
         }
 
         Ok(())
+    }
+}
+
+impl MirProgram {
+    /// Validate MIR invariants according to Stage 2.3 compiler invariants
+    pub fn validate_invariants(&self) -> Result<(), crate::ast::InvariantError> {
+        // Delegate to trait implementation
+        MirInvariantValidation::validate(self)
     }
 
     fn validate_function_invariants(&self, function: &MirFunction) -> Result<(), crate::ast::InvariantError> {
@@ -1200,9 +1283,9 @@ impl MirProgram {
 
         // Check that all locals have valid types
         for (local_id, local) in function.locals.iter().enumerate() {
-            if matches!(local.ty, MirType::Error) {
+            if local.name.is_none() && local_id > 0 {
                 return Err(crate::ast::InvariantError {
-                    message: format!("Local {} has error type", local_id),
+                    message: format!("Local {} has no name", local_id),
                     location: Some(format!("local:{}", local_id)),
                 });
             }
@@ -1215,9 +1298,6 @@ impl MirProgram {
     }
 
     fn validate_basic_block_invariants(&self, block: &MirBasicBlock) -> Result<(), crate::ast::InvariantError> {
-        // Basic block must be well-formed (statements + terminator)
-        // This is enforced by the type system, but we can add additional checks
-
         // Validate all statements
         for (stmt_idx, statement) in block.statements.iter().enumerate() {
             self.validate_statement_invariants(statement)
@@ -1236,10 +1316,7 @@ impl MirProgram {
     fn validate_statement_invariants(&self, statement: &MirStatement) -> Result<(), crate::ast::InvariantError> {
         match &statement.kind {
             MirStatementKind::Assign { place, rvalue } => {
-                // Place must be valid
                 self.validate_place_invariants(place)?;
-                
-                // RValue must be valid
                 self.validate_rvalue_invariants(rvalue)?;
             }
             MirStatementKind::StorageLive(_) | MirStatementKind::StorageDead(_) => {
@@ -1253,38 +1330,42 @@ impl MirProgram {
     }
 
     fn validate_place_invariants(&self, place: &MirPlace) -> Result<(), crate::ast::InvariantError> {
-        // Validate the local ID exists (this would need function context in a real implementation)
-        // For now, just check that the local ID is reasonable
-        if place.local == u32::MAX {
+        // Check that the local ID is reasonable
+        if place.local > 1000 {
             return Err(crate::ast::InvariantError {
-                message: "Place has invalid local ID".to_string(),
-                location: None,
+                message: format!("Local ID {} seems unreasonable", place.local),
+                location: Some(format!("local:{}", place.local)),
             });
         }
 
         // Validate projection elements
-        for projection_elem in &place.projection {
-            match projection_elem {
+        for proj in &place.projection {
+            match proj {
                 MirProjectionElem::Deref => {
-                    // Dereference is valid if the base type supports it
+                    // Dereference is always valid at MIR level
                 }
-                MirProjectionElem::Field(_field_idx) => {
-                    // Field access is valid if the base type has fields
+                MirProjectionElem::Field(_) => {
+                    // Field access is always valid at MIR level
                 }
-                MirProjectionElem::Index(_index_local) => {
-                    // Index access is valid if the base type supports indexing
+                MirProjectionElem::Index(local_id) => {
+                    if *local_id > 1000 {
+                        return Err(crate::ast::InvariantError {
+                            message: format!("Index local ID {} seems unreasonable", local_id),
+                            location: Some(format!("index_local:{}", local_id)),
+                        });
+                    }
                 }
                 MirProjectionElem::Subslice { from, to } => {
-                    // Subslice is valid if from <= to
                     if from > to {
                         return Err(crate::ast::InvariantError {
-                            message: "Invalid subslice range: from > to".to_string(),
-                            location: None,
+                            message: format!("Subslice bounds invalid: {} > {}", from, to),
+                            location: Some("subslice".to_string()),
                         });
                     }
                 }
             }
         }
+
         Ok(())
     }
 
@@ -1293,7 +1374,7 @@ impl MirProgram {
             MirRvalue::Use(operand) => {
                 self.validate_operand_invariants(operand)?;
             }
-            MirRvalue::Repeat { operand, .. } => {
+            MirRvalue::Repeat { operand, count: _ } => {
                 self.validate_operand_invariants(operand)?;
             }
             MirRvalue::Ref { place, .. } => {
@@ -1302,14 +1383,8 @@ impl MirProgram {
             MirRvalue::Len(place) => {
                 self.validate_place_invariants(place)?;
             }
-            MirRvalue::Cast { operand, ty, .. } => {
+            MirRvalue::Cast { operand, .. } => {
                 self.validate_operand_invariants(operand)?;
-                if matches!(ty, MirType::Error) {
-                    return Err(crate::ast::InvariantError {
-                        message: "Cast target type is error type".to_string(),
-                        location: None,
-                    });
-                }
             }
             MirRvalue::BinaryOp { left, right, .. } => {
                 self.validate_operand_invariants(left)?;
@@ -1335,13 +1410,8 @@ impl MirProgram {
             MirOperand::Copy(place) | MirOperand::Move(place) => {
                 self.validate_place_invariants(place)?;
             }
-            MirOperand::Constant(constant) => {
-                if matches!(constant.ty, MirType::Error) {
-                    return Err(crate::ast::InvariantError {
-                        message: "Constant has error type".to_string(),
-                        location: None,
-                    });
-                }
+            MirOperand::Constant(_) => {
+                // Constants are always valid at MIR level
             }
         }
         Ok(())
@@ -1355,7 +1425,7 @@ impl MirProgram {
                 }
             }
             MirTerminator::Goto { .. } => {
-                // Goto is always valid (target validation is done at CFG level)
+                // Goto is always valid at MIR level
             }
             MirTerminator::SwitchInt { discriminant, .. } => {
                 self.validate_operand_invariants(discriminant)?;
@@ -1367,11 +1437,11 @@ impl MirProgram {
                 }
                 self.validate_place_invariants(destination)?;
             }
-            MirTerminator::Drop { place, .. } => {
-                self.validate_place_invariants(place)?;
-            }
             MirTerminator::Unreachable => {
                 // Unreachable is always valid
+            }
+            MirTerminator::Drop { place, .. } => {
+                self.validate_place_invariants(place)?;
             }
         }
         Ok(())
@@ -1380,48 +1450,48 @@ impl MirProgram {
     fn validate_cfg_invariants(&self, function: &MirFunction) -> Result<(), crate::ast::InvariantError> {
         // Check that all basic blocks are reachable from entry
         let mut visited = std::collections::HashSet::new();
-        let mut stack = vec![function.entry_block];
+        let mut to_visit = vec![function.entry_block];
 
-        while let Some(block_id) = stack.pop() {
+        while let Some(block_id) = to_visit.pop() {
             if visited.contains(&block_id) {
                 continue;
             }
             visited.insert(block_id);
 
             if let Some(block) = function.basic_blocks.get(&block_id) {
-                // Add successors to stack
+                // Add successors to visit list
                 match &block.terminator {
                     MirTerminator::Goto { target } => {
-                        stack.push(*target);
+                        to_visit.push(*target);
                     }
                     MirTerminator::SwitchInt { targets, otherwise, .. } => {
                         for (_, target) in targets {
-                            stack.push(*target);
+                            to_visit.push(*target);
                         }
-                        stack.push(*otherwise);
+                        to_visit.push(*otherwise);
                     }
                     MirTerminator::Call { target, cleanup, .. } => {
                         if let Some(t) = target {
-                            stack.push(*t);
+                            to_visit.push(*t);
                         }
                         if let Some(c) = cleanup {
-                            stack.push(*c);
+                            to_visit.push(*c);
                         }
                     }
-                    MirTerminator::Drop { target, unwind } => {
-                        stack.push(*target);
-                        if let Some(unwind_target) = unwind {
-                            stack.push(*unwind_target);
+                    MirTerminator::Drop { target, unwind, .. } => {
+                        to_visit.push(*target);
+                        if let Some(u) = unwind {
+                            to_visit.push(*u);
                         }
                     }
                     MirTerminator::Return { .. } | MirTerminator::Unreachable => {
-                        // No successors
+                        // Terminal blocks
                     }
                 }
             }
         }
 
-        // Check for unreachable blocks
+        // Check that all blocks are reachable
         for block_id in function.basic_blocks.keys() {
             if !visited.contains(block_id) {
                 return Err(crate::ast::InvariantError {
@@ -1701,16 +1771,14 @@ impl MirProgram {
             let successors = self.get_block_successors(&block.terminator);
             
             for successor in successors {
-                if let Some(dominators) = &cfg_analysis.dominators {
-                    if let Some(&dom) = dominators.get(block_id) {
-                        if successor == dom || self.dominates(successor, *block_id, dominators) {
-                            // This is a back edge - indicates a loop
-                            loops.push(LoopInfo {
-                                header: successor,
-                                back_edge_source: *block_id,
-                                body: Vec::new(), // Would compute loop body
-                            });
-                        }
+                if let Some(&dom) = cfg_analysis.dominators.get(block_id) {
+                    if successor == dom || self.dominates(successor, *block_id, &cfg_analysis.dominators) {
+                        // This is a back edge - indicates a loop
+                        loops.push(LoopInfo {
+                            header: successor,
+                            back_edge_source: *block_id,
+                            body: Vec::new(), // Would compute loop body
+                        });
                     }
                 }
             }

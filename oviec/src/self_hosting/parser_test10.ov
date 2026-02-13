@@ -1,0 +1,16 @@
+// Test 10: Exact structure from failing code
+fn parser_report_error(message, line, column) {
+    seeAm "Error: ";
+    seeAm message;
+}
+
+fn expect_token_check(expected, actual, line, column) {
+    if expected == actual {
+        seeAm "Match";
+    } else {
+        parser_report_error("mismatch", line, column);
+    }
+}
+
+seeAm "Test 10";
+expect_token_check("fn", "let", 1, 1);

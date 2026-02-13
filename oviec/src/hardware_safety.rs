@@ -4,7 +4,7 @@
 //! and determinism features to ensure consistent behavior across similar
 //! hardware configurations and provide analyzable hardware models.
 
-use super::hardware::*;
+use crate::hardware::*;
 use crate::error::{OvieError, OvieResult};
 use std::collections::{HashMap, BTreeMap};
 use serde::{Serialize, Deserialize};
@@ -409,22 +409,40 @@ impl HardwareBehaviorAnalyzer {
     pub fn record_observation(&mut self, observation: BehaviorObservation) -> OvieResult<()> {
         let pattern_id = format!("{}::{}", observation.config_id, observation.operation);
         
-        let pattern = self.behavior_patterns.entry(pattern_id.clone()).or_insert_with(|| {
-            BehaviorPattern {
-                pattern_id: pattern_id.clone(),
-                observed_configs: vec![observation.config_id.clone()],
-                expected_behavior: "To be determined".to_string(),
-                observations: Vec::new(),
-                consistency_score: 1.0,
-                is_deterministic: true,
+        {
+            let pattern = self.behavior_patterns.entry(pattern_id.clone()).or_insert_with(|| {
+                BehaviorPattern {
+                    pattern_id: pattern_id.clone(),
+                    observed_configs: vec![observation.config_id.clone()],
+                    expected_behavior: "To be determined".to_string(),
+                    observations: Vec::new(),
+                    consistency_score: 1.0,
+                    is_deterministic: true,
+                }
+            });
+
+            // Add the observation
+            pattern.observations.push(observation);
+        } // Drop the mutable borrow from entry() here
+
+        // Update consistency score (now we can borrow self immutably and pattern mutably)
+        if let Some(pattern) = self.behavior_patterns.get_mut(&pattern_id) {
+            // Inline the consistency score update to avoid borrow conflicts
+            if pattern.observations.len() >= 2 {
+                let mut consistent_count = 0;
+                let total_count = pattern.observations.len();
+                
+                // Compare all observations to the first one
+                for i in 1..pattern.observations.len() {
+                    if pattern.observations[i].output == pattern.observations[0].output {
+                        consistent_count += 1;
+                    }
+                }
+                
+                pattern.consistency_score = consistent_count as f64 / (total_count - 1) as f64;
+                pattern.is_deterministic = pattern.consistency_score >= 0.99;
             }
-        });
-
-        // Add the observation
-        pattern.observations.push(observation);
-
-        // Update consistency score
-        self.update_consistency_score(pattern)?;
+        }
 
         Ok(())
     }

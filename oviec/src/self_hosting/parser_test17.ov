@@ -1,0 +1,14 @@
+// Test 17: No comparison in if
+fn helper(msg, ln, col) {
+    seeAm msg;
+}
+
+fn test(exp, act, ln, col) {
+    if true {
+        seeAm "match";
+    } else {
+        helper("error", ln, col);
+    }
+}
+
+test("a", "b", 1, 2);

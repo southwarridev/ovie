@@ -1,0 +1,44 @@
+// Test 2: All constants + globals
+fn NODE_PROGRAM() { return "NODE_PROGRAM"; }
+fn NODE_FUNCTION() { return "NODE_FUNCTION"; }
+fn NODE_VARIABLE() { return "NODE_VARIABLE"; }
+fn NODE_ASSIGNMENT() { return "NODE_ASSIGNMENT"; }
+fn NODE_BINARY_OP() { return "NODE_BINARY_OP"; }
+fn NODE_UNARY_OP() { return "NODE_UNARY_OP"; }
+fn NODE_LITERAL() { return "NODE_LITERAL"; }
+fn NODE_IDENTIFIER() { return "NODE_IDENTIFIER"; }
+fn NODE_BLOCK() { return "NODE_BLOCK"; }
+fn NODE_IF() { return "NODE_IF"; }
+fn NODE_WHILE() { return "NODE_WHILE"; }
+fn NODE_FOR() { return "NODE_FOR"; }
+fn NODE_RETURN() { return "NODE_RETURN"; }
+fn NODE_CALL() { return "NODE_CALL"; }
+fn NODE_STRUCT() { return "NODE_STRUCT"; }
+fn NODE_ENUM() { return "NODE_ENUM"; }
+
+fn LIT_INTEGER() { return "LIT_INTEGER"; }
+fn LIT_FLOAT() { return "LIT_FLOAT"; }
+fn LIT_STRING() { return "LIT_STRING"; }
+fn LIT_BOOLEAN() { return "LIT_BOOLEAN"; }
+
+fn OP_ADD() { return "OP_ADD"; }
+fn OP_SUB() { return "OP_SUB"; }
+fn OP_MUL() { return "OP_MUL"; }
+fn OP_DIV() { return "OP_DIV"; }
+fn OP_EQ() { return "OP_EQ"; }
+fn OP_NE() { return "OP_NE"; }
+fn OP_LT() { return "OP_LT"; }
+fn OP_GT() { return "OP_GT"; }
+fn OP_AND() { return "OP_AND"; }
+fn OP_OR() { return "OP_OR"; }
+
+fn OP_NEG() { return "OP_NEG"; }
+fn OP_NOT() { return "OP_NOT"; }
+
+// Global variables
+let current_node_type = "";
+let current_node_value = "";
+let current_node_line = 0;
+let current_node_column = 0;
+
+seeAm "Test 2: All constants and globals work";

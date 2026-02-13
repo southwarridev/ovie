@@ -2,7 +2,20 @@
 // Fundamental types and operations for the Ovie programming language
 // This module provides the foundation for all other standard library modules
 
-// ===== RESULT TYPE =====
+// Import core types from separate files
+// These map to Rust runtime implementations in oviec/src/stdlib/core.rs
+import "std/core/result.ov";
+import "std/core/option.ov";
+import "std/core/vec.ov";
+import "std/core/hashmap.ov";
+
+// Re-export core types for convenience
+export Result, Ok, Err;
+export Option, Some, None;
+export Vec, VecIterator;
+export HashMap, HashMapIterator, HashMapKeysIterator, HashMapValuesIterator;
+
+// ===== RESULT TYPE (Legacy - kept for compatibility) =====
 
 // Result type for operations that can fail
 // This is the primary error handling mechanism in Ovie

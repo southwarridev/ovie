@@ -722,22 +722,7 @@ impl fmt::Display for Severity {
     }
 }
 
-impl fmt::Display for DiagnosticCategory {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DiagnosticCategory::SyntaxError => write!(f, "syntax-error"),
-            DiagnosticCategory::TypeError => write!(f, "type-error"),
-            DiagnosticCategory::OwnershipError => write!(f, "ownership-error"),
-            DiagnosticCategory::MemoryError => write!(f, "memory-error"),
-            DiagnosticCategory::LogicError => write!(f, "logic-error"),
-            DiagnosticCategory::PerformanceWarning => write!(f, "performance-warning"),
-            DiagnosticCategory::SecurityWarning => write!(f, "security-warning"),
-            DiagnosticCategory::StyleWarning => write!(f, "style-warning"),
-            DiagnosticCategory::DeprecationWarning => write!(f, "deprecation-warning"),
-            DiagnosticCategory::Info => write!(f, "info"),
-        }
-    }
-}
+
 
 impl fmt::Display for AnalysisCategory {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

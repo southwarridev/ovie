@@ -22,8 +22,8 @@ echo "  ██║   ██║╚██╗ ██╔╝██║██╔══�
 echo "  ╚██████╔╝ ╚████╔╝ ██║███████╗"
 echo "   ╚═════╝   ╚═══╝  ╚═╝╚══════╝"
 echo -e "${NC}"
-echo -e "${GREEN}  🚀 STAGE 2.1 - SELF-HOSTED PROGRAMMING LANGUAGE${NC}"
-echo -e "${YELLOW}  📦 Easy Linux Installation v2.1.0${NC}"
+echo -e "${GREEN}  🚀 LOW-LEVEL LANGUAGE WITH HIGH-LEVEL FEATURES${NC}"
+echo -e "${YELLOW}  📦 Easy Linux Installation v2.2.0${NC}"
 echo ""
 echo "============================================================================"
 

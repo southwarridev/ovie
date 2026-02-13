@@ -3,12 +3,12 @@
   
   # Installation Guide
   
-  ### ✅ **SELF-HOSTED PROGRAMMING LANGUAGE**
+  ### ✅ **COMPLETE PROGRAMMING LANGUAGE**
 </div>
 
-This guide covers installing the Ovie Programming Language toolchain on various platforms. Ovie is now a **production-ready, self-hosted programming language** with a complete compiler written in Ovie itself!
+This guide covers installing the Ovie Programming Language toolchain on various platforms. Ovie is a **complete, trustworthy programming language** with enforced compiler invariants, proven bootstrap verification, and comprehensive runtime environment.
 
-**🎉 Status: Installing a fully self-hosted programming language (January 30, 2026)**
+**🎉 Status: Installing a complete language system v2.2 (February 2026)**
 
 ## Quick Install
 
@@ -345,12 +345,16 @@ Plug 'ovie-lang/ovie.vim'  " When available
 
 ```bash
 # Check version
-ovie --version
-# Expected: ovie 0.1.0 (Stage 0 - Rust Implementation)
-
-# Check compiler
 oviec --version
-# Expected: oviec 0.1.0 (Ovie Compiler)
+# Expected: oviec 2.2.0 (Complete Language System)
+
+# Check runtime environment
+oviec --env
+# Expected: Shows OVIE_HOME and ORE structure
+
+# Validate installation
+oviec --self-check
+# Expected: All components validated successfully
 
 # Create test project
 ovie new test-project
@@ -368,6 +372,10 @@ ovie test
 # Check Aproko
 ovie aproko src/main.ov
 # Expected: Analysis complete, no issues found
+
+# Explain compiler decisions
+oviec explain type my_var
+# Expected: Type inference explanation
 ```
 
 ### Performance Test

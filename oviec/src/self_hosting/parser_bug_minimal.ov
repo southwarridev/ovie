@@ -1,0 +1,11 @@
+// Minimal test case for parser bug
+
+fn test(a, b) {
+    if a == b {
+        seeAm "yes";
+    } else {
+        seeAm "no";
+    }
+}
+
+seeAm "done";

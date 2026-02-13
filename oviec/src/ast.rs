@@ -4,6 +4,12 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 use crate::error::{OvieError, OvieResult};
 
+/// AST invariant validation trait
+pub trait AstInvariantValidation {
+    /// Validate AST invariants according to Stage 2.1 compiler invariants
+    fn validate(&self) -> Result<(), InvariantError>;
+}
+
 /// Invariant error for AST validation
 #[derive(Debug, Clone)]
 pub struct InvariantError {
@@ -25,15 +31,11 @@ impl std::error::Error for InvariantError {}
 
 /// Root AST node representing a complete Ovie program
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AstNode {
-    pub statements: Vec<Statement>,
+pub enum AstNode {
+    Program(Vec<Statement>),
 }
 
-impl AstNode {
-    pub fn new(statements: Vec<Statement>) -> Self {
-        Self { statements }
-    }
-
+impl AstInvariantValidation for AstNode {
     /// Validate AST invariants according to Stage 2.1 compiler invariants
     /// 
     /// AST Invariants (from docs/compiler_invariants.md):
@@ -43,14 +45,29 @@ impl AstNode {
     /// - No semantic validation occurs in AST
     /// - All syntax is valid (parser succeeded)
     /// - Comments and whitespace are preserved for tooling
-    pub fn validate(&self) -> Result<(), InvariantError> {
-        // Check that AST contains no resolved types
-        for statement in &self.statements {
-            self.validate_statement_invariants(statement)?;
+    fn validate(&self) -> Result<(), InvariantError> {
+        match self {
+            AstNode::Program(statements) => {
+                // Check that AST contains no resolved types
+                for statement in statements {
+                    self.validate_statement_invariants(statement)?;
+                }
+                
+                // AST-level invariants passed
+                Ok(())
+            }
         }
-        
-        // AST-level invariants passed
-        Ok(())
+    }
+}
+
+impl AstNode {
+    pub fn new(statements: Vec<Statement>) -> Self {
+        Self::Program(statements)
+    }
+
+    /// Create a Program variant for compatibility with tests
+    pub fn Program(statements: Vec<Statement>) -> Self {
+        Self::Program(statements)
     }
 
     fn validate_statement_invariants(&self, statement: &Statement) -> Result<(), InvariantError> {
@@ -58,7 +75,15 @@ impl AstNode {
             Statement::Assignment { value, .. } => {
                 self.validate_expression_invariants(value)?;
             }
+            Statement::VariableDeclaration { value, .. } => {
+                self.validate_expression_invariants(value)?;
+            }
             Statement::Function { body, .. } => {
+                for stmt in body {
+                    self.validate_statement_invariants(stmt)?;
+                }
+            }
+            Statement::FunctionDeclaration { body, .. } => {
                 for stmt in body {
                     self.validate_statement_invariants(stmt)?;
                 }
@@ -140,6 +165,20 @@ impl AstNode {
                 self.validate_expression_invariants(start)?;
                 self.validate_expression_invariants(end)?;
             }
+            Expression::EnumVariantConstruction { data, .. } => {
+                if let Some(data_expr) = data {
+                    self.validate_expression_invariants(data_expr)?;
+                }
+            }
+            Expression::Index { object, index } => {
+                self.validate_expression_invariants(object)?;
+                self.validate_expression_invariants(index)?;
+            }
+            Expression::ArrayLiteral { elements } => {
+                for element in elements {
+                    self.validate_expression_invariants(element)?;
+                }
+            }
         }
         Ok(())
     }
@@ -155,8 +194,22 @@ pub enum Statement {
         value: Expression,
     },
 
+    /// Variable declaration: let [mut] identifier = expression
+    VariableDeclaration {
+        mutable: bool,
+        identifier: String,
+        value: Expression,
+    },
+
     /// Function definition: fn identifier(params) { body }
     Function {
+        name: String,
+        parameters: Vec<String>,
+        body: Vec<Statement>,
+    },
+
+    /// Function declaration: fn identifier(params) { body }
+    FunctionDeclaration {
         name: String,
         parameters: Vec<String>,
         body: Vec<Statement>,
@@ -254,6 +307,24 @@ pub enum Expression {
     Range {
         start: Box<Expression>,
         end: Box<Expression>,
+    },
+
+    /// Enum variant construction: EnumName.VariantName or EnumName.VariantName(data)
+    EnumVariantConstruction {
+        enum_name: String,
+        variant_name: String,
+        data: Option<Box<Expression>>,
+    },
+
+    /// Array/String indexing: array[index] or string[index]
+    Index {
+        object: Box<Expression>,
+        index: Box<Expression>,
+    },
+
+    /// Array literal: [element1, element2, ...]
+    ArrayLiteral {
+        elements: Vec<Expression>,
     },
 }
 

@@ -313,6 +313,311 @@ impl Program {
         Ok(())
     }
 }
+/// Backend invariant validation trait
+pub trait BackendInvariantValidation {
+    /// Validate that the IR is ready for backend code generation
+    fn validate_backend_invariants(&self) -> OvieResult<()>;
+    
+    /// Check that MIR has been optimized appropriately
+    fn validate_optimized_mir(&self) -> OvieResult<()>;
+    
+    /// Check that ABI requirements are complete
+    fn validate_complete_abi(&self) -> OvieResult<()>;
+    
+    /// Check that all symbols are resolved
+    fn validate_resolved_symbols(&self) -> OvieResult<()>;
+}
+
+/// Backend invariant validation implementation for Program
+impl BackendInvariantValidation for Program {
+    fn validate_backend_invariants(&self) -> OvieResult<()> {
+        // Run all backend invariant checks
+        self.validate_optimized_mir()?;
+        self.validate_complete_abi()?;
+        self.validate_resolved_symbols()?;
+        Ok(())
+    }
+    
+    fn validate_optimized_mir(&self) -> OvieResult<()> {
+        // Check that the IR has been through optimization passes
+        // This includes dead code elimination, constant folding, etc.
+        
+        for (func_id, function) in &self.functions {
+            // Check for unreachable basic blocks
+            let mut reachable_blocks = std::collections::HashSet::new();
+            let mut to_visit = vec![function.entry_block];
+            
+            while let Some(block_id) = to_visit.pop() {
+                if reachable_blocks.contains(&block_id) {
+                    continue;
+                }
+                reachable_blocks.insert(block_id);
+                
+                if let Some(block) = function.basic_blocks.get(&block_id) {
+                    // Add successor blocks to visit list
+                    match &block.terminator {
+                        Terminator::Branch { target } => {
+                            to_visit.push(*target);
+                        }
+                        Terminator::ConditionalBranch { true_target, false_target, .. } => {
+                            to_visit.push(*true_target);
+                            to_visit.push(*false_target);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            
+            // Check if there are unreachable blocks (optimization should have removed them)
+            for block_id in function.basic_blocks.keys() {
+                if !reachable_blocks.contains(block_id) {
+                    return Err(OvieError::InvariantViolation {
+                        stage: "Backend".to_string(),
+                        message: format!("Unreachable basic block {} found in function {} - optimization incomplete", 
+                                       block_id, function.name),
+                    });
+                }
+            }
+            
+            // Check for obvious constant folding opportunities that should have been optimized
+            for block in function.basic_blocks.values() {
+                for instruction in &block.instructions {
+                    match &instruction.opcode {
+                        Opcode::Add | Opcode::Sub | Opcode::Mul | Opcode::Div => {
+                            // Check if both operands are constants (should have been folded)
+                            if instruction.operands.len() == 2 {
+                                if let (Value::Constant(_), Value::Constant(_)) = 
+                                    (&instruction.operands[0], &instruction.operands[1]) {
+                                    return Err(OvieError::InvariantViolation {
+                                        stage: "Backend".to_string(),
+                                        message: format!("Constant folding not applied to instruction {} in function {}", 
+                                                       instruction.id, function.name),
+                                    });
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    fn validate_complete_abi(&self) -> OvieResult<()> {
+        // Check that all functions have complete ABI information
+        for (func_id, function) in &self.functions {
+            // Verify function signature is complete
+            if function.name.is_empty() {
+                return Err(OvieError::InvariantViolation {
+                    stage: "Backend".to_string(),
+                    message: format!("Function {} has empty name - ABI incomplete", func_id),
+                });
+            }
+            
+            // Verify parameter types are concrete (no unresolved types)
+            for (i, param) in function.parameters.iter().enumerate() {
+                if !self.is_concrete_type(&param.param_type) {
+                    return Err(OvieError::InvariantViolation {
+                        stage: "Backend".to_string(),
+                        message: format!("Parameter {} of function {} has non-concrete type - ABI incomplete", 
+                                       i, function.name),
+                    });
+                }
+            }
+            
+            // Verify return type is concrete
+            if !self.is_concrete_type(&function.return_type) {
+                return Err(OvieError::InvariantViolation {
+                    stage: "Backend".to_string(),
+                    message: format!("Function {} has non-concrete return type - ABI incomplete", function.name),
+                });
+            }
+        }
+        
+        // Check that global variables have complete type information
+        for (name, global) in &self.globals {
+            if !self.is_concrete_type(&global.global_type) {
+                return Err(OvieError::InvariantViolation {
+                    stage: "Backend".to_string(),
+                    message: format!("Global variable {} has non-concrete type - ABI incomplete", name),
+                });
+            }
+        }
+        
+        Ok(())
+    }
+    
+    fn validate_resolved_symbols(&self) -> OvieResult<()> {
+        // Check that all symbol references are resolved
+        for (func_id, function) in &self.functions {
+            for block in function.basic_blocks.values() {
+                for instruction in &block.instructions {
+                    // Check operands for unresolved symbols
+                    for operand in &instruction.operands {
+                        match operand {
+                            Value::Global(name) => {
+                                // Check that global exists
+                                if !self.globals.contains_key(name) {
+                                    return Err(OvieError::InvariantViolation {
+                                        stage: "Backend".to_string(),
+                                        message: format!("Unresolved global symbol '{}' in function {}", 
+                                                       name, function.name),
+                                    });
+                                }
+                            }
+                            Value::Instruction(value_id) => {
+                                // Check that the referenced instruction exists in this function
+                                let mut found = false;
+                                for check_block in function.basic_blocks.values() {
+                                    for check_instruction in &check_block.instructions {
+                                        if check_instruction.id == *value_id {
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    if found { break; }
+                                }
+                                
+                                if !found {
+                                    return Err(OvieError::InvariantViolation {
+                                        stage: "Backend".to_string(),
+                                        message: format!("Unresolved instruction reference {} in function {}", 
+                                                       value_id, function.name),
+                                    });
+                                }
+                            }
+                            Value::Parameter(param_id) => {
+                                // Check that parameter exists
+                                let param_exists = function.parameters.iter()
+                                    .any(|p| p.value_id == *param_id);
+                                if !param_exists {
+                                    return Err(OvieError::InvariantViolation {
+                                        stage: "Backend".to_string(),
+                                        message: format!("Unresolved parameter reference {} in function {}", 
+                                                       param_id, function.name),
+                                    });
+                                }
+                            }
+                            _ => {} // Constants are always resolved
+                        }
+                    }
+                    
+                    // Special check for function calls
+                    if let Opcode::Call = instruction.opcode {
+                        if let Some(Value::Global(func_name)) = instruction.operands.first() {
+                            // Check that the called function exists
+                            let func_exists = self.functions.values()
+                                .any(|f| f.name == *func_name);
+                            if !func_exists {
+                                return Err(OvieError::InvariantViolation {
+                                    stage: "Backend".to_string(),
+                                    message: format!("Unresolved function call to '{}' in function {}", 
+                                                   func_name, function.name),
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // Check terminator for unresolved symbols
+                match &block.terminator {
+                    Terminator::Return { value: Some(val) } => {
+                        // Validate return value reference
+                        if let Value::Instruction(value_id) = val {
+                            let mut found = false;
+                            for check_block in function.basic_blocks.values() {
+                                for check_instruction in &check_block.instructions {
+                                    if check_instruction.id == *value_id {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if found { break; }
+                            }
+                            
+                            if !found {
+                                return Err(OvieError::InvariantViolation {
+                                    stage: "Backend".to_string(),
+                                    message: format!("Unresolved return value reference {} in function {}", 
+                                                   value_id, function.name),
+                                });
+                            }
+                        }
+                    }
+                    Terminator::ConditionalBranch { condition, true_target, false_target } => {
+                        // Check condition operand
+                        if let Value::Instruction(value_id) = condition {
+                            let mut found = false;
+                            for check_block in function.basic_blocks.values() {
+                                for check_instruction in &check_block.instructions {
+                                    if check_instruction.id == *value_id {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if found { break; }
+                            }
+                            
+                            if !found {
+                                return Err(OvieError::InvariantViolation {
+                                    stage: "Backend".to_string(),
+                                    message: format!("Unresolved condition reference {} in function {}", 
+                                                   value_id, function.name),
+                                });
+                            }
+                        }
+                        
+                        // Check that target blocks exist
+                        if !function.basic_blocks.contains_key(true_target) {
+                            return Err(OvieError::InvariantViolation {
+                                stage: "Backend".to_string(),
+                                message: format!("Unresolved branch target {} in function {}", 
+                                               true_target, function.name),
+                            });
+                        }
+                        if !function.basic_blocks.contains_key(false_target) {
+                            return Err(OvieError::InvariantViolation {
+                                stage: "Backend".to_string(),
+                                message: format!("Unresolved branch target {} in function {}", 
+                                               false_target, function.name),
+                            });
+                        }
+                    }
+                    Terminator::Branch { target } => {
+                        // Check that target block exists
+                        if !function.basic_blocks.contains_key(target) {
+                            return Err(OvieError::InvariantViolation {
+                                stage: "Backend".to_string(),
+                                message: format!("Unresolved branch target {} in function {}", 
+                                               target, function.name),
+                            });
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        
+        Ok(())
+    }
+}
+
+impl Program {
+    /// Helper method to check if a type is concrete (fully resolved)
+    fn is_concrete_type(&self, ir_type: &IrType) -> bool {
+        match ir_type {
+            IrType::String | IrType::Number | IrType::Boolean | IrType::Void => true,
+            IrType::Pointer(inner) => self.is_concrete_type(inner),
+            IrType::Function { params, return_type } => {
+                params.iter().all(|p| self.is_concrete_type(p)) && 
+                self.is_concrete_type(return_type)
+            }
+        }
+    }
+}
+
 /// AST to IR transformation
 use crate::ast::{AstNode, Statement, Expression, Literal};
 
@@ -325,8 +630,12 @@ impl IrBuilder {
         self.current_function = Some(main_function);
 
         // Transform statements into the main function
-        for statement in &ast.statements {
-            self.transform_statement(statement)?;
+        match &ast {
+            AstNode::Program(statements) => {
+                for statement in statements {
+                    self.transform_statement(statement)?;
+                }
+            }
         }
 
         Ok(())

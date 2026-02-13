@@ -1,13 +1,13 @@
 <div align="center">
   <img src="ovie.png" alt="Ovie Programming Language" width="200" height="200">
   
-  # 🚀 Ovie v2.1 - Low-Level Self-Hosted Programming Language
+  # 🚀 Ovie - Low-Level Language with High-Level Features
   
-  ### ✅ **STAGE 2.1 - FORMAL COMPILER INVARIANTS & BOOTSTRAP VERIFICATION**
+  ### ⚡ **Systems Programming Power with Developer-Friendly Abstractions**
   
-  > A modern low-level self-hosted programming language with formal compiler invariants, bootstrap verification, and multi-stage IR pipeline. Perfect for systems programming, embedded development, and performance-critical applications.
+  > A self-hosted programming language that combines low-level control with high-level productivity. Direct memory management meets natural syntax, complete standard library, and enforced compiler correctness.
   
-  **🎉 Status: Production-Ready Low-Level Language (January 31, 2026)**
+  **🎉 Version: 2.2.0 (February 2026)**
 </div>
 
 [![GitHub](https://img.shields.io/badge/GitHub-southwarridev%2Fovie-blue?logo=github)](https://github.com/southwarridev/ovie)
@@ -19,112 +19,144 @@
 
 ## What is Ovie?
 
-**Ovie v2.1 is a low-level self-hosted programming language with formal compiler invariants!** ✅
+**Ovie is a low-level programming language with high-level features!** ⚡
 
-Ovie has evolved into a powerful systems programming language with mathematically verified compiler correctness. It provides:
+Ovie combines the control and performance of systems programming with the productivity of high-level languages:
 
-- **🔧 Low-Level Programming**: Direct memory management, hardware access, and system-level programming
-- **📐 Formal Compiler Invariants**: Mathematically verified AST→HIR→MIR pipeline correctness
-- **🏗️ Self-Hosted Architecture**: Complete independence from external toolchains
-- **⚡ Multi-Stage IR Pipeline**: AST → HIR → MIR with invariant validation at each stage
-- **🎯 Multiple Backends**: Native (LLVM), WebAssembly, and built-in interpreter
-- **🔒 Security & Privacy**: Built-in supply chain security and offline-first development
-- **🤖 AI-Powered Analysis**: Aproko engine provides intelligent code insights
-- **🚀 Performance Optimized**: Designed for embedded systems and real-time applications
+### Low-Level Control
+- **Direct Memory Management**: Full control over memory allocation and layout
+- **Zero-Cost Abstractions**: High-level features compile to efficient low-level code
+- **Hardware Access**: System-level programming capabilities
+- **Performance**: Designed for embedded systems and performance-critical applications
 
-> **✅ MILESTONE: Ovie v2.1 achieved formal compiler invariants on January 31, 2026**
+### High-Level Features
+- **Natural Syntax**: Readable, expressive code that's easy to write and maintain
+- **Complete Standard Library**: Result, Option, Vec, HashMap, and 9 core modules
+- **Type Safety**: Strong type system with inference
+- **Developer-Friendly**: Modern language features without sacrificing control
 
-> **See [docs/compiler_invariants.md](docs/compiler_invariants.md) for formal verification details**
+### Production-Ready
+- **🏗️ Self-Hosted Compiler**: Ovie compiles itself - proven language maturity
+- **🔒 Enforced Correctness**: Compiler invariants validated at every stage (AST → HIR → MIR → Backend)
+- **📦 Complete Runtime Environment (ORE)**: Canonical structure with stdlib, aproko, and targets
+- **🔍 Self-Diagnosing**: Aproko reasoning engine explains compiler decisions
+- **🤖 Deterministic Builds**: Reproducible compilation with offline-first development
+
+> **🎉 MILESTONE: Ovie v2.2 - Complete language consolidation achieved (February 2026)**
 
 ## Quick Start
 
 ```ovie
-// Hello World in Ovie v2.1 - Low-Level Programming
-seeAm "Hello from Ovie v2.1!"
+// Hello World in Ovie - Low-level power, high-level syntax
+seeAm "Hello from Ovie!"
 
-// Direct memory management and low-level operations
-mut buffer = allocate(1024)  // Direct memory allocation
-mut ptr = buffer.as_ptr()    // Raw pointer access
+// High-level features: Complete standard library
+use std::core::{Result, Option, Vec, HashMap}
 
-// Systems programming with hardware access
-fn read_hardware_register(address: usize) -> u32 {
-    unsafe {
-        return *(address as *const u32)
+fn process_data(input: Vec<String>) -> Result<HashMap<String, i32>, String> {
+    mut counts = HashMap::new()
+    
+    for item in input {
+        mut count = counts.get(item).unwrap_or(0)
+        counts.insert(item, count + 1)
     }
+    
+    return Result::Ok(counts)
 }
 
-// High-level abstractions with zero cost
-struct Point {
-    x: f64,
-    y: f64,
+// Low-level control: Direct memory management
+fn allocate_buffer(size: i32) -> Vec<u8> {
+    mut buffer = Vec::with_capacity(size)
+    // Zero-cost abstraction - compiles to efficient code
+    return buffer
 }
 
-fn distance(p1: Point, p2: Point) -> f64 {
-    mut dx = p1.x - p2.x
-    mut dy = p1.y - p2.y
-    return sqrt(dx * dx + dy * dy)
+// Self-diagnosing: Aproko explains compiler decisions
+// Run: oviec explain type result
+fn calculate(x: i32, y: i32) -> i32 {
+    mut result = x * y + 10
+    return result
 }
 ```
 
 ## Key Features
 
-### 🌍 Accessible to Everyone
-- **Pidgin English syntax** for natural readability
-- **Built-in guidance** through Aproko assistant
-- **Clear error messages** with actionable suggestions
-- **Comprehensive documentation** for all skill levels
+### ⚡ Low-Level Control
+- **Direct Memory Management**: Full control over allocation, layout, and lifetime
+- **Zero-Cost Abstractions**: High-level features compile to efficient machine code
+- **Hardware Access**: System-level programming for embedded and real-time systems
+- **Performance**: Designed for speed-critical applications
 
-### 🔒 Offline-First Development
-- **Complete offline operation** - no network required for any development task
-- **Local dependency storage** with cryptographic verification
-- **Air-gapped environment support** for maximum security
-- **Privacy-focused design** with no telemetry or tracking
+### 🎯 High-Level Productivity
+- **Natural Syntax**: Readable code with `seeAm` for output, intuitive control flow
+- **Complete Standard Library**: Result, Option, Vec, HashMap, and 9 core modules (160KB+)
+- **Type Safety**: Strong type system with inference - catch errors at compile time
+- **Modern Features**: Pattern matching, iterators, closures (coming soon)
 
-### 🔐 Security and Safety
-### 🔐 Security and Safety
-- **Offline-first builds** with no hidden network calls
-- **Cryptographic verification** of all dependencies
-- **Deterministic compilation** for reproducible deployments
-- **Memory safety** without garbage collection overhead
+### 🏗️ Production-Ready Compiler
+- **Self-Hosted**: Ovie compiles itself - proven language maturity
+- **Enforced Invariants**: Compiler validates itself at every stage (AST → HIR → MIR → Backend)
+- **Multi-Backend**: Compile to native (LLVM), WebAssembly, or run with interpreter
+- **Deterministic Builds**: Identical inputs always produce identical outputs
 
-### 🤖 AI/LLM Integration
-- **Natural language patterns** easily understood by AI
-- **Structured feedback** suitable for machine learning
-- **Code generation friendly** syntax and semantics
-- **Training data generation** capabilities
+### 🔍 Developer Experience
+- **Self-Diagnosing**: Aproko reasoning engine explains compiler decisions
+  - `oviec explain error E_TYPE_004` - understand specific errors
+  - `oviec explain type my_var` - see type inference reasoning
+- **Structured Errors**: Clear error messages with code, location, explanation, and fix suggestions
+- **Stable CLI**: Guaranteed commands (new, build, run, check, test, fmt, explain, env)
+- **Complete Runtime Environment (ORE)**: Canonical structure with stdlib, aproko, targets
 
-### ⚡ Self-Hosting Architecture (COMPLETED!)
-- **✅ Stage 0**: Bootstrap compiler written in Rust
-- **✅ Stage 1**: Partial self-hosting (lexer/parser in Ovie)
-- **✅ Stage 2**: Full self-hosting (entire compiler in Ovie)
+### 🔒 Reliability
+- **Offline-First**: No network required for development - all dependencies vendored
+- **Memory Safety**: Catch memory errors at compile time
+- **Comprehensive Testing**: 100% critical path coverage with property-based tests
+- **Cross-Platform**: Windows, macOS, Linux support
 
-**🎉 Achievement Unlocked: Ovie can now compile itself using a compiler written entirely in Ovie!**
+## 🚀 Installation
 
-## 🚀 Quick Installation (Offline-First)
+### Quick Install (Recommended)
 
-### Offline Development (Recommended)
+Use our platform-specific installers for the easiest setup:
+
 ```bash
-# Download/clone the source code, then:
-./local-dev.sh     # Linux/macOS
-./local-dev.ps1    # Windows
+# Windows (PowerShell)
+iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
 
-# Or use Make
-make offline-dev
+# Linux
+curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+
+# macOS
+curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
 ```
 
+### Build from Source
 
-### Quick Install Scripts (Optional Online)
-> ⚠️ These scripts download from the internet. Use offline method above for air-gapped environments.
-
-#### Linux/macOS/WSL
 ```bash
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/install.sh | bash
+# Clone the repository
+git clone https://github.com/southwarridev/ovie.git
+cd ovie
+
+# Build and install
+make build
+make install
 ```
 
-#### Windows (PowerShell)
-```powershell
-iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/install.ps1 | iex
+### Verify Installation
+
+```bash
+ovie --version          # Check version (2.2.0)
+oviec --version         # Check compiler version
+oviec --env             # Show runtime environment status
+oviec --self-check      # Validate installation completeness
 ```
+
+Each installation includes:
+- Ovie compiler (oviec) and CLI (ovie)
+- Complete Runtime Environment (ORE)
+- Standard library (160KB+ across 9 modules)
+- Aproko reasoning engine
+- Documentation and 22+ examples
 
 ## 🔗 Repository Links
 
@@ -151,39 +183,9 @@ ovie run
 ```bash
 ovie test      # Run tests
 ovie fmt       # Format code
-ovie update    # Update dependencies
-ovie vendor    # Vendor dependencies locally
+ovie check     # Type check without building
+oviec explain  # Explain compiler decisions
 ```
-
-## Project Structure
-
-```
-ovie/
-├── oviec/          # Ovie compiler
-├── aproko/         # Assistant engine  
-├── ovie/           # CLI toolchain
-├── docs/           # Documentation
-├── examples/       # Example programs
-├── spec/           # Language specification
-└── SPEC.md         # Core immutable principles
-```
-
-## Core Principles
-
-Ovie is built on [immutable core principles](SPEC.md) that ensure:
-
-1. **🔒 Offline-first** operation (no network required for development)
-2. **Deterministic builds** (reproducible compilation)
-3. **Vendored dependencies** (local supply chain)
-4. **No silent corrections** (explicit user consent)
-5. **Minimal keywords** (13 core keywords only)
-6. **Self-hosting target** (sovereignty goal)
-7. **Open source** (MIT license)
-8. **Aproko always-on** (built-in assistance)
-9. **No telemetry** (complete privacy)
-10. **Stable core spec** (RFC-based changes)
-
-> **📖 Read [OFFLINE-FIRST.md](OFFLINE-FIRST.md) for detailed offline development guide**
 
 ## Language Examples
 
@@ -235,6 +237,68 @@ person = Person {
 seeAm person.name
 ```
 
+### Standard Library
+```ovie
+use std::core::{Result, Option, Vec, HashMap}
+use std::io::{println, read_line}
+use std::fs::{read_file, write_file}
+
+// Result type for error handling
+fn divide(a: i32, b: i32) -> Result<i32, String> {
+    if b == 0 {
+        return Result::Err("Division by zero")
+    }
+    return Result::Ok(a / b)
+}
+
+// Option type for nullable values
+fn find_user(id: i32) -> Option<String> {
+    // ... lookup logic
+    return Option::Some("Alice")
+}
+```
+
+## Project Structure
+
+```
+ovie/
+├── oviec/          # Ovie compiler (self-hosted)
+├── aproko/         # Reasoning engine for diagnostics
+├── ovie/           # CLI toolchain
+├── std/            # Standard library (160KB+)
+├── docs/           # Public documentation
+├── examples/       # 22+ example programs
+├── spec/           # Language specification
+└── SPEC.md         # Core immutable principles
+```
+
+## Core Principles
+
+Ovie is built on [immutable core principles](SPEC.md) that ensure:
+
+1. **⚡ Low-level control** - direct memory management and hardware access
+2. **🎯 High-level productivity** - natural syntax and complete standard library
+3. **🏗️ Self-hosted compiler** - Ovie compiles itself
+4. **🔒 Enforced correctness** - compiler invariants validated at every stage
+5. **📦 Complete runtime environment** - canonical ORE structure
+6. **🔍 Self-diagnosing** - Aproko explains compiler decisions
+7. **🤖 Deterministic builds** - reproducible compilation always
+8. **🔐 Offline-first** - no network required for development
+9. **🛠️ Stable tooling** - guaranteed CLI commands
+10. **🎯 Cross-platform** - Windows, macOS, Linux support
+
+> **📖 Read [OFFLINE-FIRST.md](OFFLINE-FIRST.md) for detailed offline development guide**
+
+## Documentation
+
+- **[Language Guide](docs/language-guide.md)** - Complete language reference
+- **[Getting Started](docs/getting-started.md)** - Tutorial for beginners
+- **[Installation Guide](docs/installation.md)** - Detailed installation instructions
+- **[CLI Reference](docs/cli.md)** - Command-line interface documentation
+- **[Aproko Guide](docs/aproko.md)** - Reasoning engine configuration
+- **[AI Integration](docs/ai-integration.md)** - Using Ovie with AI systems
+- **[Examples](docs/examples.md)** - Code examples and patterns
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
@@ -243,26 +307,18 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ```bash
 git clone https://github.com/southwarridev/ovie.git
 cd ovie
-make dev-setup  # Install all required Rust targets and tools
+make dev-setup  # Install required tools
 make dev        # Clean + build + test cycle
 ```
 
 ### Areas for Contribution
 - Core language features
-- Aproko assistant rules
+- Standard library expansion
+- Aproko reasoning rules
 - Documentation and examples
 - Testing and benchmarks
 - IDE integration
 - Community building
-
-## Documentation
-
-- **[Engineering Overview](docs/engineering-overview.md)** - Complete Stage 0 → Stage 2 roadmap
-- **[Language Guide](docs/language-guide.md)** - Complete language reference
-- **[Getting Started](docs/getting-started.md)** - Tutorial for beginners
-- **[Aproko Guide](docs/aproko.md)** - Assistant configuration
-- **[Compiler Internals](docs/internals.md)** - Architecture documentation
-- **[API Reference](https://docs.ovie-lang.org)** - Generated API docs
 
 ## 🤝 Community and Support
 
@@ -272,43 +328,35 @@ make dev        # Clean + build + test cycle
 
 ## 📊 Roadmap
 
-### ✅ Stage 0 (Complete) - Rust Bootstrap
-- [x] Project foundation and structure
-- [x] Lexer and parser implementation
-- [x] Aproko assistant engine
-- [x] Basic interpreter and IR system
-- [x] CLI toolchain
-- [x] Cross-platform build system
-- [x] Comprehensive documentation
+### ✅ Completed Milestones
 
-### ✅ Stage 1 (Complete) - Usable Language
-- [x] Core syntax & keywords working
-- [x] Basic type system operational
-- [x] Offline-first philosophy implemented
-- [x] Deterministic builds established
-- [x] Professional repository structure
-- [x] Production-ready v1.0.0 release
+**v1.0.0 - Usable Language (2025)**
+- Core syntax and keywords
+- Basic type system
+- Offline-first development
+- Professional repository structure
 
-### ✅ Stage 2 (Complete) - Production Capable & Self-Hosted
-- [x] Formal language specifications (BNF grammar, type system, memory model)
-- [x] Multi-stage IR pipeline (AST → HIR → MIR → Backend)
-- [x] **Self-hosting capability (Ovie compiles Ovie)** 🎉
-- [x] Complete standard library (core, math, fs, io, time, cli, test)
-- [x] Enhanced Aproko reasoning system
-- [x] Multi-target code generation (Native + WASM)
-- [x] Comprehensive testing framework
-- [x] Production-grade tooling suite
+**v2.0.0 - Self-Hosted Compiler (January 2026)**
+- Ovie compiler written in Ovie
+- Bootstrap verification
+- Multi-stage IR pipeline (AST → HIR → MIR)
 
-**🏆 MILESTONE ACHIEVED: Ovie is now officially a self-hosted programming language!**
+**v2.2.0 - Complete Language Consolidation (February 2026)**
+- Enforced compiler invariants
+- Complete Runtime Environment (ORE)
+- Complete standard library (9 modules, 160KB+)
+- Self-diagnosing with Aproko reasoning engine
+- Stable CLI with guaranteed commands
+- 100% critical path test coverage
 
-### Stage 3 (Future) - Ecosystem & Community
-- [ ] Package registry and ecosystem
-- [ ] IDE plugins and language server
-- [ ] Advanced optimization passes
-- [ ] Community-driven standard library expansion
-- [ ] Educational curriculum and resources
+### 🚀 Future Plans
 
-> **📖 See [Engineering Overview](docs/engineering-overview.md) for complete Stage 0 → Stage 2 roadmap**
+**v3.0 - Ecosystem & Optimization**
+- Package registry and ecosystem
+- IDE plugins and language server
+- Advanced optimization passes
+- Performance improvements
+- Community-driven stdlib expansion
 
 ## Security
 
@@ -330,4 +378,4 @@ Licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
-**"Making programming accessible to everyone, one line at a time."**
+**"Low-level control meets high-level productivity - systems programming made accessible."**

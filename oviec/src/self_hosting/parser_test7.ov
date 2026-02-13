@@ -1,0 +1,14 @@
+// Test 7: Multiple statements in else block
+fn test_else_multiple() {
+    let x = 2;
+    if x == 1 {
+        seeAm "x is 1";
+    } else {
+        seeAm "x is not 1";
+        seeAm "x is 2";
+        seeAm "done";
+    }
+}
+
+seeAm "Test 7: Multiple statements in else";
+test_else_multiple();

@@ -17,7 +17,7 @@ The Ovie team takes security seriously. If you discover a security vulnerability
 
 ### How to Report
 
-1. **Email**: Send details to security@ovie-lang.org
+1. **Email**: Send details to security@ovie-lang.org, ovielang@gmail.cm
 2. **Subject**: Include "SECURITY" in the subject line
 3. **Details**: Provide as much information as possible:
    - Description of the vulnerability

@@ -31,6 +31,6 @@ pub fn test_offline_first_compliance_property(source: &str) -> OvieResult<bool> 
     let _result = compiler.compile_to_ast(source);
     
     // Check that security manager detected no network attempts
-    let security_report = compiler.security_manager().generate_comprehensive_report();
-    Ok(security_report.network_report.blocked_attempts == 0)
+    let security_report = compiler.security_manager().generate_comprehensive_security_report();
+    Ok(security_report.network_security.unauthorized_network_calls == 0)
 }

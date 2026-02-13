@@ -1,0 +1,5 @@
+// Test 1: Just constants
+fn NODE_PROGRAM() { return "NODE_PROGRAM"; }
+fn NODE_FUNCTION() { return "NODE_FUNCTION"; }
+
+seeAm "Test 1: Constants work";
