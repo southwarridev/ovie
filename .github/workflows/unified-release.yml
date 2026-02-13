@@ -15,6 +15,11 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+  packages: write
+  deployments: write
+
 env:
   CARGO_TERM_COLOR: always
   OVIE_VERSION: ${{ github.event.inputs.version || github.ref_name }}
