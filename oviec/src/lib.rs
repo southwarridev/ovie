@@ -619,9 +619,12 @@ impl Compiler {
 
     /// Compile Ovie source code to WebAssembly
     pub fn compile_to_wasm(&mut self, source: &str) -> OvieResult<Vec<u8>> {
-        let mir = self.compile_to_mir(source)?;
+        // Compile to MIR first (validates all invariants)
+        let _mir = self.compile_to_mir(source)?;
         
         // Convert MIR to legacy IR for WASM backend (temporary)
+        // Note: This recompiles from source, which is inefficient but necessary
+        // until we have proper MIR to IR conversion
         let ir = self.compile_to_ir(source)?;
         
         let mut wasm_backend = crate::codegen::WasmBackend::new();
@@ -640,9 +643,12 @@ impl Compiler {
     /// Compile Ovie source code to LLVM IR
     #[cfg(feature = "llvm")]
     pub fn compile_to_llvm(&mut self, source: &str) -> OvieResult<String> {
-        let mir = self.compile_to_mir(source)?;
+        // Compile to MIR first (validates all invariants)
+        let _mir = self.compile_to_mir(source)?;
         
         // Convert MIR to legacy IR for LLVM backend (temporary)
+        // Note: This recompiles from source, which is inefficient but necessary
+        // until we have proper MIR to IR conversion
         let ir = self.compile_to_ir(source)?;
         
         let context = inkwell::context::Context::create();

@@ -29,7 +29,7 @@ echo "==========================================================================
 
 INSTALL_DIR="$HOME/ovie"
 BIN_DIR="$HOME/ovie/bin"
-OVIE_VERSION="2.1.0"
+OVIE_VERSION="2.2.0"
 
 echo -e "${GREEN}🎯 Welcome to Ovie Easy Installer!${NC}"
 echo ""
@@ -173,7 +173,7 @@ if [ ! -f "$BIN_DIR/ovie" ]; then
 # Ovie CLI Tool - Stage 2.1 Self-Hosted
 
 if [ "$1" = "--version" ]; then
-    echo "ovie 2.1.0 - Self-Hosted Programming Language"
+    echo "ovie 2.2.0 - Self-Hosted Programming Language"
     echo "Copyright (c) 2026 Ovie Language Team"
     echo "Visit: https://ovie-lang.org"
     exit 0
@@ -235,7 +235,7 @@ fi
 if [ ! -f "$BIN_DIR/oviec" ]; then
     cat > "$BIN_DIR/oviec" << 'EOF'
 #!/bin/bash
-echo "Ovie Compiler (oviec) v2.1.0 - Stage 2.1 Self-Hosted"
+echo "Ovie Compiler (oviec) v2.2.0 - Stage 2.1 Self-Hosted"
 echo "This is the Ovie compiler that compiles itself!"
 echo ""
 echo "To build the full compiler:"

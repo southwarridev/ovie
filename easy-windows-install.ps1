@@ -77,7 +77,7 @@ try {
     Write-Host "[4/6] Installing Ovie files..." -ForegroundColor Cyan
     if ($DownloadedBinary) {
         # Pre-built binary structure
-        Copy-Item -Path "$ExtractPath\ovie-v2.1.0-windows-x64\*" -Destination $InstallDir -Recurse -Force
+        Copy-Item -Path "$ExtractPath\ovie-v2.2.0-windows-x64\*" -Destination $InstallDir -Recurse -Force
         # Copy pre-built binaries if they exist
         if (Test-Path "$InstallDir\ovie.exe") {
             Copy-Item "$InstallDir\ovie.exe" "$BinDir\"
@@ -100,7 +100,7 @@ try {
 @echo off
 REM Ovie CLI Tool - Stage 2 Self-Hosted
 if "%1"=="--version" (
-    echo ovie 2.1.0 - Self-Hosted Programming Language
+    echo ovie 2.2.0 - Self-Hosted Programming Language
     echo Copyright (c) 2026 Ovie Language Team
     echo Visit: https://ovie-lang.org
     exit /b 0
@@ -150,7 +150,7 @@ echo Then run: cd "$InstallDir" && cargo build --release
     # Create oviec.bat
     $OviecBat = @"
 @echo off
-echo Ovie Compiler (oviec) v2.1.0 - Stage 2.1 Self-Hosted
+echo Ovie Compiler (oviec) v2.2.0 - Stage 2.1 Self-Hosted
 echo This is the Ovie compiler that compiles itself!
 echo.
 echo To build the full compiler:
@@ -183,7 +183,7 @@ echo   3. The compiled oviec.exe will be in target\release\
     Write-Host "                          🎉 INSTALLATION COMPLETE! 🎉" -ForegroundColor Green
     Write-Host "============================================================================" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "✅ Ovie v2.1.0 - Stage 2.1 Self-Hosted installed successfully!" -ForegroundColor Green
+    Write-Host "✅ Ovie v2.2.0 - Stage 2.1 Self-Hosted installed successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "📍 Installation Location: $InstallDir" -ForegroundColor White
     Write-Host "🔧 Binaries: $BinDir" -ForegroundColor White

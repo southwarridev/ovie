@@ -6,7 +6,7 @@ REM This batch file installs Ovie on Windows systems via Command Prompt
 setlocal enabledelayedexpansion
 
 REM Configuration
-set "OVIE_VERSION=2.1.0"
+set "OVIE_VERSION=2.2.0"
 set "INSTALL_DIR=%USERPROFILE%\.local\bin"
 set "TEMP_DIR=%TEMP%\ovie-install"
 set "GITHUB_REPO=https://github.com/southwarridev/ovie"

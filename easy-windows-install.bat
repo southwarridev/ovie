@@ -15,7 +15,7 @@ echo   ╚██████╔╝ ╚████╔╝ ██║████�
 echo    ╚═════╝   ╚═══╝  ╚═╝╚══════╝
 echo.
 echo   🚀 STAGE 2 - SELF-HOSTED PROGRAMMING LANGUAGE
-echo   📦 Easy Windows Installation v2.1.0
+echo   📦 Easy Windows Installation v2.2.0
 echo.
 echo ============================================================================
 
@@ -25,7 +25,7 @@ set "BIN_DIR=%USERPROFILE%\ovie\bin"
 echo 🎯 Welcome to Ovie Easy Installer!
 echo.
 echo This installer will:
-echo   ✅ Download Ovie v2.1.0 from GitHub
+echo   ✅ Download Ovie v2.2.0 from GitHub
 echo   ✅ Install to: %INSTALL_DIR%
 echo   ✅ Add Ovie to your PATH
 echo   ✅ Set up examples and documentation
@@ -53,9 +53,9 @@ if %errorlevel% neq 0 (
 
 REM Download from GitHub
 echo [3/6] Downloading Ovie from GitHub...
-set "BINARY_URL=https://github.com/southwarridev/ovie/releases/download/v2.1.0/ovie-v2.1.0-windows-x64.zip"
+set "BINARY_URL=https://github.com/southwarridev/ovie/releases/download/v2.2.0/ovie-v2.2.0-windows-x64.zip"
 set "SOURCE_URL=https://github.com/southwarridev/ovie/archive/refs/heads/main.zip"
-set "ZIP_FILE=%TEMP%\ovie-v2.1.0.zip"
+set "ZIP_FILE=%TEMP%\ovie-v2.2.0.zip"
 
 echo Attempting to download pre-built binary...
 powershell -Command "try { Invoke-WebRequest -Uri '%BINARY_URL%' -OutFile '%ZIP_FILE%' -UseBasicParsing; Write-Host 'Pre-built binary downloaded!' } catch { Write-Host 'Pre-built binary not available, trying source...'; try { Invoke-WebRequest -Uri '%SOURCE_URL%' -OutFile '%ZIP_FILE%' -UseBasicParsing; Write-Host 'Source code downloaded!' } catch { Write-Host 'Download failed'; exit 1 } }"
@@ -78,7 +78,7 @@ if %errorlevel% neq 0 (
 REM Copy files to installation directory
 echo [5/6] Installing Ovie files...
 REM Try to detect if we downloaded binary or source
-if exist "%TEMP%\ovie-extract\ovie-v2.1.0-windows-x64" (
+if exist "%TEMP%\ovie-extract\ovie-v2.2.0-windows-x64" (
     echo Installing pre-built binaries...
     xcopy "%TEMP%\ovie-extract\ovie-v2.1.0-windows-x64\*" "%INSTALL_DIR%\" /E /Y /Q >nul 2>&1
     if exist "%INSTALL_DIR%\ovie.exe" copy "%INSTALL_DIR%\ovie.exe" "%BIN_DIR%\" >nul 2>&1
@@ -94,10 +94,10 @@ echo [6/6] Setting up Ovie commands...
 REM Create ovie.bat wrapper
 echo @echo off > "%BIN_DIR%\ovie.bat"
 echo REM Ovie CLI Tool - Stage 2 Self-Hosted >> "%BIN_DIR%\ovie.bat"
-echo echo Ovie Programming Language v2.1.0 - Stage 2 Self-Hosted >> "%BIN_DIR%\ovie.bat"
+echo echo Ovie Programming Language v2.2.0 - Stage 2 Self-Hosted >> "%BIN_DIR%\ovie.bat"
 echo echo. >> "%BIN_DIR%\ovie.bat"
 echo if "%%1"=="--version" ( >> "%BIN_DIR%\ovie.bat"
-echo     echo ovie 2.1.0 - Self-Hosted Programming Language >> "%BIN_DIR%\ovie.bat"
+echo     echo ovie 2.2.0 - Self-Hosted Programming Language >> "%BIN_DIR%\ovie.bat"
 echo     echo Copyright ^(c^) 2026 Ovie Language Team >> "%BIN_DIR%\ovie.bat"
 echo     echo Visit: https://ovie-lang.org >> "%BIN_DIR%\ovie.bat"
 echo     exit /b 0 >> "%BIN_DIR%\ovie.bat"
@@ -145,7 +145,7 @@ echo echo Then run: cd "%INSTALL_DIR%" ^&^& cargo build --release >> "%BIN_DIR%\
 
 REM Create oviec.bat wrapper
 echo @echo off > "%BIN_DIR%\oviec.bat"
-echo echo Ovie Compiler ^(oviec^) v2.1.0 - Stage 2.1 Self-Hosted >> "%BIN_DIR%\oviec.bat"
+echo echo Ovie Compiler ^(oviec^) v2.2.0 - Stage 2.1 Self-Hosted >> "%BIN_DIR%\oviec.bat"
 echo echo This is the Ovie compiler that compiles itself! >> "%BIN_DIR%\oviec.bat"
 echo echo. >> "%BIN_DIR%\oviec.bat"
 echo echo To build the full compiler: >> "%BIN_DIR%\oviec.bat"
@@ -185,7 +185,7 @@ echo ===========================================================================
 echo                          🎉 INSTALLATION COMPLETE! 🎉
 echo ============================================================================
 echo.
-echo ✅ Ovie v2.1.0 - Stage 2.1 Self-Hosted installed successfully!
+echo ✅ Ovie v2.2.0 - Stage 2.1 Self-Hosted installed successfully!
 echo.
 echo 📍 Installation Location: %INSTALL_DIR%
 echo 🔧 Binaries: %BIN_DIR%

@@ -94,7 +94,11 @@ impl Parser {
     fn print_statement(&mut self) -> ParseResult<Statement> {
         self.consume(&TokenType::SeeAm, "Expected 'seeAm'")?;
         let expression = self.expression()?;
-        self.consume(&TokenType::Semicolon, "Expected ';' after print statement")?;
+        // Ovie doesn't require semicolons after statements
+        // Optional semicolon for compatibility
+        if self.check(&TokenType::Semicolon) {
+            self.advance();
+        }
         
         Ok(Statement::Print { expression })
     }

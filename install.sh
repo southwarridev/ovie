@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-OVIE_VERSION="2.1.0"
+OVIE_VERSION="2.2.0"
 INSTALL_DIR="$HOME/.local"
 BIN_DIR="$HOME/.local/bin"
 TEMP_DIR="/tmp/ovie-install-$$"
@@ -260,7 +260,7 @@ OVIE_HOME="$HOME/.local"
 
 case "$1" in
     --version)
-        echo "ovie 2.1.0 - Self-Hosted Programming Language"
+        echo "ovie 2.2.0 - Self-Hosted Programming Language"
         echo "Copyright (c) 2026 Ovie Language Team"
         echo "Visit: https://ovie-lang.org"
         ;;
@@ -357,7 +357,7 @@ TOML_CONFIG
         "$OVIE_HOME/bin/oviec" "${@:2}"
         ;;
     *)
-        echo "Ovie Programming Language v2.1.0 - Stage 2 Self-Hosted"
+        echo "Ovie Programming Language v2.2.0 - Stage 2 Self-Hosted"
         echo "Use 'ovie --help' for available commands."
         echo ""
         echo "Quick start:"
