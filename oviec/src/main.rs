@@ -782,12 +782,12 @@ fn self_check(_args: CliArgs) -> OvieResult<()> {
         // Test program for self-check
         seeAm "Hello from Ovie self-check!"
         
-        mut x = 42
+        mut x = 42;
         fn test_function(n) {
             return n * 2
         }
         
-        mut result = test_function(x)
+        mut result = test_function(x);
         seeAm "Result: " + result
     "#;
     

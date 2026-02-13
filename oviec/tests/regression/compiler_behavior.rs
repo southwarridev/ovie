@@ -41,12 +41,8 @@ pub fn test_parser_behavior_regression() -> OvieResult<()> {
         let ast = compiler.compile_to_ast(source)?;
         
         // Verify AST structure hasn't changed unexpectedly
-        match ast {
-            crate::AstNode::Program(statements) => {
-                assert!(!statements.is_empty());
-            }
-            _ => panic!("Expected program node"),
-        }
+        let crate::AstNode::Program(statements) = ast;
+        assert!(!statements.is_empty());
     }
     
     Ok(())

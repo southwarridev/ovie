@@ -10,13 +10,9 @@ pub fn test_basic_expressions() -> OvieResult<()> {
     let ast = parser.parse()?;
     
     // Verify AST structure
-    match ast {
-        AstNode::Program(statements) => {
-            assert_eq!(statements.len(), 1);
-            // Additional AST structure verification would go here
-        }
-        _ => panic!("Expected program node"),
-    }
+    let AstNode::Program(statements) = ast;
+    assert_eq!(statements.len(), 1);
+    // Additional AST structure verification would go here
     
     Ok(())
 }
@@ -28,17 +24,13 @@ pub fn test_variable_declarations() -> OvieResult<()> {
     let mut parser = Parser::new(tokens);
     let ast = parser.parse()?;
     
-    match ast {
-        AstNode::Program(statements) => {
-            assert_eq!(statements.len(), 1);
-            match &statements[0] {
-                Statement::VariableDeclaration { .. } => {
-                    // Verify variable declaration structure
-                }
-                _ => panic!("Expected variable declaration"),
-            }
+    let AstNode::Program(statements) = ast;
+    assert_eq!(statements.len(), 1);
+    match &statements[0] {
+        Statement::VariableDeclaration { .. } => {
+            // Verify variable declaration structure
         }
-        _ => panic!("Expected program node"),
+        _ => panic!("Expected variable declaration"),
     }
     
     Ok(())
@@ -57,17 +49,13 @@ pub fn test_function_declarations() -> OvieResult<()> {
     let mut parser = Parser::new(tokens);
     let ast = parser.parse()?;
     
-    match ast {
-        AstNode::Program(statements) => {
-            assert_eq!(statements.len(), 1);
-            match &statements[0] {
-                Statement::FunctionDeclaration { .. } => {
-                    // Verify function declaration structure
-                }
-                _ => panic!("Expected function declaration"),
-            }
+    let AstNode::Program(statements) = ast;
+    assert_eq!(statements.len(), 1);
+    match &statements[0] {
+        Statement::FunctionDeclaration { .. } => {
+            // Verify function declaration structure
         }
-        _ => panic!("Expected program node"),
+        _ => panic!("Expected function declaration"),
     }
     
     Ok(())
@@ -89,13 +77,9 @@ pub fn test_control_flow() -> OvieResult<()> {
     let ast = parser.parse()?;
     
     // Verify if statement structure
-    match ast {
-        AstNode::Program(statements) => {
-            assert_eq!(statements.len(), 1);
-            // Additional verification would go here
-        }
-        _ => panic!("Expected program node"),
-    }
+    let AstNode::Program(statements) = ast;
+    assert_eq!(statements.len(), 1);
+    // Additional verification would go here
     
     Ok(())
 }
