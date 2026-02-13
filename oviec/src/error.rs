@@ -128,125 +128,125 @@ pub enum ErrorCategory {
 pub enum ErrorCode {
     // Lexical Analysis Errors (E_LEX_xxx)
     /// Invalid character in source code
-    E_LEX_001,
+    ELex001,
     /// Unterminated string literal
-    E_LEX_002,
+    ELex002,
     /// Invalid number format
-    E_LEX_003,
+    ELex003,
     /// Invalid identifier
-    E_LEX_004,
+    ELex004,
     /// Unexpected end of file
-    E_LEX_005,
+    ELex005,
 
     // Syntax Parsing Errors (E_PARSE_xxx)
     /// Expected token not found
-    E_PARSE_001,
+    EParse001,
     /// Unexpected token
-    E_PARSE_002,
+    EParse002,
     /// Missing semicolon
-    E_PARSE_003,
+    EParse003,
     /// Unmatched parentheses
-    E_PARSE_004,
+    EParse004,
     /// Unmatched braces
-    E_PARSE_005,
+    EParse005,
     /// Invalid expression
-    E_PARSE_006,
+    EParse006,
     /// Invalid statement
-    E_PARSE_007,
+    EParse007,
 
     // Semantic Analysis Errors (E_SEM_xxx)
     /// Undefined variable
-    E_SEM_001,
+    ESem001,
     /// Undefined function
-    E_SEM_002,
+    ESem002,
     /// Undefined type
-    E_SEM_003,
+    ESem003,
     /// Duplicate definition
-    E_SEM_004,
+    ESem004,
     /// Invalid scope access
-    E_SEM_005,
+    ESem005,
     /// Circular dependency
-    E_SEM_006,
+    ESem006,
 
     // Type System Errors (E_TYPE_xxx)
     /// Type mismatch
-    E_TYPE_001,
+    EType001,
     /// Cannot infer type
-    E_TYPE_002,
+    EType002,
     /// Invalid type conversion
-    E_TYPE_003,
+    EType003,
     /// Undefined method
-    E_TYPE_004,
+    EType004,
     /// Invalid trait implementation
-    E_TYPE_005,
+    EType005,
     /// Lifetime error
-    E_TYPE_006,
+    EType006,
 
     // Control Flow Errors (E_FLOW_xxx)
     /// Unreachable code
-    E_FLOW_001,
+    EFlow001,
     /// Missing return statement
-    E_FLOW_002,
+    EFlow002,
     /// Invalid break/continue
-    E_FLOW_003,
+    EFlow003,
     /// Infinite loop detected
-    E_FLOW_004,
+    EFlow004,
 
     // Memory Safety Errors (E_MEM_xxx)
     /// Use after free
-    E_MEM_001,
+    EMem001,
     /// Double free
-    E_MEM_002,
+    EMem002,
     /// Buffer overflow
-    E_MEM_003,
+    EMem003,
     /// Null pointer dereference
-    E_MEM_004,
+    EMem004,
     /// Memory leak detected
-    E_MEM_005,
+    EMem005,
 
     // I/O Errors (E_IO_xxx)
     /// File not found
-    E_IO_001,
+    EIo001,
     /// Permission denied
-    E_IO_002,
+    EIo002,
     /// Read error
-    E_IO_003,
+    EIo003,
     /// Write error
-    E_IO_004,
+    EIo004,
     /// Network error
-    E_IO_005,
+    EIo005,
 
     // Internal Compiler Errors (E_ICE_xxx)
     /// Invariant violation
-    E_ICE_001,
+    EIce001,
     /// Unexpected compiler state
-    E_ICE_002,
+    EIce002,
     /// Code generation failure
-    E_ICE_003,
+    EIce003,
     /// Optimization failure
-    E_ICE_004,
+    EIce004,
 
     // Configuration Errors (E_CONFIG_xxx)
     /// Invalid configuration file
-    E_CONFIG_001,
+    EConfig001,
     /// Missing required setting
-    E_CONFIG_002,
+    EConfig002,
     /// Invalid setting value
-    E_CONFIG_003,
+    EConfig003,
     /// Environment setup error
-    E_CONFIG_004,
+    EConfig004,
 
     // Runtime Errors (E_RUNTIME_xxx)
     /// Division by zero
-    E_RUNTIME_001,
+    ERuntime001,
     /// Array index out of bounds
-    E_RUNTIME_002,
+    ERuntime002,
     /// Stack overflow
-    E_RUNTIME_003,
+    ERuntime003,
     /// Assertion failure
-    E_RUNTIME_004,
+    ERuntime004,
     /// Panic
-    E_RUNTIME_005,
+    ERuntime005,
 }
 
 impl ErrorCode {
@@ -254,75 +254,75 @@ impl ErrorCode {
     pub fn as_str(&self) -> &'static str {
         match self {
             // Lexical errors
-            ErrorCode::E_LEX_001 => "E_LEX_001",
-            ErrorCode::E_LEX_002 => "E_LEX_002",
-            ErrorCode::E_LEX_003 => "E_LEX_003",
-            ErrorCode::E_LEX_004 => "E_LEX_004",
-            ErrorCode::E_LEX_005 => "E_LEX_005",
+            ErrorCode::ELex001 => "E_LEX_001",
+            ErrorCode::ELex002 => "E_LEX_002",
+            ErrorCode::ELex003 => "E_LEX_003",
+            ErrorCode::ELex004 => "E_LEX_004",
+            ErrorCode::ELex005 => "E_LEX_005",
             
             // Parse errors
-            ErrorCode::E_PARSE_001 => "E_PARSE_001",
-            ErrorCode::E_PARSE_002 => "E_PARSE_002",
-            ErrorCode::E_PARSE_003 => "E_PARSE_003",
-            ErrorCode::E_PARSE_004 => "E_PARSE_004",
-            ErrorCode::E_PARSE_005 => "E_PARSE_005",
-            ErrorCode::E_PARSE_006 => "E_PARSE_006",
-            ErrorCode::E_PARSE_007 => "E_PARSE_007",
+            ErrorCode::EParse001 => "E_PARSE_001",
+            ErrorCode::EParse002 => "E_PARSE_002",
+            ErrorCode::EParse003 => "E_PARSE_003",
+            ErrorCode::EParse004 => "E_PARSE_004",
+            ErrorCode::EParse005 => "E_PARSE_005",
+            ErrorCode::EParse006 => "E_PARSE_006",
+            ErrorCode::EParse007 => "E_PARSE_007",
             
             // Semantic errors
-            ErrorCode::E_SEM_001 => "E_SEM_001",
-            ErrorCode::E_SEM_002 => "E_SEM_002",
-            ErrorCode::E_SEM_003 => "E_SEM_003",
-            ErrorCode::E_SEM_004 => "E_SEM_004",
-            ErrorCode::E_SEM_005 => "E_SEM_005",
-            ErrorCode::E_SEM_006 => "E_SEM_006",
+            ErrorCode::ESem001 => "E_SEM_001",
+            ErrorCode::ESem002 => "E_SEM_002",
+            ErrorCode::ESem003 => "E_SEM_003",
+            ErrorCode::ESem004 => "E_SEM_004",
+            ErrorCode::ESem005 => "E_SEM_005",
+            ErrorCode::ESem006 => "E_SEM_006",
             
             // Type errors
-            ErrorCode::E_TYPE_001 => "E_TYPE_001",
-            ErrorCode::E_TYPE_002 => "E_TYPE_002",
-            ErrorCode::E_TYPE_003 => "E_TYPE_003",
-            ErrorCode::E_TYPE_004 => "E_TYPE_004",
-            ErrorCode::E_TYPE_005 => "E_TYPE_005",
-            ErrorCode::E_TYPE_006 => "E_TYPE_006",
+            ErrorCode::EType001 => "E_TYPE_001",
+            ErrorCode::EType002 => "E_TYPE_002",
+            ErrorCode::EType003 => "E_TYPE_003",
+            ErrorCode::EType004 => "E_TYPE_004",
+            ErrorCode::EType005 => "E_TYPE_005",
+            ErrorCode::EType006 => "E_TYPE_006",
             
             // Control flow errors
-            ErrorCode::E_FLOW_001 => "E_FLOW_001",
-            ErrorCode::E_FLOW_002 => "E_FLOW_002",
-            ErrorCode::E_FLOW_003 => "E_FLOW_003",
-            ErrorCode::E_FLOW_004 => "E_FLOW_004",
+            ErrorCode::EFlow001 => "E_FLOW_001",
+            ErrorCode::EFlow002 => "E_FLOW_002",
+            ErrorCode::EFlow003 => "E_FLOW_003",
+            ErrorCode::EFlow004 => "E_FLOW_004",
             
             // Memory errors
-            ErrorCode::E_MEM_001 => "E_MEM_001",
-            ErrorCode::E_MEM_002 => "E_MEM_002",
-            ErrorCode::E_MEM_003 => "E_MEM_003",
-            ErrorCode::E_MEM_004 => "E_MEM_004",
-            ErrorCode::E_MEM_005 => "E_MEM_005",
+            ErrorCode::EMem001 => "E_MEM_001",
+            ErrorCode::EMem002 => "E_MEM_002",
+            ErrorCode::EMem003 => "E_MEM_003",
+            ErrorCode::EMem004 => "E_MEM_004",
+            ErrorCode::EMem005 => "E_MEM_005",
             
             // I/O errors
-            ErrorCode::E_IO_001 => "E_IO_001",
-            ErrorCode::E_IO_002 => "E_IO_002",
-            ErrorCode::E_IO_003 => "E_IO_003",
-            ErrorCode::E_IO_004 => "E_IO_004",
-            ErrorCode::E_IO_005 => "E_IO_005",
+            ErrorCode::EIo001 => "E_IO_001",
+            ErrorCode::EIo002 => "E_IO_002",
+            ErrorCode::EIo003 => "E_IO_003",
+            ErrorCode::EIo004 => "E_IO_004",
+            ErrorCode::EIo005 => "E_IO_005",
             
             // Internal compiler errors
-            ErrorCode::E_ICE_001 => "E_ICE_001",
-            ErrorCode::E_ICE_002 => "E_ICE_002",
-            ErrorCode::E_ICE_003 => "E_ICE_003",
-            ErrorCode::E_ICE_004 => "E_ICE_004",
+            ErrorCode::EIce001 => "E_ICE_001",
+            ErrorCode::EIce002 => "E_ICE_002",
+            ErrorCode::EIce003 => "E_ICE_003",
+            ErrorCode::EIce004 => "E_ICE_004",
             
             // Configuration errors
-            ErrorCode::E_CONFIG_001 => "E_CONFIG_001",
-            ErrorCode::E_CONFIG_002 => "E_CONFIG_002",
-            ErrorCode::E_CONFIG_003 => "E_CONFIG_003",
-            ErrorCode::E_CONFIG_004 => "E_CONFIG_004",
+            ErrorCode::EConfig001 => "E_CONFIG_001",
+            ErrorCode::EConfig002 => "E_CONFIG_002",
+            ErrorCode::EConfig003 => "E_CONFIG_003",
+            ErrorCode::EConfig004 => "E_CONFIG_004",
             
             // Runtime errors
-            ErrorCode::E_RUNTIME_001 => "E_RUNTIME_001",
-            ErrorCode::E_RUNTIME_002 => "E_RUNTIME_002",
-            ErrorCode::E_RUNTIME_003 => "E_RUNTIME_003",
-            ErrorCode::E_RUNTIME_004 => "E_RUNTIME_004",
-            ErrorCode::E_RUNTIME_005 => "E_RUNTIME_005",
+            ErrorCode::ERuntime001 => "E_RUNTIME_001",
+            ErrorCode::ERuntime002 => "E_RUNTIME_002",
+            ErrorCode::ERuntime003 => "E_RUNTIME_003",
+            ErrorCode::ERuntime004 => "E_RUNTIME_004",
+            ErrorCode::ERuntime005 => "E_RUNTIME_005",
         }
     }
 
@@ -330,91 +330,91 @@ impl ErrorCode {
     pub fn description(&self) -> &'static str {
         match self {
             // Lexical errors
-            ErrorCode::E_LEX_001 => "Invalid character in source code",
-            ErrorCode::E_LEX_002 => "Unterminated string literal",
-            ErrorCode::E_LEX_003 => "Invalid number format",
-            ErrorCode::E_LEX_004 => "Invalid identifier",
-            ErrorCode::E_LEX_005 => "Unexpected end of file",
+            ErrorCode::ELex001 => "Invalid character in source code",
+            ErrorCode::ELex002 => "Unterminated string literal",
+            ErrorCode::ELex003 => "Invalid number format",
+            ErrorCode::ELex004 => "Invalid identifier",
+            ErrorCode::ELex005 => "Unexpected end of file",
             
             // Parse errors
-            ErrorCode::E_PARSE_001 => "Expected token not found",
-            ErrorCode::E_PARSE_002 => "Unexpected token",
-            ErrorCode::E_PARSE_003 => "Missing semicolon",
-            ErrorCode::E_PARSE_004 => "Unmatched parentheses",
-            ErrorCode::E_PARSE_005 => "Unmatched braces",
-            ErrorCode::E_PARSE_006 => "Invalid expression",
-            ErrorCode::E_PARSE_007 => "Invalid statement",
+            ErrorCode::EParse001 => "Expected token not found",
+            ErrorCode::EParse002 => "Unexpected token",
+            ErrorCode::EParse003 => "Missing semicolon",
+            ErrorCode::EParse004 => "Unmatched parentheses",
+            ErrorCode::EParse005 => "Unmatched braces",
+            ErrorCode::EParse006 => "Invalid expression",
+            ErrorCode::EParse007 => "Invalid statement",
             
             // Semantic errors
-            ErrorCode::E_SEM_001 => "Undefined variable",
-            ErrorCode::E_SEM_002 => "Undefined function",
-            ErrorCode::E_SEM_003 => "Undefined type",
-            ErrorCode::E_SEM_004 => "Duplicate definition",
-            ErrorCode::E_SEM_005 => "Invalid scope access",
-            ErrorCode::E_SEM_006 => "Circular dependency",
+            ErrorCode::ESem001 => "Undefined variable",
+            ErrorCode::ESem002 => "Undefined function",
+            ErrorCode::ESem003 => "Undefined type",
+            ErrorCode::ESem004 => "Duplicate definition",
+            ErrorCode::ESem005 => "Invalid scope access",
+            ErrorCode::ESem006 => "Circular dependency",
             
             // Type errors
-            ErrorCode::E_TYPE_001 => "Type mismatch",
-            ErrorCode::E_TYPE_002 => "Cannot infer type",
-            ErrorCode::E_TYPE_003 => "Invalid type conversion",
-            ErrorCode::E_TYPE_004 => "Undefined method",
-            ErrorCode::E_TYPE_005 => "Invalid trait implementation",
-            ErrorCode::E_TYPE_006 => "Lifetime error",
+            ErrorCode::EType001 => "Type mismatch",
+            ErrorCode::EType002 => "Cannot infer type",
+            ErrorCode::EType003 => "Invalid type conversion",
+            ErrorCode::EType004 => "Undefined method",
+            ErrorCode::EType005 => "Invalid trait implementation",
+            ErrorCode::EType006 => "Lifetime error",
             
             // Control flow errors
-            ErrorCode::E_FLOW_001 => "Unreachable code",
-            ErrorCode::E_FLOW_002 => "Missing return statement",
-            ErrorCode::E_FLOW_003 => "Invalid break/continue",
-            ErrorCode::E_FLOW_004 => "Infinite loop detected",
+            ErrorCode::EFlow001 => "Unreachable code",
+            ErrorCode::EFlow002 => "Missing return statement",
+            ErrorCode::EFlow003 => "Invalid break/continue",
+            ErrorCode::EFlow004 => "Infinite loop detected",
             
             // Memory errors
-            ErrorCode::E_MEM_001 => "Use after free",
-            ErrorCode::E_MEM_002 => "Double free",
-            ErrorCode::E_MEM_003 => "Buffer overflow",
-            ErrorCode::E_MEM_004 => "Null pointer dereference",
-            ErrorCode::E_MEM_005 => "Memory leak detected",
+            ErrorCode::EMem001 => "Use after free",
+            ErrorCode::EMem002 => "Double free",
+            ErrorCode::EMem003 => "Buffer overflow",
+            ErrorCode::EMem004 => "Null pointer dereference",
+            ErrorCode::EMem005 => "Memory leak detected",
             
             // I/O errors
-            ErrorCode::E_IO_001 => "File not found",
-            ErrorCode::E_IO_002 => "Permission denied",
-            ErrorCode::E_IO_003 => "Read error",
-            ErrorCode::E_IO_004 => "Write error",
-            ErrorCode::E_IO_005 => "Network error",
+            ErrorCode::EIo001 => "File not found",
+            ErrorCode::EIo002 => "Permission denied",
+            ErrorCode::EIo003 => "Read error",
+            ErrorCode::EIo004 => "Write error",
+            ErrorCode::EIo005 => "Network error",
             
             // Internal compiler errors
-            ErrorCode::E_ICE_001 => "Invariant violation",
-            ErrorCode::E_ICE_002 => "Unexpected compiler state",
-            ErrorCode::E_ICE_003 => "Code generation failure",
-            ErrorCode::E_ICE_004 => "Optimization failure",
+            ErrorCode::EIce001 => "Invariant violation",
+            ErrorCode::EIce002 => "Unexpected compiler state",
+            ErrorCode::EIce003 => "Code generation failure",
+            ErrorCode::EIce004 => "Optimization failure",
             
             // Configuration errors
-            ErrorCode::E_CONFIG_001 => "Invalid configuration file",
-            ErrorCode::E_CONFIG_002 => "Missing required setting",
-            ErrorCode::E_CONFIG_003 => "Invalid setting value",
-            ErrorCode::E_CONFIG_004 => "Environment setup error",
+            ErrorCode::EConfig001 => "Invalid configuration file",
+            ErrorCode::EConfig002 => "Missing required setting",
+            ErrorCode::EConfig003 => "Invalid setting value",
+            ErrorCode::EConfig004 => "Environment setup error",
             
             // Runtime errors
-            ErrorCode::E_RUNTIME_001 => "Division by zero",
-            ErrorCode::E_RUNTIME_002 => "Array index out of bounds",
-            ErrorCode::E_RUNTIME_003 => "Stack overflow",
-            ErrorCode::E_RUNTIME_004 => "Assertion failure",
-            ErrorCode::E_RUNTIME_005 => "Panic",
+            ErrorCode::ERuntime001 => "Division by zero",
+            ErrorCode::ERuntime002 => "Array index out of bounds",
+            ErrorCode::ERuntime003 => "Stack overflow",
+            ErrorCode::ERuntime004 => "Assertion failure",
+            ErrorCode::ERuntime005 => "Panic",
         }
     }
 
     /// Get the category this error belongs to
     pub fn category(&self) -> ErrorCategory {
         match self {
-            ErrorCode::E_LEX_001 | ErrorCode::E_LEX_002 | ErrorCode::E_LEX_003 | ErrorCode::E_LEX_004 | ErrorCode::E_LEX_005 => ErrorCategory::Syntax,
-            ErrorCode::E_PARSE_001 | ErrorCode::E_PARSE_002 | ErrorCode::E_PARSE_003 | ErrorCode::E_PARSE_004 | ErrorCode::E_PARSE_005 | ErrorCode::E_PARSE_006 | ErrorCode::E_PARSE_007 => ErrorCategory::Syntax,
-            ErrorCode::E_SEM_001 | ErrorCode::E_SEM_002 | ErrorCode::E_SEM_003 | ErrorCode::E_SEM_004 | ErrorCode::E_SEM_005 | ErrorCode::E_SEM_006 => ErrorCategory::Semantic,
-            ErrorCode::E_TYPE_001 | ErrorCode::E_TYPE_002 | ErrorCode::E_TYPE_003 | ErrorCode::E_TYPE_004 | ErrorCode::E_TYPE_005 | ErrorCode::E_TYPE_006 => ErrorCategory::Type,
-            ErrorCode::E_FLOW_001 | ErrorCode::E_FLOW_002 | ErrorCode::E_FLOW_003 | ErrorCode::E_FLOW_004 => ErrorCategory::Semantic,
-            ErrorCode::E_MEM_001 | ErrorCode::E_MEM_002 | ErrorCode::E_MEM_003 | ErrorCode::E_MEM_004 | ErrorCode::E_MEM_005 => ErrorCategory::Security,
-            ErrorCode::E_IO_001 | ErrorCode::E_IO_002 | ErrorCode::E_IO_003 | ErrorCode::E_IO_004 | ErrorCode::E_IO_005 => ErrorCategory::Io,
-            ErrorCode::E_ICE_001 | ErrorCode::E_ICE_002 | ErrorCode::E_ICE_003 | ErrorCode::E_ICE_004 => ErrorCategory::Codegen,
-            ErrorCode::E_CONFIG_001 | ErrorCode::E_CONFIG_002 | ErrorCode::E_CONFIG_003 | ErrorCode::E_CONFIG_004 => ErrorCategory::Package,
-            ErrorCode::E_RUNTIME_001 | ErrorCode::E_RUNTIME_002 | ErrorCode::E_RUNTIME_003 | ErrorCode::E_RUNTIME_004 | ErrorCode::E_RUNTIME_005 => ErrorCategory::Runtime,
+            ErrorCode::ELex001 | ErrorCode::ELex002 | ErrorCode::ELex003 | ErrorCode::ELex004 | ErrorCode::ELex005 => ErrorCategory::Syntax,
+            ErrorCode::EParse001 | ErrorCode::EParse002 | ErrorCode::EParse003 | ErrorCode::EParse004 | ErrorCode::EParse005 | ErrorCode::EParse006 | ErrorCode::EParse007 => ErrorCategory::Syntax,
+            ErrorCode::ESem001 | ErrorCode::ESem002 | ErrorCode::ESem003 | ErrorCode::ESem004 | ErrorCode::ESem005 | ErrorCode::ESem006 => ErrorCategory::Semantic,
+            ErrorCode::EType001 | ErrorCode::EType002 | ErrorCode::EType003 | ErrorCode::EType004 | ErrorCode::EType005 | ErrorCode::EType006 => ErrorCategory::Type,
+            ErrorCode::EFlow001 | ErrorCode::EFlow002 | ErrorCode::EFlow003 | ErrorCode::EFlow004 => ErrorCategory::Semantic,
+            ErrorCode::EMem001 | ErrorCode::EMem002 | ErrorCode::EMem003 | ErrorCode::EMem004 | ErrorCode::EMem005 => ErrorCategory::Security,
+            ErrorCode::EIo001 | ErrorCode::EIo002 | ErrorCode::EIo003 | ErrorCode::EIo004 | ErrorCode::EIo005 => ErrorCategory::Io,
+            ErrorCode::EIce001 | ErrorCode::EIce002 | ErrorCode::EIce003 | ErrorCode::EIce004 => ErrorCategory::Codegen,
+            ErrorCode::EConfig001 | ErrorCode::EConfig002 | ErrorCode::EConfig003 | ErrorCode::EConfig004 => ErrorCategory::Package,
+            ErrorCode::ERuntime001 | ErrorCode::ERuntime002 | ErrorCode::ERuntime003 | ErrorCode::ERuntime004 | ErrorCode::ERuntime005 => ErrorCategory::Runtime,
         }
     }
 
