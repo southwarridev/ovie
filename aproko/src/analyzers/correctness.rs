@@ -202,7 +202,7 @@ impl CorrectnessAnalyzer {
                 
                 // Parameters are owned in function scope
                 for param in parameters {
-                    function_tracker.declare_variable(param.clone(), true);
+                    function_tracker.declare_variable(param.name.clone(), true);
                 }
                 
                 for (i, stmt) in body.iter().enumerate() {
@@ -361,6 +361,48 @@ impl CorrectnessAnalyzer {
                 for element in elements {
                     findings.extend(self.check_expression_ownership(element, tracker, line));
                 }
+            }
+            Expression::Match { value, arms } => {
+                findings.extend(self.check_expression_ownership(value, tracker, line));
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        findings.extend(self.check_expression_ownership(guard, tracker, line));
+                    }
+                    // Each match arm gets its own scope
+                    let mut arm_tracker = tracker.clone();
+                    for stmt in &arm.body {
+                        findings.extend(self.check_statement_ownership(stmt, &mut arm_tracker, line));
+                    }
+                }
+            }
+            Expression::MethodCall { object, arguments, .. } => {
+                findings.extend(self.check_expression_ownership(object, tracker, line));
+                for arg in arguments {
+                    findings.extend(self.check_expression_ownership(arg, tracker, line));
+                    
+                    // Method calls might move arguments
+                    if self.is_move_expression(arg) {
+                        if let Expression::Identifier(moved_var) = arg {
+                            if !tracker.move_variable(moved_var) {
+                                findings.push(Finding {
+                                    category: AnalysisCategory::Correctness,
+                                    severity: Severity::Error,
+                                    message: format!("Cannot move variable '{}' in method call", moved_var),
+                                    suggestion: Some("Variable is not in a movable state".to_string()),
+                                    location: (line, 1),
+                                    span_length: moved_var.len(),
+                                    rule_id: "invalid_move_method_call".to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            Expression::Try { expression } => {
+                findings.extend(self.check_expression_ownership(expression, tracker, line));
+            }
+            Expression::Null => {
+                // Null literal doesn't have ownership issues
             }
             Expression::Literal(_) => {
                 // Literals don't have ownership issues

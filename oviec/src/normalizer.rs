@@ -42,9 +42,9 @@ impl Normalizer {
         typo_corrections.insert("elif".to_string(), "else if".to_string());
         
         // Variable declaration typos
+        // Note: "var" is a common typo for "mut" in Ovie
         typo_corrections.insert("var".to_string(), "mut".to_string());
-        typo_corrections.insert("let".to_string(), "".to_string()); // Remove let, use immutable by default
-        typo_corrections.insert("const".to_string(), "".to_string());
+        // "let" and "const" are valid v2.3 keywords — do NOT strip them
         
         Self {
             corrections: Vec::new(),
@@ -99,7 +99,7 @@ impl Normalizer {
             Statement::Function { name, parameters, body } => {
                 self.normalize_identifier(name)?;
                 for param in parameters {
-                    self.normalize_identifier(param)?;
+                    self.normalize_identifier(&mut param.name.clone())?;
                 }
                 for stmt in body {
                     self.normalize_statement(stmt)?;
@@ -108,11 +108,15 @@ impl Normalizer {
             Statement::FunctionDeclaration { name, parameters, body } => {
                 self.normalize_identifier(name)?;
                 for param in parameters {
-                    self.normalize_identifier(param)?;
+                    self.normalize_identifier(&mut param.name.clone())?;
                 }
                 for stmt in body {
                     self.normalize_statement(stmt)?;
                 }
+            }
+            Statement::FieldMutation { object, field: _, value } => {
+                self.normalize_expression(object)?;
+                self.normalize_expression(value)?;
             }
             Statement::If { condition, then_block, else_block } => {
                 self.normalize_expression(condition)?;
@@ -151,6 +155,26 @@ impl Normalizer {
             }
             Statement::Enum { name, .. } => {
                 self.normalize_identifier(name)?;
+            }
+            // New statement types — pass through
+            Statement::CompoundAssignment { identifier, value, .. } => {
+                self.normalize_identifier(identifier)?;
+                self.normalize_expression(value)?;
+            }
+            Statement::ConstDeclaration { name, value } => {
+                self.normalize_identifier(name)?;
+                self.normalize_expression(value)?;
+            }
+            Statement::Break | Statement::Continue => {}
+            Statement::Use { .. } | Statement::Import { .. } => {}
+            Statement::Export { statement } => {
+                self.normalize_statement(statement)?;
+            }
+            Statement::TypeAlias { .. } => {}
+            Statement::Block { statements } => {
+                for stmt in statements {
+                    self.normalize_statement(stmt)?;
+                }
             }
         }
         Ok(())
@@ -202,6 +226,12 @@ impl Normalizer {
                 self.normalize_expression(object)?;
                 self.normalize_expression(index)?;
             }
+            Expression::MethodCall { object, arguments, .. } => {
+                self.normalize_expression(object)?;
+                for arg in arguments {
+                    self.normalize_expression(arg)?;
+                }
+            }
             Expression::ArrayLiteral { elements } => {
                 for element in elements {
                     self.normalize_expression(element)?;
@@ -210,6 +240,21 @@ impl Normalizer {
             Expression::Literal(_) => {
                 // Literals don't need normalization
             }
+            Expression::Match { value, arms } => {
+                self.normalize_expression(value)?;
+                for arm in arms {
+                    if let Some(guard) = &mut arm.guard {
+                        self.normalize_expression(guard)?;
+                    }
+                    for stmt in &mut arm.body {
+                        self.normalize_statement(stmt)?;
+                    }
+                }
+            }
+            Expression::Try { expression } => {
+                self.normalize_expression(expression)?;
+            }
+            Expression::Null => {}
         }
         Ok(())
     }

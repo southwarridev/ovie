@@ -7,6 +7,18 @@ use time::{SystemTime, DateTime};
 use io::{print, println, eprint, eprintln};
 use fs::{File, create, open_with_mode, FileMode};
 
+// ===== EXPORTS =====
+export LogLevel, LogRecord, Logger;
+export SimpleFormatter, JsonFormatter;
+export ConsoleAppender, FileAppender;
+export LogFormatter, LogAppender;
+export init_logger, get_logger;
+export trace, debug, info, warn, error, fatal;
+export trace_with_fields, debug_with_fields, info_with_fields;
+export warn_with_fields, error_with_fields, fatal_with_fields;
+export simple_logger, file_logger, combined_logger;
+export init_simple_logging, init_file_logging, init_combined_logging;
+
 // ===== LOG LEVELS =====
 
 // Log level enumeration

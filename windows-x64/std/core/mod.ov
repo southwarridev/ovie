@@ -2,7 +2,27 @@
 // Fundamental types and operations for the Ovie programming language
 // This module provides the foundation for all other standard library modules
 
-// ===== RESULT TYPE =====
+// Import core types from separate files
+// These map to Rust runtime implementations in oviec/src/stdlib/core.rs
+import "std/core/result.ov";
+import "std/core/option.ov";
+import "std/core/vec.ov";
+import "std/core/hashmap.ov";
+
+// Re-export core types for convenience
+export Result, Ok, Err;
+export Option, Some, None;
+export Vec, VecIterator;
+export HashMap, HashMapIterator, HashMapKeysIterator, HashMapValuesIterator;
+export Rc, Box;
+export Iterator, MapIterator, FilterIterator;
+export ok, err, some, none;
+export panic, assert, assert_eq, assert_ne;
+export identity, swap, min, max, clamp;
+export string_length, string_char_at, string_substring;
+export array_push, array_length, array_get, array_set;
+
+// ===== RESULT TYPE (Legacy - kept for compatibility) =====
 
 // Result type for operations that can fail
 // This is the primary error handling mechanism in Ovie
@@ -691,9 +711,61 @@ fn clamp<T>(value: T, min_val: T, max_val: T) -> T {
     }
 }
 
+// ===== STRING UTILITY FUNCTIONS =====
+// Essential string operations needed by the lexer
+
+fn string_length(s: String) -> Number {
+    // This will be implemented by the runtime
+    return builtin_string_length(s);
+}
+
+fn string_char_at(s: String, index: Number) -> String {
+    // This will be implemented by the runtime
+    return builtin_string_char_at(s, index);
+}
+
+fn string_substring(s: String, start: Number, end: Number) -> String {
+    // This will be implemented by the runtime
+    return builtin_string_substring(s, start, end);
+}
+
+// ===== ARRAY UTILITY FUNCTIONS =====
+// Essential array operations needed by the lexer
+
+fn array_push<T>(mut arr: [T], item: T) {
+    // This will be implemented by the runtime
+    builtin_array_push(arr, item);
+}
+
+fn array_length<T>(arr: [T]) -> Number {
+    // This will be implemented by the runtime
+    return builtin_array_length(arr);
+}
+
+fn array_get<T>(arr: [T], index: Number) -> T {
+    // This will be implemented by the runtime
+    return builtin_array_get(arr, index);
+}
+
+fn array_set<T>(mut arr: [T], index: Number, value: T) {
+    // This will be implemented by the runtime
+    builtin_array_set(arr, index, value);
+}
+
 // ===== BUILT-IN FUNCTION DECLARATIONS =====
 // These are implemented by the runtime
 
 fn array_with_capacity<T>(capacity: Number) -> [T];
 fn hash<T>(value: T) -> Number;
 fn exit(code: Number);
+
+// String runtime functions
+fn builtin_string_length(s: String) -> Number;
+fn builtin_string_char_at(s: String, index: Number) -> String;
+fn builtin_string_substring(s: String, start: Number, end: Number) -> String;
+
+// Array runtime functions
+fn builtin_array_push<T>(mut arr: [T], item: T);
+fn builtin_array_length<T>(arr: [T]) -> Number;
+fn builtin_array_get<T>(arr: [T], index: Number) -> T;
+fn builtin_array_set<T>(mut arr: [T], index: Number, value: T);

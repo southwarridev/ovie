@@ -1,0 +1,357 @@
+/// Ovie Migration Tool — std/module/migrate.ov
+///
+/// Implements the `ovie migrate` command that automatically adds
+/// import/export statements to standalone .ov files, easing the
+/// transition from v2.2 standalone mode to v2.3 modular code.
+
+use std::fs::{read_to_string, write_string, exists};
+use std::io::{println, eprintln};
+use ./loader::{is_standalone_file, has_legacy_std_usage};
+
+// ===== EXPORTS =====
+export MigrateConfig, MigrateResult, MigrationChange, ChangeKind;
+export migrate_file, migrate_directory, default_migrate_config;
+export generate_ovie_toml, analyze_used_symbols;
+
+// ===== TYPES =====
+
+/// Configuration for the migration tool
+struct MigrateConfig {
+    /// Write changes to disk (false = dry run)
+    write: bool,
+    /// Add export to all top-level public functions
+    add_exports: bool,
+    /// Rewrite legacy `use core::` to `use std::core::`
+    fix_std_paths: bool,
+    /// Create ovie.toml if missing
+    create_manifest: bool,
+    /// Print each change as it is made
+    verbose: bool
+}
+
+/// A single change made during migration
+struct MigrationChange {
+    kind: ChangeKind,
+    line: u32,
+    description: String
+}
+
+/// The kind of change applied
+enum ChangeKind {
+    AddedExport,
+    FixedStdPath,
+    AddedImport,
+    CreatedManifest
+}
+
+/// Result of migrating a single file
+struct MigrateResult {
+    path: String,
+    changes: Vec<MigrationChange>,
+    success: bool,
+    error: Option<String>
+}
+
+// ===== FUNCTIONS =====
+
+/// Default migration configuration
+///
+/// # Returns
+/// MigrateConfig with safe defaults (dry run disabled, all fixes enabled)
+///
+/// # Examples
+/// ```
+/// let config = default_migrate_config();
+/// assert(config.write == true);
+/// ```
+export fn default_migrate_config() -> MigrateConfig {
+    MigrateConfig {
+        write: true,
+        add_exports: true,
+        fix_std_paths: true,
+        create_manifest: true,
+        verbose: false
+    }
+}
+
+/// Analyse a source file and return the set of std symbols it uses
+///
+/// Scans for identifiers that match known std library symbols and
+/// returns a map of module → symbols needed.
+///
+/// # Parameters
+/// - `source`: Source code to analyse
+///
+/// # Returns
+/// HashMap of module path → Vec of symbol names
+///
+/// # Examples
+/// ```
+/// let used = analyze_used_symbols("let v = Vec.new();");
+/// // used["std::core"] == ["Vec"]
+/// ```
+export fn analyze_used_symbols(source: &String) -> HashMap<String, Vec<String>> {
+    let mut result: HashMap<String, Vec<String>> = HashMap::new();
+
+    // Known std symbols and their home modules
+    let std_symbols: Vec<(String, String)> = vec![
+        // core
+        ("Vec".to_string(),     "std::core".to_string()),
+        ("HashMap".to_string(), "std::core".to_string()),
+        ("Result".to_string(),  "std::core".to_string()),
+        ("Option".to_string(),  "std::core".to_string()),
+        // math
+        ("sin".to_string(),     "std::math".to_string()),
+        ("cos".to_string(),     "std::math".to_string()),
+        ("sqrt".to_string(),    "std::math".to_string()),
+        ("PI".to_string(),      "std::math".to_string()),
+        // io
+        ("println".to_string(), "std::io".to_string()),
+        ("print".to_string(),   "std::io".to_string()),
+        ("read_line".to_string(),"std::io".to_string()),
+        // fs
+        ("read_to_string".to_string(), "std::fs".to_string()),
+        ("write_string".to_string(),   "std::fs".to_string()),
+        // time
+        ("Instant".to_string(),     "std::time".to_string()),
+        ("Duration".to_string(),    "std::time".to_string()),
+        ("SystemTime".to_string(),  "std::time".to_string()),
+        // env
+        ("var".to_string(),  "std::env".to_string()),
+        ("args".to_string(), "std::env".to_string()),
+        // log
+        ("info".to_string(),  "std::log".to_string()),
+        ("error".to_string(), "std::log".to_string()),
+        ("debug".to_string(), "std::log".to_string()),
+    ];
+
+    for (symbol, module) in &std_symbols {
+        // Simple word-boundary check
+        if source.contains(symbol.as_str()) {
+            result.entry(module.clone()).or_insert_with(Vec::new).push(symbol.clone());
+        }
+    }
+
+    result
+}
+
+/// Generate an ovie.toml manifest for a project directory
+///
+/// # Parameters
+/// - `project_name`: Name of the package
+/// - `version`: Initial version string
+///
+/// # Returns
+/// TOML content as a String
+///
+/// # Examples
+/// ```
+/// let toml = generate_ovie_toml("my_app", "0.1.0");
+/// assert(toml.contains("[package]"));
+/// ```
+export fn generate_ovie_toml(project_name: &String, version: &String) -> String {
+    format!(
+        "[package]\nname = \"{}\"\nversion = \"{}\"\ndescription = \"\"\n\n[dependencies]\n",
+        project_name, version
+    )
+}
+
+/// Migrate a single .ov file to use the module system
+///
+/// Reads the file, applies the configured transformations, and optionally
+/// writes the result back to disk.
+///
+/// # Parameters
+/// - `path`: Path to the .ov file
+/// - `config`: Migration configuration
+///
+/// # Returns
+/// MigrateResult describing what was changed
+///
+/// # Examples
+/// ```
+/// let result = migrate_file("src/utils.ov", default_migrate_config())?;
+/// for change in result.changes {
+///     println(change.description);
+/// }
+/// ```
+export fn migrate_file(path: String, config: MigrateConfig) -> MigrateResult {
+    let source = match read_to_string(path.clone()) {
+        Ok(s) => s,
+        Err(e) => return MigrateResult {
+            path: path,
+            changes: Vec::new(),
+            success: false,
+            error: Some(e)
+        }
+    };
+
+    let mut changes: Vec<MigrationChange> = Vec::new();
+    let mut lines: Vec<String> = source.lines().map(|l| l.to_string()).collect();
+
+    // 1. Fix legacy std paths: `use core::` → `use std::core::`
+    if config.fix_std_paths && has_legacy_std_usage(&source) {
+        let legacy_prefixes = vec![
+            ("use core::", "use std::core::"),
+            ("use fs::",   "use std::fs::"),
+            ("use io::",   "use std::io::"),
+            ("use math::", "use std::math::"),
+            ("use time::", "use std::time::"),
+            ("use env::",  "use std::env::"),
+            ("use cli::",  "use std::cli::"),
+            ("use log::",  "use std::log::"),
+            ("use testing::", "use std::testing::"),
+        ];
+
+        for (i, line) in lines.iter_mut().enumerate() {
+            for (old, new) in &legacy_prefixes {
+                if line.trim_start().starts_with(old) {
+                    *line = line.replacen(old, new, 1);
+                    changes.push(MigrationChange {
+                        kind: ChangeKind::FixedStdPath,
+                        line: (i + 1) as u32,
+                        description: format!("Fixed std path: {} → {}", old, new)
+                    });
+                }
+            }
+        }
+    }
+
+    // 2. Add export to top-level public functions (heuristic: fn at column 0)
+    if config.add_exports && is_standalone_file(&source) {
+        for (i, line) in lines.iter_mut().enumerate() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("fn ") && !trimmed.starts_with("fn main") {
+                *line = format!("export {}", line);
+                changes.push(MigrationChange {
+                    kind: ChangeKind::AddedExport,
+                    line: (i + 1) as u32,
+                    description: format!("Added export to function at line {}", i + 1)
+                });
+            }
+        }
+    }
+
+    // 3. Add missing std imports based on symbol analysis
+    let used = analyze_used_symbols(&source);
+    let mut import_lines: Vec<String> = Vec::new();
+    for (module, symbols) in &used {
+        let sym_list = symbols.join(", ");
+        let import_stmt = format!("use {}::{{{}}};", module, sym_list);
+        // Only add if not already present
+        if !source.contains(&import_stmt) && !source.contains(&format!("use {};", module)) {
+            import_lines.push(import_stmt.clone());
+            changes.push(MigrationChange {
+                kind: ChangeKind::AddedImport,
+                line: 1,
+                description: format!("Added import: {}", import_stmt)
+            });
+        }
+    }
+
+    // Prepend new imports at the top (after any existing comments)
+    if !import_lines.is_empty() {
+        let mut insert_at = 0;
+        for (i, line) in lines.iter().enumerate() {
+            let t = line.trim();
+            if t.starts_with("//") || t.is_empty() {
+                insert_at = i + 1;
+            } else {
+                break;
+            }
+        }
+        for (j, stmt) in import_lines.iter().enumerate() {
+            lines.insert(insert_at + j, stmt.clone());
+        }
+    }
+
+    // Write back if configured
+    if config.write && !changes.is_empty() {
+        let new_source = lines.join("\n");
+        if let Err(e) = write_string(path.clone(), new_source) {
+            return MigrateResult {
+                path: path,
+                changes: changes,
+                success: false,
+                error: Some(e)
+            };
+        }
+    }
+
+    if config.verbose {
+        for change in &changes {
+            println(&format!("  [{}:{}] {}", path, change.line, change.description));
+        }
+    }
+
+    MigrateResult {
+        path: path,
+        changes: changes,
+        success: true,
+        error: None
+    }
+}
+
+/// Migrate all .ov files in a directory
+///
+/// Recursively finds all `.ov` files and migrates each one.
+/// Optionally creates an `ovie.toml` manifest if missing.
+///
+/// # Parameters
+/// - `dir`: Directory path to migrate
+/// - `config`: Migration configuration
+///
+/// # Returns
+/// Vec of MigrateResult, one per file processed
+///
+/// # Examples
+/// ```
+/// let results = migrate_directory("src/", default_migrate_config());
+/// let changed = results.iter().filter(|r| !r.changes.is_empty()).count();
+/// println(format!("{} files updated", changed));
+/// ```
+export fn migrate_directory(dir: String, config: MigrateConfig) -> Vec<MigrateResult> {
+    use std::fs::{read_dir, is_file};
+
+    let mut results: Vec<MigrateResult> = Vec::new();
+
+    // Create ovie.toml if missing
+    let manifest_path = format!("{}/ovie.toml", dir);
+    if config.create_manifest && !exists(manifest_path.clone()) {
+        let project_name = dir.split("/").last().unwrap_or("project").to_string();
+        let toml = generate_ovie_toml(&project_name, &"0.1.0".to_string());
+        if config.write {
+            let _ = write_string(manifest_path.clone(), toml);
+        }
+        results.push(MigrateResult {
+            path: manifest_path,
+            changes: vec![MigrationChange {
+                kind: ChangeKind::CreatedManifest,
+                line: 0,
+                description: "Created ovie.toml".to_string()
+            }],
+            success: true,
+            error: None
+        });
+    }
+
+    // Recursively process .ov files
+    match read_dir(dir.clone()) {
+        Ok(entries) => {
+            for entry in entries {
+                let entry_path = entry.path;
+                if entry.metadata.is_file && entry_path.ends_with(".ov") {
+                    results.push(migrate_file(entry_path, config.clone()));
+                } else if entry.metadata.is_directory {
+                    let sub_results = migrate_directory(entry_path, config.clone());
+                    results.extend(sub_results);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln(&format!("Warning: could not read directory '{}': {}", dir, e));
+        }
+    }
+
+    results
+}

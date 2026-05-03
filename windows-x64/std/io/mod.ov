@@ -5,6 +5,15 @@
 use core::{Result, Option, Vec, ok, err, some, none};
 use fs::{File, FileMode};
 
+// ===== EXPORTS =====
+export Stdin, Stdout, Stderr, IoHandle, BufReader, BufWriter;
+export stdin, stdout, stderr;
+export print, println, eprint, eprintln;
+export read_line, read_to_string;
+export buf_reader, buf_writer, copy;
+export Read, Write, Seek;
+export format, printf, printfln, eprintf, eprintfln;
+
 // ===== I/O TYPES =====
 
 // Standard input/output handles

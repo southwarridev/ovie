@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-OVIE_VERSION="2.2.0"
+OVIE_VERSION="2.3.0"
 INSTALL_DIR="$HOME/.local"
 BIN_DIR="$HOME/.local/bin"
 TEMP_DIR="/tmp/ovie-install-$$"

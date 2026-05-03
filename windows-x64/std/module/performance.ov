@@ -1,0 +1,674 @@
+/// Module System Performance Optimizations
+///
+/// This module implements targeted optimizations for the module loading pipeline:
+/// - Optimized hash computation with incremental hashing
+/// - Cache lookup acceleration via in-memory index
+/// - Dependency graph construction optimization (O(n) adjacency building)
+/// - String interning for repeated module path lookups
+/// - Pre-warmed cache for standard library modules
+///
+/// # Performance Targets
+/// - Standard library load: < 100ms
+/// - Incremental compilation: 10x faster than full build
+/// - Cache hit per module: < 10ms
+/// - Dependency graph construction: O(n) with number of modules
+///
+/// # Requirements: 15.1, 15.2, 15.3, 15.4, 15.5, 15.6
+
+use std::core::{Vec, HashMap, Option};
+use std::fs::{read_file, file_exists};
+use ./types::{Module, ModuleError, ModuleResult};
+use ./cache::{ModuleCache, CacheEntry, is_cache_valid, compute_source_hash};
+use ./dependency_graph::{DependencyGraph, GraphNode};
+
+// ============================================================
+// String Interning — avoids repeated allocation of module paths
+// ============================================================
+
+/// Interned string table — maps string content to a stable integer ID
+/// Reduces allocation pressure for frequently repeated module paths
+struct StringInterner {
+    table: HashMap<String, u32>,   // string -> id
+    strings: Vec<String>,          // id -> string (reverse lookup)
+    next_id: u32
+}
+
+/// Create a new empty string interner
+///
+/// # Returns
+/// A new StringInterner
+///
+/// # Examples
+/// ```
+/// let interner = new_interner();
+/// ```
+export fn new_interner() -> StringInterner {
+    StringInterner {
+        table: HashMap::new(),
+        strings: Vec::new(),
+        next_id: 0
+    }
+}
+
+/// Intern a string, returning its stable ID
+///
+/// If the string has been seen before, returns the existing ID without
+/// allocating. If new, assigns the next available ID.
+///
+/// # Parameters
+/// - `interner`: Mutable interner reference
+/// - `s`: String to intern
+///
+/// # Returns
+/// Stable integer ID for this string
+///
+/// # Examples
+/// ```
+/// let id = intern(&mut interner, "std/math/mod.ov");
+/// let id2 = intern(&mut interner, "std/math/mod.ov");
+/// // id == id2, no duplicate allocation
+/// ```
+export fn intern(interner: &mut StringInterner, s: String) -> u32 {
+    if let Some(&id) = interner.table.get(&s) {
+        return id;
+    }
+    let id = interner.next_id;
+    interner.next_id = interner.next_id + 1;
+    interner.table.insert(s.clone(), id);
+    interner.strings.push(s);
+    id
+}
+
+/// Resolve an interned ID back to its string
+///
+/// # Parameters
+/// - `interner`: The interner
+/// - `id`: The interned ID
+///
+/// # Returns
+/// Option containing the string, or None if ID is invalid
+///
+/// # Examples
+/// ```
+/// let s = resolve_interned(&interner, id);
+/// ```
+export fn resolve_interned(interner: &StringInterner, id: u32) -> Option<String> {
+    if (id as usize) < interner.strings.len() {
+        Some(interner.strings[id as usize].clone())
+    } else {
+        None
+    }
+}
+
+// ============================================================
+// Optimized Hash Computation — incremental djb2 with seed reuse
+// ============================================================
+
+/// Hash state for incremental hashing
+/// Allows building a hash incrementally without re-hashing from scratch
+struct HashState {
+    value: u64
+}
+
+/// Create a new hash state with the djb2 seed
+///
+/// # Returns
+/// A new HashState ready for incremental updates
+///
+/// # Examples
+/// ```
+/// let state = new_hash_state();
+/// ```
+export fn new_hash_state() -> HashState {
+    HashState { value: 5381 }
+}
+
+/// Update hash state with a string chunk
+///
+/// Processes the string incrementally, updating the running hash.
+/// Calling this multiple times is equivalent to hashing the concatenation.
+///
+/// # Parameters
+/// - `state`: Mutable hash state
+/// - `chunk`: String chunk to hash
+///
+/// # Examples
+/// ```
+/// update_hash(&mut state, "std/math");
+/// update_hash(&mut state, "/mod.ov");
+/// // Same result as hashing "std/math/mod.ov" at once
+/// ```
+export fn update_hash(state: &mut HashState, chunk: &String) {
+    for byte in chunk.bytes() {
+        state.value = state.value.wrapping_mul(33).wrapping_add(byte as u64);
+    }
+}
+
+/// Finalize hash state to a hex string
+///
+/// # Parameters
+/// - `state`: The hash state to finalize
+///
+/// # Returns
+/// 16-character hex string representation of the hash
+///
+/// # Examples
+/// ```
+/// let hex = finalize_hash(&state);
+/// ```
+export fn finalize_hash(state: &HashState) -> String {
+    format!("{:016x}", state.value)
+}
+
+/// Compute hash of a source file with path-seeded state
+///
+/// Seeds the hash with the module path before hashing content.
+/// This ensures two modules with identical content but different paths
+/// produce different hashes, preventing false cache hits.
+///
+/// # Parameters
+/// - `module_path`: Path to seed the hash
+/// - `source_content`: Source content to hash
+///
+/// # Returns
+/// Hex hash string
+///
+/// # Examples
+/// ```
+/// let hash = compute_seeded_hash("std/math/mod.ov", &source);
+/// ```
+export fn compute_seeded_hash(module_path: &String, source_content: &String) -> String {
+    let mut state = new_hash_state();
+    // Seed with path to differentiate identical content in different modules
+    update_hash(&mut state, module_path);
+    update_hash(&mut state, source_content);
+    finalize_hash(&state)
+}
+
+/// Compute combined dependency hash efficiently
+///
+/// Optimized version that avoids cloning the full dep list by
+/// processing in sorted order using an index sort.
+///
+/// # Parameters
+/// - `dep_hashes`: Slice of (path, hash) pairs
+///
+/// # Returns
+/// Combined hex hash string
+///
+/// # Examples
+/// ```
+/// let combined = compute_deps_hash_fast(&dep_hashes);
+/// ```
+export fn compute_deps_hash_fast(dep_hashes: &Vec<(String, String)>) -> String {
+    // Build sorted index without cloning strings
+    let mut indices: Vec<usize> = (0..dep_hashes.len()).collect();
+    indices.sort_by(|&a, &b| dep_hashes[a].0.cmp(&dep_hashes[b].0));
+
+    let mut state = new_hash_state();
+    for idx in &indices {
+        let (path, hash) = &dep_hashes[*idx];
+        update_hash(&mut state, path);
+        update_hash(&mut state, hash);
+    }
+    finalize_hash(&state)
+}
+
+// ============================================================
+// In-Memory Cache Index — O(1) cache lookups
+// ============================================================
+
+/// Accelerated cache index for O(1) validity checks
+/// Maintains a hot set of recently validated entries to skip disk I/O
+struct CacheIndex {
+    /// module_path -> (source_hash, deps_hash, is_valid)
+    hot_entries: HashMap<String, (String, String, bool)>,
+    /// Maximum number of entries to keep hot
+    max_hot: usize,
+    /// Access order for LRU eviction (oldest first)
+    access_order: Vec<String>
+}
+
+/// Create a new cache index
+///
+/// # Parameters
+/// - `max_hot`: Maximum hot entries to maintain in memory
+///
+/// # Returns
+/// A new CacheIndex
+///
+/// # Examples
+/// ```
+/// let index = new_cache_index(256);
+/// ```
+export fn new_cache_index(max_hot: usize) -> CacheIndex {
+    CacheIndex {
+        hot_entries: HashMap::new(),
+        max_hot: max_hot,
+        access_order: Vec::new()
+    }
+}
+
+/// Check cache validity using the hot index (avoids disk I/O on hit)
+///
+/// Returns Some(true) if definitely valid, Some(false) if definitely invalid,
+/// None if not in the hot index (caller should fall back to full cache check).
+///
+/// # Parameters
+/// - `index`: The cache index
+/// - `module_path`: Module to check
+/// - `source_hash`: Current source hash
+/// - `deps_hash`: Current deps hash
+///
+/// # Returns
+/// Option<bool> — Some if answer is known, None if cache miss
+///
+/// # Examples
+/// ```
+/// match hot_check(&index, "std/math/mod.ov", &src_hash, &deps_hash) {
+///     Some(true) => { /* use cache */ }
+///     Some(false) => { /* recompile */ }
+///     None => { /* check full cache */ }
+/// }
+/// ```
+export fn hot_check(
+    index: &CacheIndex,
+    module_path: &String,
+    source_hash: &String,
+    deps_hash: &String
+) -> Option<bool> {
+    match index.hot_entries.get(module_path) {
+        None => None,
+        Some((cached_src, cached_deps, valid)) => {
+            if cached_src == source_hash && cached_deps == deps_hash {
+                Some(*valid)
+            } else {
+                // Hashes changed — entry is stale
+                Some(false)
+            }
+        }
+    }
+}
+
+/// Update the hot index after a cache check
+///
+/// Records the result so future checks can skip disk I/O.
+/// Evicts the least recently used entry if at capacity.
+///
+/// # Parameters
+/// - `index`: Mutable cache index
+/// - `module_path`: Module path
+/// - `source_hash`: Source hash that was checked
+/// - `deps_hash`: Deps hash that was checked
+/// - `is_valid`: Whether the cache entry was valid
+///
+/// # Examples
+/// ```
+/// update_hot_index(&mut index, "std/math/mod.ov", &src_hash, &deps_hash, true);
+/// ```
+export fn update_hot_index(
+    index: &mut CacheIndex,
+    module_path: String,
+    source_hash: String,
+    deps_hash: String,
+    is_valid: bool
+) {
+    // Evict LRU entry if at capacity
+    if index.hot_entries.len() >= index.max_hot {
+        if !index.access_order.is_empty() {
+            let lru = index.access_order.remove(0);
+            index.hot_entries.remove(&lru);
+        }
+    }
+
+    // Remove from access order if already present (will re-add at end)
+    index.access_order.retain(|p| p != &module_path);
+
+    // Insert/update entry
+    index.hot_entries.insert(
+        module_path.clone(),
+        (source_hash, deps_hash, is_valid)
+    );
+    index.access_order.push(module_path);
+}
+
+/// Invalidate a module in the hot index
+///
+/// # Parameters
+/// - `index`: Mutable cache index
+/// - `module_path`: Module to invalidate
+///
+/// # Examples
+/// ```
+/// invalidate_hot(&mut index, "src/main.ov");
+/// ```
+export fn invalidate_hot(index: &mut CacheIndex, module_path: &String) {
+    index.hot_entries.remove(module_path);
+    index.access_order.retain(|p| p != module_path);
+}
+
+// ============================================================
+// Optimized Dependency Graph Construction — O(n) adjacency
+// ============================================================
+
+/// Build a dependency graph from a list of (module, deps) pairs in O(n)
+///
+/// More efficient than calling add_dependency() in a loop because it
+/// pre-allocates the adjacency lists and builds both directions in one pass.
+///
+/// # Parameters
+/// - `module_deps`: Vec of (module_path, Vec<dependency_paths>) pairs
+///
+/// # Returns
+/// A fully constructed DependencyGraph
+///
+/// # Examples
+/// ```
+/// let pairs = vec![
+///     ("src/main.ov".to_string(), vec!["std/math/mod.ov".to_string()]),
+///     ("std/math/mod.ov".to_string(), vec![]),
+/// ];
+/// let graph = build_graph_fast(pairs);
+/// ```
+export fn build_graph_fast(module_deps: Vec<(String, Vec<String>)>) -> DependencyGraph {
+    let mut nodes: HashMap<String, GraphNode> = HashMap::new();
+    let mut edges: Vec<Edge> = Vec::new();
+
+    // First pass: create all nodes (pre-allocate)
+    for (module_path, deps) in &module_deps {
+        nodes.entry(module_path.clone()).or_insert(GraphNode {
+            module_path: module_path.clone(),
+            dependencies: Vec::new(),
+            dependents: Vec::new(),
+            visited: false,
+            in_stack: false
+        });
+        // Also ensure dependency nodes exist
+        for dep in deps {
+            nodes.entry(dep.clone()).or_insert(GraphNode {
+                module_path: dep.clone(),
+                dependencies: Vec::new(),
+                dependents: Vec::new(),
+                visited: false,
+                in_stack: false
+            });
+        }
+    }
+
+    // Second pass: fill adjacency lists and edges in one sweep
+    for (module_path, deps) in &module_deps {
+        for dep in deps {
+            // Add edge
+            edges.push(Edge { from: module_path.clone(), to: dep.clone() });
+
+            // Update forward adjacency (module -> dep)
+            if let Some(node) = nodes.get_mut(module_path) {
+                if !node.dependencies.contains(dep) {
+                    node.dependencies.push(dep.clone());
+                }
+            }
+
+            // Update reverse adjacency (dep -> module)
+            if let Some(dep_node) = nodes.get_mut(dep) {
+                if !dep_node.dependents.contains(module_path) {
+                    dep_node.dependents.push(module_path.clone());
+                }
+            }
+        }
+    }
+
+    DependencyGraph { nodes, edges }
+}
+
+// ============================================================
+// Standard Library Pre-warming
+// ============================================================
+
+/// Pre-warm the cache with standard library modules
+///
+/// Loads and caches all std:: modules at startup so they are available
+/// instantly during compilation. This is the primary mechanism for
+/// achieving < 100ms standard library load time.
+///
+/// # Parameters
+/// - `cache`: Mutable module cache
+/// - `index`: Mutable hot cache index
+/// - `std_root`: Root path of the standard library (e.g., "std/")
+/// - `compiler_version`: Current compiler version
+///
+/// # Returns
+/// Number of modules pre-warmed
+///
+/// # Examples
+/// ```
+/// let count = prewarm_stdlib(&mut cache, &mut index, "std/", "2.3.0");
+/// seeAm("Pre-warmed " + count + " stdlib modules");
+/// ```
+export fn prewarm_stdlib(
+    cache: &mut ModuleCache,
+    index: &mut CacheIndex,
+    std_root: &String,
+    compiler_version: &String
+) -> u32 {
+    let std_modules = [
+        "core/mod.ov",
+        "math/mod.ov",
+        "io/mod.ov",
+        "fs/mod.ov",
+        "time/mod.ov",
+        "env/mod.ov",
+        "cli/mod.ov",
+        "log/mod.ov",
+        "testing/mod.ov",
+        "module/mod.ov",
+        "aproko/mod.ov",
+        "lexer/mod.ov"
+    ];
+
+    let mut warmed: u32 = 0;
+
+    for module_rel in &std_modules {
+        let module_path = format!("{}{}", std_root, module_rel);
+
+        if !file_exists(&module_path) {
+            continue;
+        }
+
+        let source = match read_file(&module_path) {
+            Ok(s) => s,
+            Err(_) => continue
+        };
+
+        let source_hash = compute_seeded_hash(&module_path, &source);
+        // Stdlib modules have no external deps — empty deps hash
+        let deps_hash = finalize_hash(&new_hash_state());
+
+        // Mark as valid in hot index — no disk artifact needed for pre-warm
+        update_hot_index(
+            index,
+            module_path.clone(),
+            source_hash.clone(),
+            deps_hash.clone(),
+            true
+        );
+
+        warmed = warmed + 1;
+    }
+
+    warmed
+}
+
+// ============================================================
+// Performance Profiling Helpers
+// ============================================================
+
+/// A simple timing record for profiling module loading
+struct LoadTiming {
+    module_path: String,
+    parse_ms: u64,
+    cache_check_ms: u64,
+    total_ms: u64,
+    was_cache_hit: bool
+}
+
+/// Aggregate performance statistics across all loaded modules
+struct LoadStats {
+    total_modules: u32,
+    cache_hits: u32,
+    cache_misses: u32,
+    total_parse_ms: u64,
+    total_cache_check_ms: u64,
+    total_load_ms: u64,
+    slowest_module: String,
+    slowest_ms: u64
+}
+
+/// Create empty load stats
+///
+/// # Returns
+/// A new zeroed LoadStats
+///
+/// # Examples
+/// ```
+/// let stats = new_load_stats();
+/// ```
+export fn new_load_stats() -> LoadStats {
+    LoadStats {
+        total_modules: 0,
+        cache_hits: 0,
+        cache_misses: 0,
+        total_parse_ms: 0,
+        total_cache_check_ms: 0,
+        total_load_ms: 0,
+        slowest_module: String::new(),
+        slowest_ms: 0
+    }
+}
+
+/// Record a module load timing into aggregate stats
+///
+/// # Parameters
+/// - `stats`: Mutable stats to update
+/// - `timing`: The timing record to incorporate
+///
+/// # Examples
+/// ```
+/// record_timing(&mut stats, timing);
+/// ```
+export fn record_timing(stats: &mut LoadStats, timing: LoadTiming) {
+    stats.total_modules = stats.total_modules + 1;
+    stats.total_parse_ms = stats.total_parse_ms + timing.parse_ms;
+    stats.total_cache_check_ms = stats.total_cache_check_ms + timing.cache_check_ms;
+    stats.total_load_ms = stats.total_load_ms + timing.total_ms;
+
+    if timing.was_cache_hit {
+        stats.cache_hits = stats.cache_hits + 1;
+    } else {
+        stats.cache_misses = stats.cache_misses + 1;
+    }
+
+    if timing.total_ms > stats.slowest_ms {
+        stats.slowest_ms = timing.total_ms;
+        stats.slowest_module = timing.module_path;
+    }
+}
+
+/// Format load stats as a human-readable report
+///
+/// # Parameters
+/// - `stats`: The stats to format
+///
+/// # Returns
+/// Multi-line string report
+///
+/// # Examples
+/// ```
+/// seeAm(format_load_stats(&stats));
+/// ```
+export fn format_load_stats(stats: &LoadStats) -> String {
+    let hit_rate = if stats.total_modules > 0 {
+        (stats.cache_hits * 100) / stats.total_modules
+    } else {
+        0
+    };
+
+    let avg_load_ms = if stats.total_modules > 0 {
+        stats.total_load_ms / stats.total_modules as u64
+    } else {
+        0
+    };
+
+    format!(
+        "Module Load Performance Report\n\
+        ================================\n\
+        Total modules:     {}\n\
+        Cache hits:        {} ({}%)\n\
+        Cache misses:      {}\n\
+        Total load time:   {}ms\n\
+        Avg per module:    {}ms\n\
+        Slowest module:    {} ({}ms)\n\
+        Parse time total:  {}ms\n\
+        Cache check total: {}ms",
+        stats.total_modules,
+        stats.cache_hits, hit_rate,
+        stats.cache_misses,
+        stats.total_load_ms,
+        avg_load_ms,
+        stats.slowest_module, stats.slowest_ms,
+        stats.total_parse_ms,
+        stats.total_cache_check_ms
+    )
+}
+
+/// Check if performance targets are being met
+///
+/// Validates the load stats against the v2.3 performance requirements.
+///
+/// # Parameters
+/// - `stats`: The load stats to validate
+/// - `stdlib_load_ms`: Total time to load the standard library
+/// - `incremental_speedup`: Ratio of full build time to incremental build time
+///
+/// # Returns
+/// Vec of performance warnings (empty = all targets met)
+///
+/// # Examples
+/// ```
+/// let warnings = check_performance_targets(&stats, 85, 12.0);
+/// ```
+export fn check_performance_targets(
+    stats: &LoadStats,
+    stdlib_load_ms: u64,
+    incremental_speedup: f64
+) -> Vec<String> {
+    let mut warnings: Vec<String> = Vec::new();
+
+    // Target: stdlib loads in < 100ms
+    if stdlib_load_ms >= 100 {
+        warnings.push(format!(
+            "PERF WARNING: Standard library load time {}ms exceeds 100ms target",
+            stdlib_load_ms
+        ));
+    }
+
+    // Target: cache hit per module < 10ms
+    if stats.cache_hits > 0 {
+        let avg_cache_hit_ms = stats.total_cache_check_ms / stats.cache_hits as u64;
+        if avg_cache_hit_ms >= 10 {
+            warnings.push(format!(
+                "PERF WARNING: Average cache hit time {}ms exceeds 10ms target",
+                avg_cache_hit_ms
+            ));
+        }
+    }
+
+    // Target: incremental compilation 10x faster than full
+    if incremental_speedup < 10.0 {
+        warnings.push(format!(
+            "PERF WARNING: Incremental speedup {:.1}x is below 10x target",
+            incremental_speedup
+        ));
+    }
+
+    warnings
+}

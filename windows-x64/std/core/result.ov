@@ -1,0 +1,59 @@
+// Result<T, E> type - represents either success (Ok) or failure (Err)
+// Maps to OvieResult<T, E> in oviec/src/stdlib/core.rs
+
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+// Result methods
+fn is_ok<T, E>(result: Result<T, E>) -> Boolean {
+    // Returns true if the result is Ok
+    // Implementation: Rust runtime
+}
+
+fn is_err<T, E>(result: Result<T, E>) -> Boolean {
+    // Returns true if the result is Err
+    // Implementation: Rust runtime
+}
+
+fn unwrap<T, E>(result: Result<T, E>) -> T {
+    // Returns the Ok value, panics if Err
+    // Implementation: Rust runtime
+}
+
+fn unwrap_or<T, E>(result: Result<T, E>, default: T) -> T {
+    // Returns the Ok value, or default if Err
+    // Implementation: Rust runtime
+}
+
+fn map<T, E, U>(result: Result<T, E>, f: fn(T) -> U) -> Result<U, E> {
+    // Maps a Result<T, E> to Result<U, E> by applying f to Ok value
+    // Implementation: Rust runtime
+}
+
+fn map_err<T, E, F>(result: Result<T, E>, f: fn(E) -> F) -> Result<T, F> {
+    // Maps a Result<T, E> to Result<T, F> by applying f to Err value
+    // Implementation: Rust runtime
+}
+
+fn and_then<T, E, U>(result: Result<T, E>, f: fn(T) -> Result<U, E>) -> Result<U, E> {
+    // Chains operations that return Results
+    // Implementation: Rust runtime
+}
+
+fn ok_or_else<T, E>(result: Result<T, E>, f: fn() -> E) -> Result<T, E> {
+    // Converts from Result<T, E> to Result<T, E> with error from function
+    // Implementation: Rust runtime
+}
+
+// Helper constructors
+fn Ok<T, E>(value: T) -> Result<T, E> {
+    // Creates an Ok result
+    // Implementation: Rust runtime
+}
+
+fn Err<T, E>(error: E) -> Result<T, E> {
+    // Creates an Err result
+    // Implementation: Rust runtime
+}

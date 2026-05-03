@@ -1,0 +1,274 @@
+/// Package Loader Module
+///
+/// Implements third-party package search, loading, and error reporting.
+/// Packages are loaded from local file system paths using mod.ov as entry point.
+///
+/// # Search Order
+///
+/// 1. Path dependencies (explicit path in ovie.toml)
+/// 2. Local packages directory (.ovie/packages/)
+/// 3. Global packages directory (~/.ovie/packages/)
+///
+/// # Requirements: 4.1, 4.2, 4.3, 4.4, 4.6, 12.1
+
+/// Result of a package search operation
+struct PackageSearchResult {
+    found: Boolean,
+    package_path: String,    // absolute path to package root
+    entry_path: String,      // path to mod.ov entry point
+    error: String,
+}
+
+/// Loaded package information
+struct LoadedPackage {
+    name: String,
+    version: String,
+    root_path: String,
+    entry_path: String,
+    exports: Array,          // exported symbol names
+}
+
+/// Package loader configuration
+struct PackageLoaderConfig {
+    local_packages_dir: String,   // .ovie/packages/
+    global_packages_dir: String,  // ~/.ovie/packages/
+    project_root: String,         // current project root
+}
+
+/// Create default package loader config
+fn package_loader_config_default(project_root: String) -> PackageLoaderConfig {
+    return PackageLoaderConfig {
+        local_packages_dir: project_root + "/.ovie/packages",
+        global_packages_dir: get_home_dir() + "/.ovie/packages",
+        project_root: project_root,
+    };
+}
+
+/// Search for a package by name across all search paths
+///
+/// Searches in order: path deps → local packages → global packages.
+///
+/// # Parameters
+/// - name: Package name to search for
+/// - version: Required version constraint
+/// - path_override: Explicit path (from path dependency), empty if none
+/// - config: Loader configuration with search paths
+///
+/// # Returns
+/// PackageSearchResult with found flag and paths
+fn search_package(name: String, version: String, path_override: String, config: PackageLoaderConfig) -> PackageSearchResult {
+    // 1. Path dependency — use explicit path
+    if string_length(path_override) > 0 {
+        mut entry = path_override + "/mod.ov";
+        if file_exists(entry) {
+            return PackageSearchResult {
+                found: true,
+                package_path: path_override,
+                entry_path: entry,
+                error: "",
+            };
+        }
+        // Try direct .ov file
+        if file_exists(path_override) {
+            return PackageSearchResult {
+                found: true,
+                package_path: path_override,
+                entry_path: path_override,
+                error: "",
+            };
+        }
+        return PackageSearchResult {
+            found: false,
+            package_path: "",
+            entry_path: "",
+            error: "Path dependency not found: " + path_override,
+        };
+    }
+
+    // 2. Local packages directory
+    mut local_path = config.local_packages_dir + "/" + name;
+    mut local_entry = local_path + "/mod.ov";
+    if file_exists(local_entry) {
+        return PackageSearchResult {
+            found: true,
+            package_path: local_path,
+            entry_path: local_entry,
+            error: "",
+        };
+    }
+
+    // 3. Global packages directory
+    mut global_path = config.global_packages_dir + "/" + name;
+    mut global_entry = global_path + "/mod.ov";
+    if file_exists(global_entry) {
+        return PackageSearchResult {
+            found: true,
+            package_path: global_path,
+            entry_path: global_entry,
+            error: "",
+        };
+    }
+
+    // Not found — build helpful error message
+    mut searched = config.local_packages_dir + "/" + name + ", " + config.global_packages_dir + "/" + name;
+    return PackageSearchResult {
+        found: false,
+        package_path: "",
+        entry_path: "",
+        error: "Package '" + name + "' not found. Searched: " + searched,
+    };
+}
+
+/// Load a package from its entry point path
+///
+/// Reads the package's mod.ov, parses its exports, and returns a LoadedPackage.
+///
+/// # Parameters
+/// - name: Package name
+/// - search_result: Result from search_package()
+///
+/// # Returns
+/// LoadedPackage with exports populated
+fn load_package(name: String, search_result: PackageSearchResult) -> LoadedPackage {
+    if !search_result.found {
+        return LoadedPackage {
+            name: name,
+            version: "unknown",
+            root_path: "",
+            entry_path: "",
+            exports: [],
+        };
+    }
+
+    // Read the entry file to extract exported symbols
+    mut content = read_file(search_result.entry_path);
+    mut exports = extract_exports_from_source(content);
+
+    // Try to read version from ovie.toml in package root
+    mut version = "unknown";
+    mut toml_path = search_result.package_path + "/ovie.toml";
+    if file_exists(toml_path) {
+        mut toml_content = read_file(toml_path);
+        version = extract_version_from_toml(toml_content);
+    }
+
+    return LoadedPackage {
+        name: name,
+        version: version,
+        root_path: search_result.package_path,
+        entry_path: search_result.entry_path,
+        exports: exports,
+    };
+}
+
+/// Extract exported symbol names from Ovie source code
+///
+/// Scans source for `export fn`, `export struct`, `export enum`, `export const`
+///
+/// # Parameters
+/// - source: Source code string
+///
+/// # Returns
+/// Array of exported symbol name strings
+fn extract_exports_from_source(source: String) -> Array {
+    mut exports = [];
+    mut lines = string_split_lines(source);
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        i = i + 1;
+
+        if string_starts_with(line, "export fn ") {
+            mut name = extract_symbol_name(line, "export fn ");
+            if string_length(name) > 0 {
+                exports = array_push(exports, name);
+            }
+        }
+        if string_starts_with(line, "export struct ") {
+            mut name = extract_symbol_name(line, "export struct ");
+            if string_length(name) > 0 {
+                exports = array_push(exports, name);
+            }
+        }
+        if string_starts_with(line, "export enum ") {
+            mut name = extract_symbol_name(line, "export enum ");
+            if string_length(name) > 0 {
+                exports = array_push(exports, name);
+            }
+        }
+        if string_starts_with(line, "export const ") {
+            mut name = extract_symbol_name(line, "export const ");
+            if string_length(name) > 0 {
+                exports = array_push(exports, name);
+            }
+        }
+    }
+
+    return exports;
+}
+
+/// Extract symbol name after a keyword prefix
+fn extract_symbol_name(line: String, prefix: String) -> String {
+    mut rest = string_substring(line, string_length(prefix), string_length(line));
+    // Take until first space, (, or {
+    mut name = "";
+    mut i = 0;
+    while i < string_length(rest) {
+        mut ch = string_char_at(rest, i);
+        if ch == " " || ch == "(" || ch == "{" || ch == "<" {
+            return name;
+        }
+        name = name + ch;
+        i = i + 1;
+    }
+    return name;
+}
+
+/// Extract version string from ovie.toml content
+fn extract_version_from_toml(content: String) -> String {
+    mut lines = string_split_lines(content);
+    mut i = 0;
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        i = i + 1;
+        if string_starts_with(line, "version") && string_contains(line, "=") {
+            mut eq = string_find(line, "=");
+            mut val = string_trim(string_substring(line, eq + 1, string_length(line)));
+            if string_starts_with(val, "\"") && string_ends_with(val, "\"") {
+                return string_substring(val, 1, string_length(val) - 1);
+            }
+            return val;
+        }
+    }
+    return "unknown";
+}
+
+/// Load all packages listed in a manifest's dependencies
+///
+/// # Parameters
+/// - manifest: Parsed manifest with dependencies
+/// - config: Package loader configuration
+///
+/// # Returns
+/// Array of LoadedPackage (successfully loaded packages)
+fn load_all_packages(manifest: Manifest, config: PackageLoaderConfig) -> Array {
+    mut loaded = [];
+    mut i = 0;
+
+    while i < array_length(manifest.dependencies) {
+        mut dep = array_get(manifest.dependencies, i);
+        mut result = search_package(dep.name, dep.version, dep.path, config);
+
+        if result.found {
+            mut pkg = load_package(dep.name, result);
+            loaded = array_push(loaded, pkg);
+        } else {
+            seeAm "Warning: " + result.error;
+        }
+
+        i = i + 1;
+    }
+
+    return loaded;
+}

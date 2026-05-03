@@ -241,6 +241,23 @@ impl PerformanceAnalyzer {
             Expression::ArrayLiteral { elements } => {
                 elements.iter().map(|e| self.count_expression_operations(e)).sum()
             }
+            Expression::Match { value, arms } => {
+                let mut count = self.count_expression_operations(value);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        count += self.count_expression_operations(guard);
+                    }
+                }
+                count
+            }
+            Expression::MethodCall { object, arguments, .. } => {
+                1 + self.count_expression_operations(object) + 
+                    arguments.iter().map(|arg| self.count_expression_operations(arg)).sum::<usize>()
+            }
+            Expression::Try { expression } => {
+                1 + self.count_expression_operations(expression)
+            }
+            Expression::Null => 0,
             Expression::Identifier(_) | Expression::Literal(_) => 0,
         }
     }

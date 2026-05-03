@@ -4,6 +4,13 @@
 
 use core::{Result, Option, ok, err, some, none};
 
+// ===== EXPORTS =====
+export Instant, SystemTime, Duration, Date, Time, DateTime;
+export Weekday, Month;
+export sleep, sleep_millis, sleep_seconds, measure_time;
+export is_valid_date, unix_timestamp_to_datetime, date_time_to_unix_timestamp;
+export calculate_days_between, pad_number;
+
 // ===== TIME TYPES =====
 
 // Instant represents a point in time (monotonic clock)

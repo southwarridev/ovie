@@ -75,7 +75,17 @@ impl AstNode {
             Statement::Assignment { value, .. } => {
                 self.validate_expression_invariants(value)?;
             }
+            Statement::CompoundAssignment { value, .. } => {
+                self.validate_expression_invariants(value)?;
+            }
+            Statement::FieldMutation { object, value, .. } => {
+                self.validate_expression_invariants(object)?;
+                self.validate_expression_invariants(value)?;
+            }
             Statement::VariableDeclaration { value, .. } => {
+                self.validate_expression_invariants(value)?;
+            }
+            Statement::ConstDeclaration { value, .. } => {
                 self.validate_expression_invariants(value)?;
             }
             Statement::Function { body, .. } => {
@@ -119,14 +129,22 @@ impl AstNode {
                     self.validate_expression_invariants(expr)?;
                 }
             }
+            Statement::Break | Statement::Continue => {}
             Statement::Expression { expression } => {
                 self.validate_expression_invariants(expression)?;
             }
-            Statement::Struct { .. } => {
-                // Struct definitions are valid at AST level
+            Statement::Struct { .. } => {}
+            Statement::Enum { .. } => {}
+            Statement::Use { .. } => {}
+            Statement::Import { .. } => {}
+            Statement::Export { statement } => {
+                self.validate_statement_invariants(statement)?;
             }
-            Statement::Enum { .. } => {
-                // Enum definitions are valid at AST level
+            Statement::TypeAlias { .. } => {}
+            Statement::Block { statements } => {
+                for stmt in statements {
+                    self.validate_statement_invariants(stmt)?;
+                }
             }
         }
         Ok(())
@@ -174,11 +192,32 @@ impl AstNode {
                 self.validate_expression_invariants(object)?;
                 self.validate_expression_invariants(index)?;
             }
+            Expression::MethodCall { object, arguments, .. } => {
+                self.validate_expression_invariants(object)?;
+                for arg in arguments {
+                    self.validate_expression_invariants(arg)?;
+                }
+            }
             Expression::ArrayLiteral { elements } => {
                 for element in elements {
                     self.validate_expression_invariants(element)?;
                 }
             }
+            Expression::Match { value, arms } => {
+                self.validate_expression_invariants(value)?;
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.validate_expression_invariants(guard)?;
+                    }
+                    for stmt in &arm.body {
+                        self.validate_statement_invariants(stmt)?;
+                    }
+                }
+            }
+            Expression::Try { expression } => {
+                self.validate_expression_invariants(expression)?;
+            }
+            Expression::Null => {}
         }
         Ok(())
     }
@@ -194,6 +233,20 @@ pub enum Statement {
         value: Expression,
     },
 
+    /// Compound assignment: identifier += expression
+    CompoundAssignment {
+        identifier: String,
+        operator: BinaryOperator,
+        value: Expression,
+    },
+
+    /// Field mutation: object.field = expression
+    FieldMutation {
+        object: Expression,
+        field: String,
+        value: Expression,
+    },
+
     /// Variable declaration: let [mut] identifier = expression
     VariableDeclaration {
         mutable: bool,
@@ -201,17 +254,23 @@ pub enum Statement {
         value: Expression,
     },
 
+    /// Constant declaration: const NAME: Type = expression
+    ConstDeclaration {
+        name: String,
+        value: Expression,
+    },
+
     /// Function definition: fn identifier(params) { body }
     Function {
         name: String,
-        parameters: Vec<String>,
+        parameters: Vec<Parameter>,
         body: Vec<Statement>,
     },
 
     /// Function declaration: fn identifier(params) { body }
     FunctionDeclaration {
         name: String,
-        parameters: Vec<String>,
+        parameters: Vec<Parameter>,
         body: Vec<Statement>,
     },
 
@@ -245,6 +304,12 @@ pub enum Statement {
         value: Option<Expression>,
     },
 
+    /// Break statement
+    Break,
+
+    /// Continue statement
+    Continue,
+
     /// Expression statement: expression;
     Expression {
         expression: Expression,
@@ -260,6 +325,33 @@ pub enum Statement {
     Enum {
         name: String,
         variants: Vec<EnumVariant>,
+    },
+
+    /// Use/import statement: use path::{symbols} or use path as alias
+    Use {
+        path: Vec<String>,
+        items: UseItems,
+    },
+
+    /// Import statement: import "path"
+    Import {
+        path: String,
+    },
+
+    /// Export statement: export fn/struct/enum/const
+    Export {
+        statement: Box<Statement>,
+    },
+
+    /// Type alias: type Name<T> = OtherType<T>
+    TypeAlias {
+        name: String,
+        aliased_type: String,
+    },
+
+    /// Block statement: { statements } — used for unsafe blocks and other groupings
+    Block {
+        statements: Vec<Statement>,
     },
 }
 
@@ -326,6 +418,28 @@ pub enum Expression {
     ArrayLiteral {
         elements: Vec<Expression>,
     },
+
+    /// Match expression: match value { pattern => expr, ... }
+    Match {
+        value: Box<Expression>,
+        arms: Vec<MatchArm>,
+    },
+
+    /// Method call: object.method(args)
+    MethodCall {
+        object: Box<Expression>,
+        method: String,
+        arguments: Vec<Expression>,
+    },
+
+    /// Try/propagate operator: expression?
+    /// Desugars to: match expr { Ok(v) => v, Err(e) => return Err(e) }
+    Try {
+        expression: Box<Expression>,
+    },
+
+    /// Null/nil literal
+    Null,
 }
 
 /// Literal value types
@@ -385,6 +499,65 @@ pub struct EnumVariant {
 pub struct FieldInitializer {
     pub name: String,
     pub value: Expression,
+}
+
+/// Function parameter with optional mutability
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Parameter {
+    pub name: String,
+    pub mutable: bool,
+}
+
+/// A single arm in a match expression
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MatchArm {
+    pub pattern: MatchPattern,
+    pub body: Vec<Statement>,
+    pub guard: Option<Expression>,
+}
+
+/// Pattern in a match arm
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum MatchPattern {
+    /// Wildcard: _
+    Wildcard,
+    /// Literal value
+    Literal(Literal),
+    /// Identifier binding
+    Identifier(String),
+    /// Enum variant: EnumName.Variant or EnumName.Variant(binding)
+    EnumVariant {
+        enum_name: String,
+        variant_name: String,
+        binding: Option<String>,
+    },
+    /// Struct pattern
+    Struct {
+        name: String,
+        fields: Vec<(String, MatchPattern)>,
+    },
+    /// Or pattern: pat1 | pat2
+    Or(Vec<MatchPattern>),
+}
+
+/// Items imported in a use statement
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum UseItems {
+    /// use path::*  (all)
+    All,
+    /// use path as alias
+    Alias(String),
+    /// use path::{a, b, c}
+    Named(Vec<UseItem>),
+    /// use path  (the module itself)
+    Module,
+}
+
+/// A single named import item
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UseItem {
+    pub name: String,
+    pub alias: Option<String>,
 }
 
 impl fmt::Display for BinaryOperator {

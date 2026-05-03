@@ -4,18 +4,174 @@
 # ShedyDev - Internal development files (PROTECTED)
 shedydev/
 
+# OBA - quantum library (private, not for public release)
+oba/
+
 # Kiro development artifacts (should not be deployed)
 .kiro/
+
+# Internal config
+.ovie/
+.vscode/
 
 # Rust build artifacts
 /target/
 **/target/
-Cargo.lock
 *.rlib
 *.so
 *.dylib
 *.dll
-*.exe
+
+# Release builds and distributions
+/releases/
+/dist/
+*.zip
+*.tar.gz
+*.deb
+*.rpm
+*.msi
+*.dmg
+
+# Temporary and cache files
+*.tmp
+*.temp
+*.cache
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and debugging
+*.log
+*.out
+*.err
+debug/
+logs/
+
+# Package management (keep offline)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python artifacts (if any)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+ENV/
+
+# Network and security sensitive files
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets/
+.env
+.env.local
+.env.production
+.env.staging
+
+# Ovie-specific offline-first exclusions
+network-config/
+remote-repos/
+.git-credentials
+.netrc
+
+# Vendor directory
+vendor/
+.ovie/registry/
+.ovie/cache/
+
+# Test artifacts and temporary projects
+test-*/
+demo-*/
+benchmark-results/
+coverage/
+
+# Documentation build artifacts
+docs/_build/
+docs/.doctrees/
+site/
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Lock files (keep local, but track Cargo.lock for reproducible builds)
+*.lock
+!Cargo.lock
+
+# CI/CD artifacts
+.github/secrets/
+.gitlab/secrets/
+ci-secrets/
+
+# Local development overrides
+local-config/
+dev-overrides/
+.local/
+
+# Performance and profiling data
+*.prof
+perf.data*
+flamegraph.svg
+
+# Ovie compiler artifacts
+*.ov.ir
+*.ov.wasm
+*.ov.ll
+output.*
+
+# Temporary root files (moved to shedydev)
+tmp_*.ov
+tmp_*.txt
+e.txt
+fix_regression_detector.txt
+test_bootstrap.ov
+test_parser_features.ov
+PHASE_*.md
+PHASE*.md
+TASK_*.md
+BUILD_STATUS.md
+WEBSITE_V2.3_UPDATE_SUMMARY.md
+MIGRATION_GUIDE_*.md
+RELEASE_NOTES_v2.2.md
+SPEC.md
+check_v23.ps1
+run_tests.ps1
+run_tests.sh
+build-binaries.ps1
+package-release.ps1
+get-ovie.bat
+install_ovie_simple.ps1
+windows-install-helper.bat
+
+# VS Code extension artifacts
+extensions/*/out/
+extensions/*/*.vsix
+extensions/*/node_modules/
+extensions/*/.vscode-test/
+
+# Additional test artifacts
+test_*.exe
+test_*.o
+test_*.rcgu.o
+*.long-type-*.txt
 
 # Release builds and distributions
 /releases/

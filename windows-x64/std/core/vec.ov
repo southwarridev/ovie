@@ -1,0 +1,118 @@
+// Vec<T> type - dynamic array with deterministic behavior
+// Maps to OvieVec<T> in oviec/src/stdlib/core.rs
+
+struct Vec<T> {
+    // Internal implementation managed by Rust runtime
+}
+
+// Vec methods
+fn new<T>() -> Vec<T> {
+    // Create a new empty vector
+    // Implementation: Rust runtime
+}
+
+fn with_capacity<T>(capacity: Number) -> Vec<T> {
+    // Create a vector with initial capacity
+    // Implementation: Rust runtime
+}
+
+fn len<T>(vec: Vec<T>) -> Number {
+    // Get the length of the vector
+    // Implementation: Rust runtime
+}
+
+fn is_empty<T>(vec: Vec<T>) -> Boolean {
+    // Check if the vector is empty
+    // Implementation: Rust runtime
+}
+
+fn capacity<T>(vec: Vec<T>) -> Number {
+    // Get the capacity of the vector
+    // Implementation: Rust runtime
+}
+
+fn push<T>(vec: mut Vec<T>, item: T) {
+    // Push an element to the end
+    // Implementation: Rust runtime
+}
+
+fn pop<T>(vec: mut Vec<T>) -> Option<T> {
+    // Pop an element from the end
+    // Returns Some(item) if successful, None if empty
+    // Implementation: Rust runtime
+}
+
+fn get<T>(vec: Vec<T>, index: Number) -> Option<T> {
+    // Get an element at index
+    // Returns Some(item) if index is valid, None otherwise
+    // Implementation: Rust runtime
+}
+
+fn set<T>(vec: mut Vec<T>, index: Number, item: T) -> Result<(), String> {
+    // Set an element at index
+    // Returns Ok(()) if successful, Err(message) if index out of bounds
+    // Implementation: Rust runtime
+}
+
+fn insert<T>(vec: mut Vec<T>, index: Number, item: T) -> Result<(), String> {
+    // Insert an element at index
+    // Returns Ok(()) if successful, Err(message) if index out of bounds
+    // Implementation: Rust runtime
+}
+
+fn remove<T>(vec: mut Vec<T>, index: Number) -> Result<T, String> {
+    // Remove an element at index
+    // Returns Ok(item) if successful, Err(message) if index out of bounds
+    // Implementation: Rust runtime
+}
+
+fn clear<T>(vec: mut Vec<T>) {
+    // Clear all elements
+    // Implementation: Rust runtime
+}
+
+fn iter<T>(vec: Vec<T>) -> VecIterator<T> {
+    // Get iterator over elements
+    // Implementation: Rust runtime
+}
+
+fn extend<T>(vec: mut Vec<T>, other: Vec<T>) {
+    // Extend vector with elements from another vector
+    // Implementation: Rust runtime
+}
+
+fn append<T>(vec: mut Vec<T>, other: mut Vec<T>) {
+    // Append another vector to this one (moves elements)
+    // Implementation: Rust runtime
+}
+
+fn reverse<T>(vec: mut Vec<T>) {
+    // Reverse the vector in place
+    // Implementation: Rust runtime
+}
+
+fn sort<T>(vec: mut Vec<T>) {
+    // Sort the vector in place (requires T to be comparable)
+    // Implementation: Rust runtime
+}
+
+// VecIterator type
+struct VecIterator<T> {
+    // Internal implementation managed by Rust runtime
+}
+
+// VecIterator methods
+fn next<T>(iter: mut VecIterator<T>) -> Option<T> {
+    // Get the next item from the iterator
+    // Implementation: Rust runtime
+}
+
+fn count<T>(iter: VecIterator<T>) -> Number {
+    // Count the remaining items
+    // Implementation: Rust runtime
+}
+
+fn collect<T>(iter: VecIterator<T>) -> Vec<T> {
+    // Collect all items into a new vector
+    // Implementation: Rust runtime
+}

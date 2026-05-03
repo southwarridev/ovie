@@ -40,6 +40,7 @@ enum Command {
     Env,
     Version,
     Help,
+    Tokens,  // New command for bootstrap verification
 }
 
 #[derive(Debug)]
@@ -128,6 +129,7 @@ fn parse_args() -> CliArgs {
             "env" | "--env" => cli_args.command = Command::Env,
             "version" | "--version" | "-V" => cli_args.command = Command::Version,
             "help" | "--help" | "-h" => cli_args.command = Command::Help,
+            "--tokens" => cli_args.command = Command::Tokens,
             "--backend" | "-b" => {
                 i += 1;
                 if i < args.len() {
@@ -202,6 +204,7 @@ fn run_command(args: CliArgs) -> OvieResult<()> {
         Command::SelfCheck => self_check(args),
         Command::Env => show_env(args),
         Command::Version => show_version(),
+        Command::Tokens => dump_tokens(args),
     }
 }
 
@@ -763,13 +766,13 @@ fn analyze_file(args: CliArgs) -> OvieResult<()> {
 }
 
 fn self_check(_args: CliArgs) -> OvieResult<()> {
-    println!("=== Ovie Compiler Self-Check - Stage 2.1 ===");
+    println!("=== Ovie Compiler Self-Check - Stage 2.2 ===");
     println!();
     
     // Version and stage information
     println!("🔍 Compiler Information:");
     println!("  Version: {}", env!("CARGO_PKG_VERSION"));
-    println!("  Stage: 2.1 - Self-Hosted with Formal Invariants");
+    println!("  Stage: 2.2 - Real Self-Hosting in Progress");
     println!("  Build Date: {}", option_env!("VERGEN_BUILD_DATE").unwrap_or("unknown"));
     println!("  Git Hash: {}", option_env!("VERGEN_GIT_SHA").unwrap_or("unknown"));
     println!("  Target: {}", std::env::consts::ARCH);
@@ -957,21 +960,20 @@ fn self_check(_args: CliArgs) -> OvieResult<()> {
     
     println!();
     
-    // Self-hosting verification
-    println!("🏗️  Self-Hosting Status:");
+    // Real self-hosting verification
+    println!("🏗️  Real Self-Hosting Status:");
+    println!("  Ovie lexer written in Ovie... ✅");
     print!("  Bootstrap verification... ");
     
     // Check if we can find the bootstrap verification script
     if Path::new("scripts/bootstrap_verify.sh").exists() || Path::new("scripts/bootstrap_verify.ps1").exists() {
-        println!("✅ AVAILABLE (run scripts/bootstrap_verify.sh for full verification)");
+        println!("✅ AVAILABLE (run scripts/bootstrap_verify.sh for real verification)");
     } else {
         println!("⚠️  SCRIPTS NOT FOUND");
     }
     
-    print!("  Compiler self-compilation... ");
-    // This would require the actual Ovie source files to be available
-    // For now, we'll just check if the concept is supported
-    println!("✅ SUPPORTED (Stage 2.1 - Ovie compiles itself)");
+    print!("  Rust vs Ovie lexer equivalence... ");
+    println!("🚧 IN PROGRESS (use --tokens flag to test)");
     
     println!();
     
@@ -981,9 +983,9 @@ fn self_check(_args: CliArgs) -> OvieResult<()> {
     println!("  ✅ Formal invariants validated at each stage");
     println!("  ✅ Security and privacy protections active");
     println!("  ✅ Analysis engine functional");
-    println!("  ✅ Self-hosting capability confirmed");
+    println!("  🚧 Real self-hosting in progress (lexer stage)");
     println!();
-    println!("Ovie Compiler v{} - Stage 2.1 Self-Check: PASSED ✅", env!("CARGO_PKG_VERSION"));
+    println!("Ovie Compiler v{} - Stage 2.2 Self-Check: PASSED ✅", env!("CARGO_PKG_VERSION"));
     println!("The compiler is ready for production use!");
     
     Ok(())
@@ -1093,8 +1095,8 @@ fn show_env(_args: CliArgs) -> OvieResult<()> {
 }
 
 fn show_version() -> OvieResult<()> {
-    println!("Ovie Compiler (oviec) v{} - Stage 2.1 Self-Hosted", env!("CARGO_PKG_VERSION"));
-    println!("Built with formal compiler invariants and bootstrap verification");
+    println!("Ovie Compiler (oviec) v{} - Stage 2.2", env!("CARGO_PKG_VERSION"));
+    println!("Built with formal compiler invariants and real bootstrap verification");
     println!();
     println!("Build Information:");
     println!("  Version: {}", env!("CARGO_PKG_VERSION"));
@@ -1103,10 +1105,10 @@ fn show_version() -> OvieResult<()> {
     println!("  Target: {}-{}", std::env::consts::ARCH, std::env::consts::OS);
     println!("  Rust Version: {}", option_env!("VERGEN_RUSTC_SEMVER").unwrap_or("unknown"));
     println!();
-    println!("Stage 2.1 Features:");
-    println!("  ✅ Self-hosted compilation (Ovie compiles itself)");
+    println!("Stage 2.2 Features:");
+    println!("  🚧 Real self-hosting in progress (Ovie lexer written in Ovie)");
     println!("  ✅ Formal compiler invariants with validation");
-    println!("  ✅ Bootstrap verification scripts");
+    println!("  ✅ Real bootstrap verification scripts");
     println!("  ✅ Multi-stage IR pipeline (AST → HIR → MIR)");
     println!("  ✅ Multiple backends (Interpreter, WASM, LLVM)");
     println!("  ✅ Aproko analysis engine with explanations");
@@ -1223,6 +1225,7 @@ fn print_help(program_name: &str) {
     println!("    -d, --debug                 Enable debug output");
     println!("    -h, --help                  Show this help message");
     println!("    -V, --version               Show version information");
+    println!("        --tokens                Dump tokens for bootstrap verification");
     println!();
     println!("EXIT CODES:");
     println!("    0    Success");
@@ -1255,7 +1258,35 @@ fn print_help(program_name: &str) {
     println!("    # System information");
     println!("    oviec --self-check                    # Run self-diagnostics");
     println!("    oviec --version                       # Show version");
+    println!("    oviec --tokens file.ov                # Dump tokens for bootstrap verification");
     println!("    oviec env                             # Show environment info");
     println!();
     println!("For more information, visit: https://ovie-lang.org/docs");
+}
+
+/// Dump tokens from source file for bootstrap verification
+fn dump_tokens(args: CliArgs) -> OvieResult<()> {
+    let input_file = args.input_file.ok_or_else(|| {
+        oviec::OvieError::runtime_error("No input file specified for token dump".to_string())
+    })?;
+
+    // Read the source file
+    let source = fs::read_to_string(&input_file)
+        .map_err(|e| oviec::OvieError::runtime_error(format!("Failed to read file '{}': {}", input_file, e)))?;
+
+    // Create lexer and tokenize
+    let mut lexer = oviec::lexer::Lexer::new(&source);
+    let tokens = lexer.tokenize()?;
+
+    // Output tokens in a format suitable for bootstrap verification
+    for token in tokens {
+        println!("{}:{}:{}:{}", 
+            format!("{:?}", token.token_type),
+            token.lexeme,
+            token.location.line,
+            token.location.column
+        );
+    }
+
+    Ok(())
 }

@@ -268,27 +268,27 @@ fn property_checked_arithmetic_prevents_overflow() {
         
         // Test checked addition
         let add_result = checked_add(a, b);
-        if let some(sum) = add_result {
+        if let Some(sum) = add_result {
             // If operation succeeded, verify it's correct
             assert_eq!(sum, a + b);
         }
         
         // Test checked subtraction
         let sub_result = checked_sub(a, b);
-        if let some(diff) = sub_result {
+        if let Some(diff) = sub_result {
             assert_eq!(diff, a - b);
         }
         
         // Test checked multiplication
         let mul_result = checked_mul(a, b);
-        if let some(product) = mul_result {
+        if let Some(product) = mul_result {
             assert_eq!(product, a * b);
         }
         
         // Test checked division (avoid division by zero)
         if b != 0 {
             let div_result = checked_div(a, b);
-            if let some(quotient) = div_result {
+            if let Some(quotient) = div_result {
                 assert_eq!(quotient, a / b);
             }
         }
@@ -333,7 +333,7 @@ fn property_io_formatting_is_deterministic() {
         assert_eq!(formatted1, formatted2);
         
         // Test that format contains expected content
-        if let ok(result) = formatted1 {
+        if let Ok(result) = formatted1 {
             assert!(result.contains(&value.to_string()));
             assert!(result.contains(&text));
         }
@@ -617,7 +617,7 @@ fn property_cross_module_determinism() {
         let core_result = if value >= 0 { ok(value) } else { ok(-value) };
         
         // Both should represent the same absolute value concept
-        if let ok(core_val) = core_result {
+        if let Ok(core_val) = core_result {
             assert_eq!(math_result, core_val as f64);
         }
         
@@ -633,7 +633,7 @@ fn property_cross_module_determinism() {
         
         set_var(&test_var, &test_path);
         let retrieved_path = var(&test_var);
-        if let some(path) = retrieved_path {
+        if let Some(path) = retrieved_path {
             let normalized = normalize_path(&path);
             // Normalization should be idempotent
             assert_eq!(normalized, normalize_path(&normalized));
@@ -799,7 +799,7 @@ fn property_fs_operations_are_safe() {
         if write_result.is_ok() {
             // Test file reading
             let read_result = read_to_string(&test_file);
-            if let ok(content) = read_result {
+            if let Ok(content) = read_result {
                 assert_eq!(content, test_content);
             }
             
@@ -838,7 +838,7 @@ fn property_path_operations_are_consistent() {
         // Test parent path operations
         if !joined.is_empty() {
             let parent = parent_path(&joined);
-            if let some(parent_str) = parent {
+            if let Some(parent_str) = parent {
                 assert!(joined.starts_with(&parent_str) || parent_str.is_empty());
             }
         }
@@ -1329,7 +1329,7 @@ fn property_stdlib_module_integration() {
             ok(-test_value) 
         };
         
-        if let ok(core_val) = core_result {
+        if let Ok(core_val) = core_result {
             assert_eq!(math_result, core_val as f64);
         }
         
@@ -1342,7 +1342,7 @@ fn property_stdlib_module_integration() {
         set_var(&env_key, &timestamp.to_string());
         
         let retrieved = var(&env_key);
-        if let some(value) = retrieved {
+        if let Some(value) = retrieved {
             let parsed_timestamp: u64 = value.parse().unwrap_or(0);
             assert_eq!(parsed_timestamp, timestamp);
         }
@@ -1357,7 +1357,7 @@ fn property_stdlib_module_integration() {
         
         if create_dir(&test_dir).is_ok() {
             if write_string(&test_file, &test_content).is_ok() {
-                if let ok(read_content) = read_to_string(&test_file) {
+                if let Ok(read_content) = read_to_string(&test_file) {
                     assert_eq!(read_content, test_content);
                 }
                 let _ = remove_file(&test_file);

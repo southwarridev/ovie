@@ -1,0 +1,425 @@
+// Ovie Lexer Implementation - Real Self-Hosting
+// This lexer is written in Ovie and can tokenize Ovie source code
+
+// Token types that the lexer can produce
+export enum TokenType {
+    // Keywords
+    Fn,
+    Mut,
+    Let,
+    If,
+    Else,
+    For,
+    While,
+    Struct,
+    Enum,
+    Unsafe,
+    Return,
+    True,
+    False,
+    SeeAm,
+    Export,
+    In,
+    
+    // Literals and identifiers
+    Identifier(String),
+    StringLiteral(String),
+    IntegerLiteral(String),
+    FloatLiteral(String),
+    
+    // Operators
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    EqualEqual,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    AndAnd,
+    OrOr,
+    Bang,
+    Equal,
+    
+    // Delimiters
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
+    Comma,
+    Semicolon,
+    Colon,
+    Dot,
+    DotDot,
+    
+    // Special
+    Eof,
+    Error(String),
+}
+
+// A token with its type, value, and location
+export struct Token {
+    token_type: TokenType,
+    lexeme: String,
+    line: Number,
+    column: Number,
+}
+
+// The main lexer struct
+struct Lexer {
+    source: String,
+    current: Number,
+    line: Number,
+    column: Number,
+    start: Number,
+}
+
+// Create a new lexer
+fn new_lexer(source: String) -> Lexer {
+    return Lexer {
+        source: source,
+        current: 0,
+        line: 1,
+        column: 1,
+        start: 0,
+    };
+}
+
+// Check if we're at the end of the source
+fn is_at_end(lexer: Lexer) -> Boolean {
+    return lexer.current >= string_length(lexer.source);
+}
+
+// Get the current character
+fn peek(lexer: Lexer) -> String {
+    if is_at_end(lexer) {
+        return "\0";
+    }
+    return string_char_at(lexer.source, lexer.current);
+}
+
+// Get the next character
+fn peek_next(lexer: Lexer) -> String {
+    if lexer.current + 1 >= string_length(lexer.source) {
+        return "\0";
+    }
+    return string_char_at(lexer.source, lexer.current + 1);
+}
+
+// Advance to the next character
+fn advance(mut lexer: Lexer) -> String {
+    if is_at_end(lexer) {
+        return "\0";
+    }
+    
+    let ch = string_char_at(lexer.source, lexer.current);
+    lexer.current = lexer.current + 1;
+    
+    if ch == "\n" {
+        lexer.line = lexer.line + 1;
+        lexer.column = 1;
+    } else {
+        lexer.column = lexer.column + 1;
+    }
+    
+    return ch;
+}
+
+// Check if current character matches expected
+fn match_char(mut lexer: Lexer, expected: String) -> Boolean {
+    if is_at_end(lexer) {
+        return false;
+    }
+    if string_char_at(lexer.source, lexer.current) != expected {
+        return false;
+    }
+    
+    lexer.current = lexer.current + 1;
+    lexer.column = lexer.column + 1;
+    return true;
+}
+
+// Skip whitespace
+fn skip_whitespace(mut lexer: Lexer) {
+    while true {
+        let ch = peek(lexer);
+        if ch == " " || ch == "\r" || ch == "\t" {
+            advance(lexer);
+        } else if ch == "\n" {
+            advance(lexer);
+        } else if ch == "/" && peek_next(lexer) == "/" {
+            // Skip line comment
+            while peek(lexer) != "\n" && !is_at_end(lexer) {
+                advance(lexer);
+            }
+        } else {
+            return;
+        }
+    }
+}
+
+// Check if character is a digit
+fn is_digit(ch: String) -> Boolean {
+    return ch >= "0" && ch <= "9";
+}
+
+// Check if character is alphabetic
+fn is_alpha(ch: String) -> Boolean {
+    return (ch >= "a" && ch <= "z") || 
+           (ch >= "A" && ch <= "Z") || 
+           ch == "_";
+}
+
+// Check if character is alphanumeric
+fn is_alphanumeric(ch: String) -> Boolean {
+    return is_alpha(ch) || is_digit(ch);
+}
+
+// Get current lexeme
+fn current_lexeme(lexer: Lexer) -> String {
+    return string_substring(lexer.source, lexer.start, lexer.current);
+}
+
+// Create a token
+fn make_token(lexer: Lexer, token_type: TokenType) -> Token {
+    return Token {
+        token_type: token_type,
+        lexeme: current_lexeme(lexer),
+        line: lexer.line,
+        column: lexer.column,
+    };
+}
+
+// Create an error token
+fn error_token(lexer: Lexer, message: String) -> Token {
+    return Token {
+        token_type: TokenType.Error(message),
+        lexeme: current_lexeme(lexer),
+        line: lexer.line,
+        column: lexer.column,
+    };
+}
+
+// Scan a string literal
+fn scan_string(mut lexer: Lexer) -> Token {
+    while peek(lexer) != "\"" && !is_at_end(lexer) {
+        if peek(lexer) == "\n" {
+            lexer.line = lexer.line + 1;
+            lexer.column = 1;
+        }
+        advance(lexer);
+    }
+    
+    if is_at_end(lexer) {
+        return error_token(lexer, "Unterminated string");
+    }
+    
+    // Consume closing quote
+    advance(lexer);
+    
+    // Get string value without quotes
+    let value = string_substring(lexer.source, lexer.start + 1, lexer.current - 1);
+    return Token {
+        token_type: TokenType.StringLiteral(value),
+        lexeme: current_lexeme(lexer),
+        line: lexer.line,
+        column: lexer.column,
+    };
+}
+
+// Scan a number literal
+fn scan_number(mut lexer: Lexer) -> Token {
+    while is_digit(peek(lexer)) {
+        advance(lexer);
+    }
+    
+    // Look for decimal point
+    if peek(lexer) == "." && is_digit(peek_next(lexer)) {
+        advance(lexer); // consume '.'
+        while is_digit(peek(lexer)) {
+            advance(lexer);
+        }
+        return make_token(lexer, TokenType.FloatLiteral(current_lexeme(lexer)));
+    }
+    
+    return make_token(lexer, TokenType.IntegerLiteral(current_lexeme(lexer)));
+}
+
+// Check if identifier is a keyword
+fn identifier_type(text: String) -> TokenType {
+    if text == "fn" {
+        return TokenType.Fn;
+    } else if text == "mut" {
+        return TokenType.Mut;
+    } else if text == "let" {
+        return TokenType.Let;
+    } else if text == "if" {
+        return TokenType.If;
+    } else if text == "else" {
+        return TokenType.Else;
+    } else if text == "for" {
+        return TokenType.For;
+    } else if text == "while" {
+        return TokenType.While;
+    } else if text == "struct" {
+        return TokenType.Struct;
+    } else if text == "enum" {
+        return TokenType.Enum;
+    } else if text == "unsafe" {
+        return TokenType.Unsafe;
+    } else if text == "return" {
+        return TokenType.Return;
+    } else if text == "true" {
+        return TokenType.True;
+    } else if text == "false" {
+        return TokenType.False;
+    } else if text == "seeAm" {
+        return TokenType.SeeAm;
+    } else if text == "export" {
+        return TokenType.Export;
+    } else if text == "in" {
+        return TokenType.In;
+    } else {
+        return TokenType.Identifier(text);
+    }
+}
+
+// Scan an identifier
+fn scan_identifier(mut lexer: Lexer) -> Token {
+    while is_alphanumeric(peek(lexer)) {
+        advance(lexer);
+    }
+    
+    let text = current_lexeme(lexer);
+    let token_type = identifier_type(text);
+    return make_token(lexer, token_type);
+}
+
+// Scan the next token
+fn scan_token(mut lexer: Lexer) -> Token {
+    skip_whitespace(lexer);
+    
+    lexer.start = lexer.current;
+    
+    if is_at_end(lexer) {
+        return make_token(lexer, TokenType.Eof);
+    }
+    
+    let ch = advance(lexer);
+    
+    if is_alpha(ch) {
+        return scan_identifier(lexer);
+    }
+    
+    if is_digit(ch) {
+        return scan_number(lexer);
+    }
+    
+    if ch == "(" {
+        return make_token(lexer, TokenType.LeftParen);
+    } else if ch == ")" {
+        return make_token(lexer, TokenType.RightParen);
+    } else if ch == "{" {
+        return make_token(lexer, TokenType.LeftBrace);
+    } else if ch == "}" {
+        return make_token(lexer, TokenType.RightBrace);
+    } else if ch == "[" {
+        return make_token(lexer, TokenType.LeftBracket);
+    } else if ch == "]" {
+        return make_token(lexer, TokenType.RightBracket);
+    } else if ch == "," {
+        return make_token(lexer, TokenType.Comma);
+    } else if ch == ";" {
+        return make_token(lexer, TokenType.Semicolon);
+    } else if ch == ":" {
+        return make_token(lexer, TokenType.Colon);
+    } else if ch == "." {
+        if match_char(lexer, ".") {
+            return make_token(lexer, TokenType.DotDot);
+        } else {
+            return make_token(lexer, TokenType.Dot);
+        }
+    } else if ch == "+" {
+        return make_token(lexer, TokenType.Plus);
+    } else if ch == "-" {
+        return make_token(lexer, TokenType.Minus);
+    } else if ch == "*" {
+        return make_token(lexer, TokenType.Star);
+    } else if ch == "/" {
+        return make_token(lexer, TokenType.Slash);
+    } else if ch == "%" {
+        return make_token(lexer, TokenType.Percent);
+    } else if ch == "!" {
+        if match_char(lexer, "=") {
+            return make_token(lexer, TokenType.NotEqual);
+        } else {
+            return make_token(lexer, TokenType.Bang);
+        }
+    } else if ch == "=" {
+        if match_char(lexer, "=") {
+            return make_token(lexer, TokenType.EqualEqual);
+        } else {
+            return make_token(lexer, TokenType.Equal);
+        }
+    } else if ch == "<" {
+        if match_char(lexer, "=") {
+            return make_token(lexer, TokenType.LessEqual);
+        } else {
+            return make_token(lexer, TokenType.Less);
+        }
+    } else if ch == ">" {
+        if match_char(lexer, "=") {
+            return make_token(lexer, TokenType.GreaterEqual);
+        } else {
+            return make_token(lexer, TokenType.Greater);
+        }
+    } else if ch == "&" {
+        if match_char(lexer, "&") {
+            return make_token(lexer, TokenType.AndAnd);
+        } else {
+            return error_token(lexer, "Unexpected character");
+        }
+    } else if ch == "|" {
+        if match_char(lexer, "|") {
+            return make_token(lexer, TokenType.OrOr);
+        } else {
+            return error_token(lexer, "Unexpected character");
+        }
+    } else if ch == "\"" {
+        return scan_string(lexer);
+    } else {
+        return error_token(lexer, "Unexpected character");
+    }
+}
+
+// Tokenize entire source code
+export fn tokenize(source: String) -> [Token] {
+    mut lexer = new_lexer(source);
+    mut tokens = [];
+    
+    while true {
+        let token = scan_token(lexer);
+        array_push(tokens, token);
+        
+        if token.token_type == TokenType.Eof {
+            return tokens;
+        }
+        
+        // Check for error tokens
+        if token.token_type == TokenType.Error(_) {
+            return tokens;
+        }
+    }
+    
+    return tokens;
+}
+
+// Main tokenize function - entry point for the lexer
+fn ovie_tokenize(source: String) -> [Token] {
+    return tokenize(source);
+}

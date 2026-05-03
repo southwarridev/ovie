@@ -5,6 +5,12 @@
 use core::{Result, Option, Vec, HashMap, ok, err, some, none};
 use io::{print, println, eprint, eprintln, read_line};
 
+// ===== EXPORTS =====
+export App, Command, Flag, Args, CommandContext, CliError;
+export Argument, ProgressBar;
+export prompt, confirm, select;
+export cli_error_to_string;
+
 // ===== CLI TYPES =====
 
 // Command-line application

@@ -1,0 +1,216 @@
+/// Namespace Management
+///
+/// Maintains separate namespaces for each module, handles symbol
+/// qualification, aliasing, and prevents namespace pollution.
+///
+/// # Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
+
+/// A namespace entry mapping a local name to a qualified name
+struct NamespaceEntry {
+    local_name: String,        // Name used in this module
+    qualified_name: String,    // Full "module::symbol" name
+    source_module: String,     // Module that exported this symbol
+    is_alias: Boolean,         // True if imported with 'as' alias
+}
+
+/// A module's namespace — tracks all symbols in scope
+struct Namespace {
+    module_name: String,
+    entries: Array,            // Array of NamespaceEntry
+    explicit_qualifications: Array,  // Symbols requiring module:: prefix
+}
+
+/// Create a new empty namespace for a module
+///
+/// # Parameters
+/// - module_name: Name of the module this namespace belongs to
+///
+/// # Returns
+/// Empty Namespace
+export fn namespace_new(module_name: String) -> Namespace {
+    return Namespace {
+        module_name: module_name,
+        entries: [],
+        explicit_qualifications: [],
+    };
+}
+
+/// Add an imported symbol to a namespace
+///
+/// # Parameters
+/// - ns: Namespace to add to
+/// - local_name: Name to use locally (may be alias)
+/// - qualified_name: Full module::symbol name
+/// - source_module: Module that exports this symbol
+/// - is_alias: Whether this was imported with 'as'
+///
+/// # Returns
+/// Updated namespace, or error string if collision detected
+export fn namespace_add(ns: Namespace, local_name: String, qualified_name: String, source_module: String, is_alias: Boolean) -> Namespace {
+    // Check for collision with existing entry
+    mut i = 0;
+    while i < array_length(ns.entries) {
+        mut entry = array_get(ns.entries, i);
+        if entry.local_name == local_name && entry.source_module != source_module {
+            // Collision — mark both as requiring explicit qualification
+            ns.explicit_qualifications = array_push(ns.explicit_qualifications, local_name);
+        }
+        i = i + 1;
+    }
+
+    mut new_entry = NamespaceEntry {
+        local_name: local_name,
+        qualified_name: qualified_name,
+        source_module: source_module,
+        is_alias: is_alias,
+    };
+    ns.entries = array_push(ns.entries, new_entry);
+    return ns;
+}
+
+/// Resolve a symbol name in a namespace
+///
+/// Returns the qualified name if found, or empty string if not in scope.
+/// If the symbol requires explicit qualification, returns a hint.
+///
+/// # Parameters
+/// - ns: Namespace to search
+/// - name: Symbol name to resolve (may be "module::symbol" or just "symbol")
+///
+/// # Returns
+/// Qualified name string, or empty if not found
+export fn namespace_resolve(ns: Namespace, name: String) -> String {
+    // Check if already qualified
+    if string_contains(name, "::") {
+        return name;
+    }
+
+    // Check if requires explicit qualification
+    mut i = 0;
+    while i < array_length(ns.explicit_qualifications) {
+        if array_get(ns.explicit_qualifications, i) == name {
+            return "AMBIGUOUS:" + name;
+        }
+        i = i + 1;
+    }
+
+    // Look up in entries
+    mut j = 0;
+    while j < array_length(ns.entries) {
+        mut entry = array_get(ns.entries, j);
+        if entry.local_name == name {
+            return entry.qualified_name;
+        }
+        j = j + 1;
+    }
+
+    return "";
+}
+
+/// Check if a symbol name has a collision requiring explicit qualification
+///
+/// # Parameters
+/// - ns: Namespace to check
+/// - name: Symbol name to check
+///
+/// # Returns
+/// true if the name is ambiguous and requires module:: prefix
+export fn namespace_is_ambiguous(ns: Namespace, name: String) -> Boolean {
+    mut i = 0;
+    while i < array_length(ns.explicit_qualifications) {
+        if array_get(ns.explicit_qualifications, i) == name {
+            return true;
+        }
+        i = i + 1;
+    }
+    return false;
+}
+
+/// Get all symbols from a specific source module in this namespace
+///
+/// # Parameters
+/// - ns: Namespace to search
+/// - source_module: Module name to filter by
+///
+/// # Returns
+/// Array of local names imported from that module
+export fn namespace_get_from_module(ns: Namespace, source_module: String) -> Array {
+    mut result = [];
+    mut i = 0;
+    while i < array_length(ns.entries) {
+        mut entry = array_get(ns.entries, i);
+        if entry.source_module == source_module {
+            result = array_push(result, entry.local_name);
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+/// Build a namespace from a module's import statements
+///
+/// Parses all use/import statements and builds the namespace accordingly.
+///
+/// # Parameters
+/// - source: Module source code
+/// - module_name: Name of the module
+/// - graph: Dependency graph for resolving module paths
+///
+/// # Returns
+/// Populated Namespace
+export fn build_namespace_from_source(source: String, module_name: String, graph: DependencyGraph) -> Namespace {
+    mut ns = namespace_new(module_name);
+    mut lines = string_split_lines(source);
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        i = i + 1;
+
+        if string_starts_with(line, "use ") {
+            // Parse: use module_path::{sym1, sym2} or use module_path as alias
+            mut rest = string_substring(line, 4, string_length(line));
+            // Remove trailing semicolon
+            if string_ends_with(rest, ";") {
+                rest = string_substring(rest, 0, string_length(rest) - 1);
+            }
+
+            // Check for alias: use X as Y
+            mut as_pos = string_find(rest, " as ");
+            if as_pos > 0 {
+                mut mod_path = string_trim(string_substring(rest, 0, as_pos));
+                mut alias = string_trim(string_substring(rest, as_pos + 4, string_length(rest)));
+                ns = namespace_add(ns, alias, mod_path + "::" + alias, mod_path, true);
+                continue;
+            }
+
+            // Check for selective: use X::{a, b}
+            mut brace_open = string_find(rest, "{");
+            mut brace_close = string_find(rest, "}");
+            if brace_open > 0 && brace_close > brace_open {
+                mut mod_path = string_trim(string_substring(rest, 0, brace_open - 2)); // remove ::
+                mut symbols_str = string_substring(rest, brace_open + 1, brace_close);
+                mut symbols = string_split(symbols_str, ",");
+                mut si = 0;
+                while si < array_length(symbols) {
+                    mut sym = string_trim(array_get(symbols, si));
+                    if string_length(sym) > 0 {
+                        ns = namespace_add(ns, sym, mod_path + "::" + sym, mod_path, false);
+                    }
+                    si = si + 1;
+                }
+                continue;
+            }
+
+            // Plain: use module_path — import module name as namespace
+            mut last_sep = string_rfind(rest, "::");
+            mut local_name = rest;
+            if last_sep >= 0 {
+                local_name = string_substring(rest, last_sep + 2, string_length(rest));
+            }
+            ns = namespace_add(ns, local_name, rest, rest, false);
+        }
+    }
+
+    return ns;
+}

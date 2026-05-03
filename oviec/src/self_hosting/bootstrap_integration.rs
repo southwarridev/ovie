@@ -9,7 +9,7 @@ use crate::parser::{Parser as RustParser};
 use crate::ast::AstNode;
 use crate::ir::{Program as IR, IrBuilder};
 use crate::interpreter::IrInterpreter;
-use crate::self_hosting::{BootstrapVerifier, BootstrapConfig, BootstrapVerificationResult};
+use crate::self_hosting::{RealBootstrapVerifier, RealBootstrapConfig, RealBootstrapResult};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Sha256, Digest};
@@ -53,7 +53,7 @@ impl IntegrationMode {
 /// Bootstrap integration manager
 pub struct BootstrapIntegration {
     current_mode: IntegrationMode,
-    verifier: Option<BootstrapVerifier>,
+    verifier: Option<RealBootstrapVerifier>,
     ovie_lexer_ir: Option<IR>,
     ovie_parser_ir: Option<IR>,
     ovie_compiler_ir: Option<IR>,
@@ -65,7 +65,7 @@ pub struct BootstrapIntegration {
 pub struct IntegrationVerificationResult {
     pub mode: String,
     pub timestamp: u64,
-    pub verification_results: Vec<BootstrapVerificationResult>,
+    pub verification_results: Vec<RealBootstrapResult>,
     pub overall_success: bool,
     pub performance_impact: f64,
     pub error_count: usize,
@@ -86,58 +86,55 @@ impl BootstrapIntegration {
     }
 
     /// Initialize the integration system with Ovie components
-    pub fn initialize(&mut self, config: BootstrapConfig) -> OvieResult<()> {
+    pub fn initialize(&mut self, config: RealBootstrapConfig) -> OvieResult<()> {
         // Initialize bootstrap verifier
-        let mut verifier = BootstrapVerifier::new(config);
+        let mut verifier = RealBootstrapVerifier::new(config);
         
-        // Load Ovie lexer implementation
-        let lexer_source = include_str!("lexer_spec.ov");
-        
-        // Load Ovie parser implementation
-        let parser_source = include_str!("parser_spec.ov");
-        
-        // Load Ovie minimal compiler implementation
-        let compiler_source = include_str!("minimal_compiler.ov");
+        // Note: We use the real Ovie lexer from std/lexer/mod.ov
+        // These placeholder includes are not needed for the current implementation
+        // let lexer_source = include_str!("lexer_spec.ov");
+        // let parser_source = include_str!("parser_spec.ov");
+        // let compiler_source = include_str!("minimal_compiler.ov");
         
         // For now, we'll compile these specs using the Rust compiler
         // In a real implementation, this would be a proper Ovie program
-        let mut compiler = crate::Compiler::new_deterministic();
+        // let mut compiler = crate::Compiler::new_deterministic();
         
         // Try to compile the lexer spec
-        match compiler.compile_to_ir(lexer_source) {
-            Ok(ir) => {
-                self.ovie_lexer_ir = Some(ir);
-                println!("✅ Ovie lexer IR compiled successfully");
-            }
-            Err(e) => {
-                println!("⚠️  Ovie lexer compilation failed (expected for now): {}", e);
-                // Continue with setup for future implementation
-            }
-        }
+        // match compiler.compile_to_ir(lexer_source) {
+        //     Ok(ir) => {
+        //         self.ovie_lexer_ir = Some(ir);
+        //         println!("✅ Ovie lexer IR compiled successfully");
+        //     }
+        //     Err(e) => {
+        //         println!("⚠️  Ovie lexer compilation failed (expected for now): {}", e);
+        //         // Continue with setup for future implementation
+        //     }
+        // }
         
         // Try to compile the parser spec
-        match compiler.compile_to_ir(parser_source) {
-            Ok(ir) => {
-                self.ovie_parser_ir = Some(ir);
-                println!("✅ Ovie parser IR compiled successfully");
-            }
-            Err(e) => {
-                println!("⚠️  Ovie parser compilation failed (expected for now): {}", e);
-                // Continue with setup for future implementation
-            }
-        }
+        // match compiler.compile_to_ir(parser_source) {
+        //     Ok(ir) => {
+        //         self.ovie_parser_ir = Some(ir);
+        //         println!("✅ Ovie parser IR compiled successfully");
+        //     }
+        //     Err(e) => {
+        //         println!("⚠️  Ovie parser compilation failed (expected for now): {}", e);
+        //         // Continue with setup for future implementation
+        //     }
+        // }
         
         // Try to compile the minimal compiler
-        match compiler.compile_to_ir(compiler_source) {
-            Ok(ir) => {
-                self.ovie_compiler_ir = Some(ir);
-                println!("✅ Ovie minimal compiler IR compiled successfully");
-            }
-            Err(e) => {
-                println!("⚠️  Ovie minimal compiler compilation failed (expected for now): {}", e);
-                // Continue with setup for future implementation
-            }
-        }
+        // match compiler.compile_to_ir(compiler_source) {
+        //     Ok(ir) => {
+        //         self.ovie_compiler_ir = Some(ir);
+        //         println!("✅ Ovie minimal compiler IR compiled successfully");
+        //     }
+        //     Err(e) => {
+        //         println!("⚠️  Ovie minimal compiler compilation failed (expected for now): {}", e);
+        //         // Continue with setup for future implementation
+        //     }
+        // }
         
         // Initialize verifier with mock data for now
         self.verifier = Some(verifier);
@@ -235,7 +232,7 @@ impl BootstrapIntegration {
     }
 
     /// Verify Rust-only compilation (baseline)
-    fn verify_rust_only(&self, test_cases: &[&str]) -> OvieResult<Vec<BootstrapVerificationResult>> {
+    fn verify_rust_only(&self, test_cases: &[&str]) -> OvieResult<Vec<RealBootstrapResult>> {
         let mut results = Vec::new();
 
         for test_case in test_cases {
@@ -246,12 +243,10 @@ impl BootstrapIntegration {
             let elapsed = start.elapsed().as_micros() as u64;
 
             let result = match compilation_result {
-                Ok(_) => BootstrapVerificationResult {
+                Ok(_) => RealBootstrapResult {
                     passed: true,
-                    hash_match: true,
                     tokens_match: true,
                     performance_acceptable: true,
-                    reproducible: true,
                     rust_time_us: elapsed,
                     ovie_time_us: elapsed, // Same for Rust-only
                     performance_ratio: 1.0,
@@ -259,17 +254,14 @@ impl BootstrapIntegration {
                     source_hash: self.compute_source_hash(test_case),
                     rust_tokens_hash: "rust_baseline".to_string(),
                     ovie_tokens_hash: "rust_baseline".to_string(),
-                    reproducibility_hashes: Vec::new(),
                     errors: Vec::new(),
                     timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
-                    environment_hash: String::new(),
+                    test_case_id: "rust_only".to_string(),
                 },
-                Err(e) => BootstrapVerificationResult {
+                Err(e) => RealBootstrapResult {
                     passed: false,
-                    hash_match: false,
                     tokens_match: false,
                     performance_acceptable: false,
-                    reproducible: false,
                     rust_time_us: elapsed,
                     ovie_time_us: 0,
                     performance_ratio: 0.0,
@@ -277,10 +269,9 @@ impl BootstrapIntegration {
                     source_hash: self.compute_source_hash(test_case),
                     rust_tokens_hash: "error".to_string(),
                     ovie_tokens_hash: "error".to_string(),
-                    reproducibility_hashes: Vec::new(),
                     errors: vec![format!("Rust compilation failed: {}", e)],
                     timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
-                    environment_hash: String::new(),
+                    test_case_id: "rust_only".to_string(),
                 },
             };
 
@@ -291,27 +282,31 @@ impl BootstrapIntegration {
     }
 
     /// Verify Ovie lexer integration
-    fn verify_ovie_lexer_integration(&self, test_cases: &[&str]) -> OvieResult<Vec<BootstrapVerificationResult>> {
-        if let Some(ref verifier) = self.verifier {
+    fn verify_ovie_lexer_integration(&mut self, test_cases: &[&str]) -> OvieResult<Vec<RealBootstrapResult>> {
+        if let Some(ref mut verifier) = self.verifier {
+            // Convert test_cases to the format expected by run_comprehensive_verification
+            let test_cases_with_ids: Vec<(&str, &str)> = test_cases.iter()
+                .enumerate()
+                .map(|(i, &case)| (case, if i == 0 { "test" } else { "test" }))
+                .collect();
+            
             // Use the existing bootstrap verifier for lexer verification
-            verifier.run_comprehensive_verification(test_cases)
+            verifier.run_comprehensive_verification(&test_cases_with_ids)
         } else {
             Err(OvieError::runtime_error("Bootstrap verifier not initialized".to_string()))
         }
     }
 
     /// Verify Ovie parser integration
-    fn verify_ovie_parser_integration(&self, test_cases: &[&str]) -> OvieResult<Vec<BootstrapVerificationResult>> {
+    fn verify_ovie_parser_integration(&self, test_cases: &[&str]) -> OvieResult<Vec<RealBootstrapResult>> {
         // For now, return mock results since parser integration isn't implemented yet
         let mut results = Vec::new();
 
         for test_case in test_cases {
-            let result = BootstrapVerificationResult {
+            let result = RealBootstrapResult {
                 passed: false, // Not implemented yet
-                hash_match: false,
                 tokens_match: false,
                 performance_acceptable: false,
-                reproducible: false,
                 rust_time_us: 100,
                 ovie_time_us: 0,
                 performance_ratio: 0.0,
@@ -319,10 +314,9 @@ impl BootstrapIntegration {
                 source_hash: self.compute_source_hash(test_case),
                 rust_tokens_hash: "not_implemented".to_string(),
                 ovie_tokens_hash: "not_implemented".to_string(),
-                reproducibility_hashes: Vec::new(),
                 errors: vec!["Ovie parser integration not implemented yet".to_string()],
                 timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
-                environment_hash: String::new(),
+                test_case_id: "parser_integration".to_string(),
             };
 
             results.push(result);
@@ -332,17 +326,15 @@ impl BootstrapIntegration {
     }
 
     /// Verify complete Ovie integration
-    fn verify_complete_ovie_integration(&self, test_cases: &[&str]) -> OvieResult<Vec<BootstrapVerificationResult>> {
+    fn verify_complete_ovie_integration(&self, test_cases: &[&str]) -> OvieResult<Vec<RealBootstrapResult>> {
         // For now, return mock results since complete integration isn't implemented yet
         let mut results = Vec::new();
 
         for test_case in test_cases {
-            let result = BootstrapVerificationResult {
+            let result = RealBootstrapResult {
                 passed: false, // Not implemented yet
-                hash_match: false,
                 tokens_match: false,
                 performance_acceptable: false,
-                reproducible: false,
                 rust_time_us: 100,
                 ovie_time_us: 0,
                 performance_ratio: 0.0,
@@ -350,10 +342,9 @@ impl BootstrapIntegration {
                 source_hash: self.compute_source_hash(test_case),
                 rust_tokens_hash: "not_implemented".to_string(),
                 ovie_tokens_hash: "not_implemented".to_string(),
-                reproducibility_hashes: Vec::new(),
                 errors: vec!["Complete Ovie integration not implemented yet".to_string()],
                 timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs(),
-                environment_hash: String::new(),
+                test_case_id: "complete_ovie".to_string(),
             };
 
             results.push(result);

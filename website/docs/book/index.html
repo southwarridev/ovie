@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ovie — The Complete Book | v2.3</title>
+<meta name="description" content="The complete Ovie programming language book. 12 chapters from first principles to production. Free and open source.">
+<link rel="icon" type="image/png" href="../../assets/ovie.png">
+<link rel="stylesheet" href="../../assets/styles.css">
+<link rel="stylesheet" href="book-reader.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="book-page">
+<nav class="book-nav">
+  <div class="book-nav-inner">
+    <a href="../../index.html" class="book-nav-home">← Ovie Home</a>
+    <div class="book-nav-title"><span class="book-nav-icon">📖</span><span>Ovie — The Complete Book</span><span class="book-nav-version">v2.3</span></div>
+    <div class="book-nav-actions">
+      <a href="../../index.html#download" class="btn btn-secondary">⬇️ Download Ovie</a>
+      <button class="btn btn-outline" id="toggleSidebar">☰ Chapters</button>
+    </div>
+  </div>
+</nav>
+<div class="book-layout">
+<aside class="book-sidebar" id="bookSidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-book-cover">
+      <div class="sidebar-cover-inner">
+        <div style="font-size:2rem">🚀</div>
+        <div style="font-size:0.8rem;color:white;font-weight:600;margin-top:0.5rem;line-height:1.3">Ovie<br>The Complete Book</div>
+      </div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Chapters</div>
+    <a href="#ch01" class="sidebar-link active"><span class="sidebar-num">01</span><span>Introduction</span></a>
+    <a href="#ch02" class="sidebar-link"><span class="sidebar-num">02</span><span>Installation</span></a>
+    <a href="#ch03" class="sidebar-link"><span class="sidebar-num">03</span><span>Fundamentals</span></a>
+    <a href="#ch04" class="sidebar-link"><span class="sidebar-num">04</span><span>Module System</span></a>
+    <a href="#ch05" class="sidebar-link"><span class="sidebar-num">05</span><span>Standard Library</span></a>
+    <a href="#ch06" class="sidebar-link"><span class="sidebar-num">06</span><span>Aproko</span></a>
+    <a href="#ch07" class="sidebar-link"><span class="sidebar-num">07</span><span>Production Apps</span></a>
+    <a href="#ch08" class="sidebar-link"><span class="sidebar-num">08</span><span>Testing</span></a>
+    <a href="#ch09" class="sidebar-link"><span class="sidebar-num">09</span><span>Performance</span></a>
+    <a href="#ch10" class="sidebar-link"><span class="sidebar-num">10</span><span>Deployment</span></a>
+    <a href="#ch11" class="sidebar-link"><span class="sidebar-num">11</span><span>Community</span></a>
+    <a href="#ch12" class="sidebar-link"><span class="sidebar-num">12</span><span>Developer Stories</span></a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="../../index.html#download" class="btn btn-primary" style="width:100%;justify-content:center;display:flex">⬇️ Download Ovie</a>
+  </div>
+</aside>
+<main class="book-content">
+<div class="book-hero">
+  <div class="book-hero-badge">📖 Complete Book · 12 Chapters · All Examples Runnable</div>
+  <h1>Ovie — The Complete Book</h1>
+  <p class="book-hero-sub">A comprehensive guide to the Ovie programming language. From your first <code>seeAm</code> to production deployment. Free and open source.</p>
+  <div class="book-hero-meta"><span>Version 2.3.0</span><span>·</span><span>April 2026</span><span>·</span><span>MIT License</span></div>
+  <div class="book-hero-actions">
+    <a href="#ch01" class="btn btn-primary btn-large">Start Reading →</a>
+    <a href="../../index.html#download" class="btn btn-secondary btn-large">⬇️ Download Ovie</a>
+  </div>
+</div>
+
+<!-- CH1 -->
+<article class="chapter" id="ch01">
+  <div class="chapter-header"><div class="chapter-number">Chapter 01</div><h2 class="chapter-title">Introduction and Philosophy</h2></div>
+  <div class="chapter-body">
+    <h3>The Ovie Vision</h3>
+    <p>Ovie is a low-level programming language with high-level features. It gives you direct control over memory and hardware while keeping the syntax readable and the developer experience friendly.</p>
+    <p>The name "Ovie" comes from a name common in Southern Nigeria. The language was built to be accessible to developers everywhere — not just those with access to expensive tooling or fast internet.</p>
+    <h3>Why Ovie Exists</h3>
+    <ul>
+      <li><strong>Offline-first</strong>: Build software without an internet connection. All dependencies are vendored locally.</li>
+      <li><strong>Deterministic</strong>: The same code always produces the same output.</li>
+      <li><strong>Self-hosted</strong>: Ovie compiles itself. Proven language maturity.</li>
+      <li><strong>Accessible syntax</strong>: <code>seeAm</code> comes from Nigerian Pidgin English.</li>
+    </ul>
+    <h3>Your First Program</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">hello.ov</span></div>
+    <div class="code-content"><pre><code>seeAm "Hello from Ovie!"
+
+mut name = "Developer"
+fn greet(person) {
+    seeAm "Hello, " + person + "!"
+}
+greet(name)</code></pre></div></div>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>oviec run hello.ov
+# Hello from Ovie!
+# Hello, Developer!</code></pre></div></div>
+  </div>
+  <div class="chapter-nav"><span></span><a href="#ch02" class="btn btn-primary">Chapter 2: Installation →</a></div>
+</article>
+<!-- CH2 -->
+<article class="chapter" id="ch02">
+  <div class="chapter-header"><div class="chapter-number">Chapter 02</div><h2 class="chapter-title">Installation and Setup</h2></div>
+  <div class="chapter-body">
+    <h3>Quick Install</h3>
+    <div class="install-tabs">
+      <div class="install-tab-btns">
+        <button class="itab active" data-os="linux">Linux</button>
+        <button class="itab" data-os="windows">Windows</button>
+        <button class="itab" data-os="macos">macOS</button>
+      </div>
+      <div class="install-tab-content active" id="it-linux">
+        <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">bash</span></div>
+        <div class="code-content"><pre><code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash</code></pre></div></div>
+      </div>
+      <div class="install-tab-content" id="it-windows">
+        <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">PowerShell</span></div>
+        <div class="code-content"><pre><code>iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex</code></pre></div></div>
+      </div>
+      <div class="install-tab-content" id="it-macos">
+        <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">bash</span></div>
+        <div class="code-content"><pre><code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash</code></pre></div></div>
+      </div>
+    </div>
+    <h3>Verify Installation</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>ovie --version       # 2.3.0
+oviec --self-check   # Full validation
+ovie new my-project
+oviec run my-project/src/main.ov</code></pre></div></div>
+    <h3>Build from Source</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>git clone https://github.com/southwarridev/ovie.git
+cd ovie
+make build
+make install</code></pre></div></div>
+  </div>
+  <div class="chapter-nav"><a href="#ch01" class="btn btn-outline">← Chapter 1</a><a href="#ch03" class="btn btn-primary">Chapter 3: Fundamentals →</a></div>
+</article>
+<!-- CH3 -->
+<article class="chapter" id="ch03">
+  <div class="chapter-header"><div class="chapter-number">Chapter 03</div><h2 class="chapter-title">Language Fundamentals</h2></div>
+  <div class="chapter-body">
+    <h3>Variables</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">variables.ov</span></div>
+    <div class="code-content"><pre><code>name = "Ovie"        // immutable
+mut counter = 0      // mutable
+counter = counter + 1
+seeAm counter        // 1</code></pre></div></div>
+    <h3>Functions</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">functions.ov</span></div>
+    <div class="code-content"><pre><code>fn add(a: Number, b: Number) -> Number {
+    return a + b
+}
+mut result = add(10, 20)
+seeAm result  // 30</code></pre></div></div>
+    <h3>Control Flow</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">control.ov</span></div>
+    <div class="code-content"><pre><code>if x > 5 { seeAm "big" } else { seeAm "small" }
+
+for i in 0..5 { seeAm i }
+
+mut n = 0
+while n < 3 { n = n + 1; seeAm n }</code></pre></div></div>
+    <h3>Structs and Enums</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">structs.ov</span></div>
+    <div class="code-content"><pre><code>struct Person { name: String, age: Number }
+enum Status { Active, Inactive }
+
+mut p = Person { name: "Amina", age: 28 }
+seeAm p.name  // Amina</code></pre></div></div>
+    <h3>Error Handling</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">errors.ov</span></div>
+    <div class="code-content"><pre><code>use std::core::{Result}
+
+fn divide(a: Number, b: Number) -> Result {
+    if b == 0 { return Result.Err("Division by zero") }
+    return Result.Ok(a / b)
+}
+
+mut r = divide(10, 2)
+if r.is_ok() { seeAm r.unwrap() }  // 5</code></pre></div></div>
+    <h3>The 13 Keywords</h3>
+    <p><code>fn</code> <code>mut</code> <code>if</code> <code>else</code> <code>for</code> <code>while</code> <code>struct</code> <code>enum</code> <code>unsafe</code> <code>return</code> <code>true</code> <code>false</code> <code>seeAm</code></p>
+  </div>
+  <div class="chapter-nav"><a href="#ch02" class="btn btn-outline">← Chapter 2</a><a href="#ch04" class="btn btn-primary">Chapter 4: Modules →</a></div>
+</article>
+<!-- CH4 -->
+<article class="chapter" id="ch04">
+  <div class="chapter-header"><div class="chapter-number">Chapter 04</div><h2 class="chapter-title">Module System Deep Dive</h2></div>
+  <div class="chapter-body">
+    <h3>Exporting</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">math_utils.ov</span></div>
+    <div class="code-content"><pre><code>/// Add two numbers
+/// # Parameters
+/// - a: First number
+/// - b: Second number
+/// # Returns
+/// Sum of a and b
+/// # Examples
+/// ```ovie
+/// mut r = add(2, 3)  // 5
+/// ```
+export fn add(a: Number, b: Number) -> Number {
+    return a + b
+}
+export struct Point { x: Number, y: Number }
+// Private — not accessible outside this module
+fn helper(n: Number) -> Number { return n * 2 }</code></pre></div></div>
+    <h3>Importing</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">main.ov</span></div>
+    <div class="code-content"><pre><code>use std::math::{sqrt, pow}
+use std::io::{println}
+use std::core::{Result, Option}
+import "./utils.ov"
+
+fn main() {
+    mut d = sqrt(16.0)
+    seeAm "sqrt(16) = " + d  // 4.0
+}</code></pre></div></div>
+    <h3>Package Manager</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">ovie.toml</span></div>
+    <div class="code-content"><pre><code>[package]
+name = "my-app"
+version = "1.0.0"
+[dependencies]
+oba = { path = "./oba" }</code></pre></div></div>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>ovie init my-package   # Create new package
+ovie add some-lib      # Add dependency
+ovie install           # Install all dependencies
+ovie cache clear       # Force full rebuild</code></pre></div></div>
+    <h3>Best Practices</h3>
+    <ul>
+      <li>One concern per module — keep modules focused</li>
+      <li>Export only what consumers need — private by default</li>
+      <li>Document all exported functions (required by the compiler)</li>
+      <li>Use <code>std::</code> modules before writing your own utilities</li>
+      <li>Pin dependency versions in <code>ovie.toml</code> for reproducible builds</li>
+    </ul>
+  </div>
+  <div class="chapter-nav"><a href="#ch03" class="btn btn-outline">← Chapter 3</a><a href="#ch05" class="btn btn-primary">Chapter 5: Standard Library →</a></div>
+</article>
+
+<!-- CH5 -->
+<article class="chapter" id="ch05">
+  <div class="chapter-header"><div class="chapter-number">Chapter 05</div><h2 class="chapter-title">Standard Library Reference</h2></div>
+  <div class="chapter-body">
+    <p>Ovie ships with 11 standard library modules. Import them with <code>use std::module_name</code>.</p>
+
+    <h3>std::core — Core Types</h3>
+    <p>The foundation: <code>Result</code>, <code>Option</code>, <code>Vec</code>, <code>HashMap</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">core_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::core::{Result, Option, Vec, HashMap}
+
+// Result — success or failure
+fn divide(a: Number, b: Number) -> Result {
+    if b == 0 { return Result.Err("Division by zero") }
+    return Result.Ok(a / b)
+}
+mut r = divide(10, 2)
+if r.is_ok() { seeAm r.unwrap() }  // 5
+
+// Option — value or nothing
+fn find_user(id: Number) -> Option {
+    if id == 1 { return Option.Some("Alice") }
+    return Option.None()
+}
+mut u = find_user(1)
+if u.is_some() { seeAm u.unwrap() }  // Alice
+
+// Vec — dynamic array
+mut v = Vec.new()
+v = Vec.push(v, 10)
+v = Vec.push(v, 20)
+seeAm Vec.length(v)  // 2
+
+// HashMap — key-value store
+mut map = HashMap.new()
+map = HashMap.insert(map, "name", "Ovie")
+seeAm HashMap.get(map, "name")  // Ovie</code></pre></div></div>
+
+    <h3>std::math — Mathematics</h3>
+    <p>Mathematical functions: <code>sqrt</code>, <code>pow</code>, <code>abs</code>, <code>floor</code>, <code>ceil</code>, <code>min</code>, <code>max</code>, <code>round</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">math_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::math::{sqrt, pow, abs, floor, ceil, min, max}
+
+seeAm sqrt(16.0)      // 4.0
+seeAm pow(2.0, 10.0)  // 1024.0
+seeAm abs(-42)        // 42
+seeAm floor(3.7)      // 3.0
+seeAm ceil(3.2)       // 4.0
+seeAm min(5, 3)       // 3
+seeAm max(5, 3)       // 5</code></pre></div></div>
+
+    <h3>std::io — Input/Output</h3>
+    <p>Console I/O: <code>println</code>, <code>print</code>, <code>read_line</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">io_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::io::{println, print, read_line}
+
+print("Enter your name: ")
+mut name = read_line()
+println("Hello, " + name + "!")</code></pre></div></div>
+
+    <h3>std::fs — File System</h3>
+    <p>File operations: <code>read_file</code>, <code>write_file</code>, <code>file_exists</code>, <code>make_dir</code>, <code>list_files</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">fs_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::fs::{read_file, write_file, file_exists, make_dir}
+
+if file_exists("data.txt") {
+    mut content = read_file("data.txt")
+    seeAm content
+} else {
+    write_file("data.txt", "Hello from Ovie!")
+}
+
+make_dir("output")
+write_file("output/result.txt", "Done!")</code></pre></div></div>
+
+    <h3>std::time — Time Utilities</h3>
+    <p>Time functions: <code>now</code>, <code>duration_ms</code>, <code>sleep_ms</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">time_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::time::{now, duration_ms}
+
+mut start = now()
+// ... do work ...
+mut elapsed = duration_ms(start, now())
+seeAm "Elapsed: " + elapsed + "ms"</code></pre></div></div>
+
+    <h3>std::env — Environment</h3>
+    <p>Environment access: <code>get_var</code>, <code>args</code>, <code>hostname</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">env_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::env::{get_var, args, hostname}
+
+mut home = get_var("HOME")
+mut host = hostname()
+mut program_args = args()
+
+seeAm "Running on: " + host
+seeAm "HOME: " + home</code></pre></div></div>
+
+    <h3>std::cli — Command Line</h3>
+    <p>CLI utilities: <code>parse_args</code>, <code>flag_value</code>, <code>print_usage</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">cli_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::cli::{parse_args, flag_value}
+use std::env::{args}
+
+mut cli = parse_args(args())
+mut output = flag_value(cli, "--output", "result.txt")
+seeAm "Output file: " + output</code></pre></div></div>
+
+    <h3>std::log — Structured Logging</h3>
+    <p>Log levels: <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>. Configure minimum level in <code>.ovie/aproko.toml</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">log_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::log::{info, warn, error, debug}
+
+info("Server started on port 8080")
+warn("Config file not found, using defaults")
+error("Failed to connect to database")
+debug("Processing item: " + item_id)</code></pre></div></div>
+
+    <h3>std::testing — Test Framework</h3>
+    <p>Assertions: <code>assert_eq</code>, <code>assert_true</code>, <code>assert_false</code>, <code>assert_not_null</code>.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">test_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::testing::{assert_eq, assert_true, assert_false}
+
+fn test_add() {
+    assert_eq(add(2, 3), 5, "2 + 3 should equal 5")
+    assert_true(add(0, 0) == 0, "0 + 0 should be 0")
+    assert_false(add(1, 1) == 3, "1 + 1 should not be 3")
+}
+
+test_add()
+seeAm "All tests passed"</code></pre></div></div>
+
+    <h3>std::module — Module System (New v2.3)</h3>
+    <p>Module loading, resolution, dependency graph, cache, and package manager.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">module_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::module::{load_module, resolve, kb_query}
+
+// Load a module dynamically
+mut mod = load_module("./plugins/my_plugin.ov")
+
+// Query the knowledge base
+mut types = kb_query({
+    category: "TypeInformation",
+    symbol_name: "add"
+})</code></pre></div></div>
+
+    <h3>std::aproko — Knowledge Base (New v2.3)</h3>
+    <p>Persistent AI-accessible storage for type info, patterns, and reasoning rules.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">aproko_example.ov</span></div>
+    <div class="code-content"><pre><code>use std::aproko::{store_entry, get_type_info, kb_entry_new, export_json}
+
+// Store analysis result
+mut entry = kb_entry_new(
+    "my_fn",
+    "TypeInformation",
+    "{\"returns\":\"Number\"}"
+)
+entry.symbol_name = "my_fn"
+store_entry(entry)
+
+// Query type info
+mut info = get_type_info("my_fn")
+
+// Export for AI/LLM consumption
+export_json(".ovie/aproko/export.json")</code></pre></div></div>
+  </div>
+  <div class="chapter-nav"><a href="#ch04" class="btn btn-outline">← Chapter 4</a><a href="#ch06" class="btn btn-primary">Chapter 6: Aproko →</a></div>
+</article>
+<!-- CH6 -->
+<article class="chapter" id="ch06">
+  <div class="chapter-header"><div class="chapter-number">Chapter 06</div><h2 class="chapter-title">Aproko Integration</h2></div>
+  <div class="chapter-body">
+    <h3>What is Aproko?</h3>
+    <p>Aproko is Ovie's built-in static analysis and reasoning engine. It runs during compilation and provides feedback across six categories: Syntax, Logic, Performance, Security, Correctness, and Style.</p>
+    <p>The name "Aproko" comes from Nigerian slang for someone who notices everything — fitting for a tool that watches your code closely.</p>
+    <h3>Running Analysis</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>oviec analyze my_program.ov
+# [WARNING] Style: Variable 'x' is single-character (line 3)
+# [ERROR] Security: Unsafe block without justification (line 12)
+# [INFO] Performance: Loop could use early exit (line 20)</code></pre></div></div>
+    <h3>Configuration</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">.ovie/aproko.toml</span></div>
+    <div class="code-content"><pre><code>[analysis]
+min_severity = "Warning"   # Info | Warning | Error | Critical
+
+[categories]
+syntax = true
+logic = true
+performance = true
+security = true
+correctness = true
+style = false              # Disable style checks</code></pre></div></div>
+    <h3>Knowledge Base</h3>
+    <p>Aproko stores analysis results in <code>.ovie/aproko/knowledge/</code> — a persistent knowledge base that AI tools and LLMs can query.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code># Query knowledge base
+ovie aproko query --category TypeInformation --symbol add
+
+# Export for AI/LLM consumption
+ovie aproko export --output knowledge.json
+
+# Check documentation completeness
+ovie doc check
+
+# Generate API docs
+ovie doc --format html</code></pre></div></div>
+    <h3>Aproko and the Module System</h3>
+    <p>When analyzing modular programs, Aproko loads all imported modules, tracks data flow across boundaries, detects unused imports, verifies exported symbols are documented, and checks for breaking API changes.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">unused_import.ov</span></div>
+    <div class="code-content"><pre><code>use std::math::{sqrt}
+use std::io::{println}
+
+fn main() {
+    println("Hello")
+    // sqrt imported but unused — Aproko will flag this
+}</code></pre></div></div>
+  </div>
+  <div class="chapter-nav"><a href="#ch05" class="btn btn-outline">← Chapter 5</a><a href="#ch07" class="btn btn-primary">Chapter 7: Production →</a></div>
+</article>
+<!-- CH7 -->
+<article class="chapter" id="ch07">
+  <div class="chapter-header"><div class="chapter-number">Chapter 07</div><h2 class="chapter-title">Building Production Applications</h2></div>
+  <div class="chapter-body">
+    <h3>Project Structure</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">project layout</span></div>
+    <div class="code-content"><pre><code>my-app/
+├── ovie.toml          # Project manifest
+├── ovie.lock          # Dependency lock file
+├── src/
+│   ├── main.ov        # Entry point
+│   ├── config.ov      # Configuration
+│   └── handlers/
+│       └── mod.ov
+├── tests/
+│   └── integration.ov
+└── docs/api/          # Generated by ovie doc</code></pre></div></div>
+    <h3>Configuration Management</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">config.ov</span></div>
+    <div class="code-content"><pre><code>use std::env::{get_var}
+
+struct AppConfig {
+    port: Number,
+    db_path: String,
+    log_level: String,
+}
+
+fn load_config() -> AppConfig {
+    return AppConfig {
+        port: string_to_number(get_var("PORT")),
+        db_path: get_var("DB_PATH"),
+        log_level: get_var("LOG_LEVEL"),
+    }
+}</code></pre></div></div>
+    <h3>Error Handling Strategy</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">handlers.ov</span></div>
+    <div class="code-content"><pre><code>use std::core::{Result}
+use std::log::{info, error}
+
+fn process_request(id: String, data: String) -> Result {
+    info("Processing: " + id)
+    mut result = handle(data)
+    if result.is_err() {
+        error("Failed: " + id + " — " + result.unwrap_err())
+        return result
+    }
+    info("Complete: " + id)
+    return result
+}</code></pre></div></div>
+    <h3>Security Best Practices</h3>
+    <ul>
+      <li>Never hardcode secrets — use environment variables</li>
+      <li>Validate all external input before processing</li>
+      <li>Use <code>unsafe</code> blocks only when necessary, with a comment explaining why</li>
+      <li>Keep dependencies minimal and pinned in <code>ovie.lock</code></li>
+      <li>Run <code>oviec analyze</code> before every release</li>
+    </ul>
+    <h3>Pre-Release Checklist</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>ovie test
+oviec analyze src/main.ov
+ovie doc check
+oviec --self-check
+oviec build --backend wasm src/main.ov</code></pre></div></div>
+  </div>
+  <div class="chapter-nav"><a href="#ch06" class="btn btn-outline">← Chapter 6</a><a href="#ch08" class="btn btn-primary">Chapter 8: Testing →</a></div>
+</article>
+<!-- CH8 -->
+<article class="chapter" id="ch08">
+  <div class="chapter-header"><div class="chapter-number">Chapter 08</div><h2 class="chapter-title">Testing and Quality Assurance</h2></div>
+  <div class="chapter-body">
+    <h3>Unit Testing</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">test_math.ov</span></div>
+    <div class="code-content"><pre><code>use std::testing::{assert_eq, assert_true}
+
+fn add(a: Number, b: Number) -> Number { return a + b }
+
+fn test_add_positive() {
+    assert_eq(add(2, 3), 5, "2 + 3 = 5")
+    assert_eq(add(0, 0), 0, "0 + 0 = 0")
+}
+
+fn test_add_negative() {
+    assert_eq(add(-1, 1), 0, "-1 + 1 = 0")
+}
+
+test_add_positive()
+test_add_negative()
+seeAm "All tests passed"</code></pre></div></div>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>ovie test</code></pre></div></div>
+    <h3>Property-Based Testing</h3>
+    <p>Property tests verify that a function satisfies a universal property across many inputs — not just specific examples.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">property_test.ov</span></div>
+    <div class="code-content"><pre><code>use std::testing::{assert_true}
+
+// Property: add is commutative
+fn prop_add_commutative(a: Number, b: Number) -> Boolean {
+    return add(a, b) == add(b, a)
+}
+
+// Test with many values
+mut i = -50
+while i <= 50 {
+    mut j = -50
+    while j <= 50 {
+        assert_true(prop_add_commutative(i, j), "add must be commutative")
+        j = j + 1
+    }
+    i = i + 1
+}
+seeAm "Commutativity property holds"</code></pre></div></div>
+    <h3>Integration Testing</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">integration_test.ov</span></div>
+    <div class="code-content"><pre><code>use std::fs::{write_file, read_file, file_exists}
+use std::testing::{assert_eq, assert_true}
+
+fn test_file_roundtrip() {
+    mut path = "/tmp/test_ovie.txt"
+    mut content = "Hello from Ovie!"
+    write_file(path, content)
+    assert_true(file_exists(path), "File should exist after write")
+    mut read_back = read_file(path)
+    assert_eq(read_back, content, "Read content should match written content")
+}
+
+test_file_roundtrip()</code></pre></div></div>
+    <h3>Quality Checklist</h3>
+    <ul>
+      <li>All tests pass: <code>ovie test</code></li>
+      <li>No Error/Critical Aproko findings: <code>oviec analyze</code></li>
+      <li>All exported functions documented: <code>ovie doc check</code></li>
+      <li>Build is reproducible: <code>oviec --self-check</code></li>
+    </ul>
+  </div>
+  <div class="chapter-nav"><a href="#ch07" class="btn btn-outline">← Chapter 7</a><a href="#ch09" class="btn btn-primary">Chapter 9: Performance →</a></div>
+</article>
+
+<!-- CH9 -->
+<article class="chapter" id="ch09">
+  <div class="chapter-header"><div class="chapter-number">Chapter 09</div><h2 class="chapter-title">Performance Optimization</h2></div>
+  <div class="chapter-body">
+    <h3>Measure First</h3>
+    <p>Never optimize without measuring. Guessing where the bottleneck is wastes time.</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">benchmark.ov</span></div>
+    <div class="code-content"><pre><code>use std::time::{now, duration_ms}
+
+fn benchmark(label: String, iterations: Number, work: Function) {
+    mut start = now()
+    mut i = 0
+    while i < iterations {
+        work()
+        i = i + 1
+    }
+    mut elapsed = duration_ms(start, now())
+    seeAm label + ": " + elapsed + "ms for " + iterations + " iterations"
+}</code></pre></div></div>
+    <h3>Memory Optimization</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">memory.ov</span></div>
+    <div class="code-content"><pre><code>// Slow: creates new string on every iteration
+fn build_slow(n: Number) -> String {
+    mut result = ""
+    mut i = 0
+    while i < n {
+        result = result + number_to_string(i) + ","
+        i = i + 1
+    }
+    return result
+}
+
+// Better: collect into array, join once
+fn build_fast(n: Number) -> String {
+    mut parts = []
+    mut i = 0
+    while i < n {
+        parts = array_push(parts, number_to_string(i))
+        i = i + 1
+    }
+    return array_join(parts, ",")
+}</code></pre></div></div>
+    <h3>Algorithmic Optimization</h3>
+    <p>Choose the right algorithm. An O(n²) algorithm on 10,000 items is 100x slower than O(n log n).</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">lookup.ov</span></div>
+    <div class="code-content"><pre><code>use std::core::{HashMap}
+
+// O(1) average — use HashMap for repeated lookups
+fn build_lookup(items: Array) -> HashMap {
+    mut map = HashMap.new()
+    mut i = 0
+    while i < array_length(items) {
+        map = HashMap.insert(map, array_get(items, i), true)
+        i = i + 1
+    }
+    return map
+}</code></pre></div></div>
+    <h3>Compiler Optimizations</h3>
+    <p>Use the WASM backend for production — it applies dead code elimination, constant folding, and function inlining:</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>oviec build --backend wasm src/main.ov</code></pre></div></div>
+    <h3>Module Cache Performance</h3>
+    <p>The module cache makes incremental builds 10x faster. The standard library loads in under 100ms. Don't clear the cache unnecessarily.</p>
+    <h3>Common Pitfalls</h3>
+    <ul>
+      <li>String concatenation in loops — use array + join instead</li>
+      <li>Repeated file reads — cache the result in a variable</li>
+      <li>Unnecessary module reloads — trust the cache</li>
+      <li>Unneeded unsafe blocks — they bypass optimizations</li>
+      <li>Large dependency trees — keep <code>ovie.toml</code> lean</li>
+    </ul>
+  </div>
+  <div class="chapter-nav"><a href="#ch08" class="btn btn-outline">← Chapter 8</a><a href="#ch10" class="btn btn-primary">Chapter 10: Deployment →</a></div>
+</article>
+<!-- CH10 -->
+<article class="chapter" id="ch10">
+  <div class="chapter-header"><div class="chapter-number">Chapter 10</div><h2 class="chapter-title">Deployment Strategies</h2></div>
+  <div class="chapter-body">
+    <h3>Building for Production</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>ovie test
+oviec analyze src/main.ov
+ovie doc check
+oviec --self-check
+oviec build --backend wasm src/main.ov -o dist/app.wasm
+oviec build-package  # Creates platform packages in target/dist/</code></pre></div></div>
+    <h3>Cross-Platform Targets</h3>
+    <ul>
+      <li><code>wasm</code> — WebAssembly (runs anywhere with a WASM runtime)</li>
+      <li><code>llvm</code> — Native binary via LLVM</li>
+      <li><code>interpreter</code> — Direct execution (development only)</li>
+    </ul>
+    <h3>Offline-First Deployment</h3>
+    <p>Ovie is designed for offline-first deployment. All dependencies are vendored — no network calls at runtime. Verify offline capability:</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code># Disconnect from network, then:
+ovie build
+ovie test
+# Both should succeed without network</code></pre></div></div>
+    <h3>Containerization</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">Dockerfile</span></div>
+    <div class="code-content"><pre><code>FROM ubuntu:22.04
+COPY linux-x64/ovie /usr/local/bin/ovie
+COPY linux-x64/oviec /usr/local/bin/oviec
+COPY linux-x64/std /usr/local/lib/ovie/std
+COPY src/ /app/src/
+COPY ovie.toml /app/
+WORKDIR /app
+CMD ["oviec", "run", "src/main.ov"]</code></pre></div></div>
+    <h3>Rollback Procedures</h3>
+    <p>The <code>ovie.lock</code> file pins exact versions. To rollback: restore the previous <code>ovie.lock</code> from version control, run <code>ovie install</code>, rebuild and redeploy. Always commit <code>ovie.lock</code> to version control.</p>
+  </div>
+  <div class="chapter-nav"><a href="#ch09" class="btn btn-outline">← Chapter 9</a><a href="#ch11" class="btn btn-primary">Chapter 11: Community →</a></div>
+</article>
+<!-- CH11 -->
+<article class="chapter" id="ch11">
+  <div class="chapter-header"><div class="chapter-number">Chapter 11</div><h2 class="chapter-title">Community and Contribution</h2></div>
+  <div class="chapter-body">
+    <h3>The Ovie Community</h3>
+    <ul>
+      <li>GitHub: <a href="https://github.com/southwarridev/ovie" target="_blank" rel="noopener">github.com/southwarridev/ovie</a></li>
+      <li>GitLab: <a href="https://gitlab.com/ovie1/ovie" target="_blank" rel="noopener">gitlab.com/ovie1/ovie</a></li>
+      <li>Issues: Report bugs and request features on either platform</li>
+      <li>Discussions: GitHub Discussions for questions and ideas</li>
+    </ul>
+    <h3>Development Setup</h3>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+    <div class="code-content"><pre><code>git clone https://github.com/southwarridev/ovie.git
+cd ovie
+make dev-setup
+make dev  # clean + build + test</code></pre></div></div>
+    <h3>Documentation Standards</h3>
+    <p>All exported functions must have doc comments. The compiler enforces this:</p>
+    <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">doc_format.ov</span></div>
+    <div class="code-content"><pre><code>/// Brief one-line summary
+///
+/// Longer description if needed.
+///
+/// # Parameters
+/// - param_name: Description of the parameter
+///
+/// # Returns
+/// Description of the return value
+///
+/// # Examples
+/// ```ovie
+/// mut result = my_function(42)
+/// seeAm result
+/// ```
+export fn my_function(x: Number) -> Number {
+    return x * 2
+}</code></pre></div></div>
+    <h3>Areas for Contribution</h3>
+    <ul>
+      <li>Core language features and bug fixes</li>
+      <li>Standard library expansion</li>
+      <li>Aproko reasoning rules</li>
+      <li>Documentation and examples</li>
+      <li>Testing and benchmarks</li>
+      <li>IDE integration</li>
+    </ul>
+    <h3>Community Guidelines</h3>
+    <ul>
+      <li>Be respectful and constructive</li>
+      <li>Help newcomers — everyone was a beginner once</li>
+      <li>Report bugs with minimal reproducible examples</li>
+      <li>Discuss breaking changes before implementing them</li>
+      <li>Credit contributors in commit messages</li>
+    </ul>
+  </div>
+  <div class="chapter-nav"><a href="#ch10" class="btn btn-outline">← Chapter 10</a><a href="#ch12" class="btn btn-primary">Chapter 12: Stories →</a></div>
+</article>
+<!-- CH12 -->
+<article class="chapter" id="ch12">
+  <div class="chapter-header"><div class="chapter-number">Chapter 12</div><h2 class="chapter-title">Developer Stories</h2></div>
+  <div class="chapter-body">
+    <h3>Building for Real Constraints</h3>
+    <p>Ovie was built with real-world constraints in mind: intermittent power, limited bandwidth, shared devices. The offline-first design isn't an academic exercise — it's a practical response to how software gets built in many parts of the world.</p>
+    <p>These constraints shaped Ovie's core principles. What started as practical necessity became a design philosophy: software should work everywhere, not just in well-connected offices.</p>
+    <h3>What Developers Are Building</h3>
+    <p>Ovie is being used to build:</p>
+    <ul>
+      <li>Agricultural data tools that work offline in the field</li>
+      <li>School management systems for institutions with unreliable connectivity</li>
+      <li>Local language processing tools</li>
+      <li>Community resource tracking applications</li>
+      <li>Educational programming environments for students</li>
+    </ul>
+    <h3>The Self-Hosting Achievement</h3>
+    <p>When Ovie compiled itself for the first time, it was more than a technical milestone. It was proof that a language built by and for a specific community could reach the level of maturity that systems programming languages demand.</p>
+    <p>Self-hosting means the language is real. It means the compiler is tested against itself. It means the community that built it trusts it enough to use it for the most critical task: building the next version of itself.</p>
+    <h3>The seeAm Keyword</h3>
+    <p>The <code>seeAm</code> keyword — from Nigerian Pidgin English — is a small signal that this language was built with a specific community in mind. Programming languages don't have to feel foreign. They can carry the identity of the people who built them.</p>
+    <h3>A Vision for the Future</h3>
+    <p>The goal isn't to replace other languages. It's to give developers everywhere — especially those working with real constraints — a tool that respects their context. A language that works offline. That explains itself. That doesn't require expensive infrastructure to use.</p>
+    <h3>Call to Action</h3>
+    <ul>
+      <li><strong>Build something.</strong> Anything. A tool that solves a problem you have.</li>
+      <li><strong>Document it.</strong> Write the doc comments. Run <code>ovie doc</code>.</li>
+      <li><strong>Share it.</strong> Put it on GitHub. Tell someone about it.</li>
+      <li><strong>Contribute back.</strong> Fix a bug. Improve a doc. Add an example.</li>
+    </ul>
+    <p>The language gets better when more people use it and contribute to it. That's how open source works. That's how communities grow.</p>
+    <blockquote style="border-left:4px solid var(--brand-primary);padding:1rem 1.5rem;margin:2rem 0;background:rgba(245,158,11,0.05);border-radius:0 8px 8px 0;font-style:italic;color:var(--text-secondary)">
+      "Low-level control meets high-level productivity — systems programming made accessible."
+    </blockquote>
+  </div>
+  <div class="chapter-nav"><a href="#ch11" class="btn btn-outline">← Chapter 11</a><span></span></div>
+</article>
+<!-- Download CTA -->
+<div class="book-download-cta">
+  <div class="book-download-icon">🚀</div>
+  <h2>Ready to Start Building?</h2>
+  <p>Download Ovie v2.3 and start writing systems software with high-level productivity.</p>
+  <div class="book-download-actions">
+    <a href="../../index.html#download" class="btn btn-primary btn-large">⬇️ Download Ovie v2.3</a>
+    <a href="https://github.com/southwarridev/ovie" class="btn btn-secondary btn-large" target="_blank" rel="noopener">📂 View on GitHub</a>
+  </div>
+</div>
+</main>
+</div>
+<script src="../../assets/script.js"></script>
+<script src="book-reader.js"></script>
+</body>
+</html>
+

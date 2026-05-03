@@ -21,7 +21,7 @@ pub mod bootstrap_integration;
 #[cfg(test)]
 mod self_hosting_tests;
 
-pub use bootstrap_verification::{BootstrapVerifier, BootstrapConfig, BootstrapVerificationResult};
+pub use bootstrap_verification::{RealBootstrapVerifier, RealBootstrapConfig, RealBootstrapResult};
 pub use bootstrap_integration::{BootstrapIntegration, IntegrationMode, IntegrationVerificationResult};
 
 /// Self-hosting stage enumeration
@@ -67,7 +67,7 @@ impl SelfHostingStage {
 /// Self-hosting manager for coordinating the transition between stages
 pub struct SelfHostingManager {
     current_stage: SelfHostingStage,
-    bootstrap_verifier: Option<BootstrapVerifier>,
+    bootstrap_verifier: Option<RealBootstrapVerifier>,
 }
 
 impl SelfHostingManager {
@@ -85,20 +85,19 @@ impl SelfHostingManager {
     }
 
     /// Initialize bootstrap verification for Stage 1 transition
-    pub fn initialize_bootstrap_verification(&mut self, config: BootstrapConfig) -> crate::error::OvieResult<()> {
-        let mut verifier = BootstrapVerifier::new(config);
+    pub fn initialize_bootstrap_verification(&mut self, config: RealBootstrapConfig) -> crate::error::OvieResult<()> {
+        let mut verifier = RealBootstrapVerifier::new(config);
         
         // Load the Ovie lexer implementation
-        let lexer_source = include_str!("lexer_spec.ov");
-        verifier.load_ovie_lexer(lexer_source)?;
+        verifier.load_ovie_lexer()?;
         
         self.bootstrap_verifier = Some(verifier);
         Ok(())
     }
 
     /// Verify readiness for Stage 1 transition
-    pub fn verify_stage1_readiness(&self, test_cases: &[&str]) -> crate::error::OvieResult<Vec<BootstrapVerificationResult>> {
-        let verifier = self.bootstrap_verifier.as_ref()
+    pub fn verify_stage1_readiness(&mut self, test_cases: &[(&str, &str)]) -> crate::error::OvieResult<Vec<RealBootstrapResult>> {
+        let verifier = self.bootstrap_verifier.as_mut()
             .ok_or_else(|| crate::error::OvieError::runtime_error("Bootstrap verifier not initialized".to_string()))?;
         
         verifier.run_comprehensive_verification(test_cases)

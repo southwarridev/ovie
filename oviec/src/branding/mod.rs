@@ -28,7 +28,7 @@ impl Default for BrandingConfig {
             project_name: "Ovie".to_string(),
             project_description: "The Ovie Programming Language".to_string(),
             project_version: env!("CARGO_PKG_VERSION").to_string(),
-            project_website: "https://github.com/ovie-lang/ovie".to_string(),
+            project_website: "https://github.com/southwarridev/ovie".to_string(),
         }
     }
 }

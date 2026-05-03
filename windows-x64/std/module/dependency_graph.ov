@@ -1,0 +1,402 @@
+/// Dependency Graph - Tracks module dependencies and determines compilation order
+/// Implements directed graph with cycle detection and topological sort
+
+use std::core::{Vec, HashMap, Option, Result};
+use ./types::{ModuleError, ModuleResult};
+
+/// Graph representing module dependencies
+struct DependencyGraph {
+    nodes: HashMap<String, GraphNode>,  // Module path -> node
+    edges: Vec<Edge>                    // Dependency relationships
+}
+
+/// A node in the dependency graph representing one module
+struct GraphNode {
+    module_path: String,
+    dependencies: Vec<String>,   // Modules this depends on (outgoing edges)
+    dependents: Vec<String>,     // Modules that depend on this (incoming edges)
+    visited: bool,               // For DFS traversal
+    in_stack: bool               // For cycle detection (currently in DFS stack)
+}
+
+/// A directed edge from dependent -> dependency
+struct Edge {
+    from: String,   // The module that imports
+    to: String      // The module being imported
+}
+
+/// Represents a detected circular dependency
+struct CircularDependency {
+    cycle_path: Vec<String>   // Ordered list of modules forming the cycle
+}
+
+/// Create a new empty dependency graph
+///
+/// # Returns
+/// A new empty DependencyGraph
+///
+/// # Examples
+/// ```
+/// let graph = new_graph();
+/// ```
+export fn new_graph() -> DependencyGraph {
+    DependencyGraph {
+        nodes: HashMap::new(),
+        edges: Vec::new()
+    }
+}
+
+/// Add a module node to the graph
+///
+/// If the module is already in the graph, this is a no-op.
+///
+/// # Parameters
+/// - `graph`: Mutable reference to the dependency graph
+/// - `module_path`: Absolute path of the module to add
+///
+/// # Examples
+/// ```
+/// add_module(&mut graph, "std/math/mod.ov");
+/// ```
+export fn add_module(graph: &mut DependencyGraph, module_path: String) {
+    if !graph.nodes.contains_key(&module_path) {
+        graph.nodes.insert(module_path.clone(), GraphNode {
+            module_path: module_path,
+            dependencies: Vec::new(),
+            dependents: Vec::new(),
+            visited: false,
+            in_stack: false
+        });
+    }
+}
+
+/// Add a dependency edge between two modules
+///
+/// Records that `from` imports `to`. Both modules are added to the graph
+/// if not already present.
+///
+/// # Parameters
+/// - `graph`: Mutable reference to the dependency graph
+/// - `from`: The module that has the import statement
+/// - `to`: The module being imported
+///
+/// # Examples
+/// ```
+/// add_dependency(&mut graph, "src/main.ov", "std/math/mod.ov");
+/// ```
+export fn add_dependency(graph: &mut DependencyGraph, from: String, to: String) {
+    // Ensure both nodes exist
+    add_module(graph, from.clone());
+    add_module(graph, to.clone());
+
+    // Add edge if not already present
+    let edge_exists = graph.edges.iter().any(|e| e.from == from && e.to == to);
+    if !edge_exists {
+        graph.edges.push(Edge { from: from.clone(), to: to.clone() });
+
+        // Update adjacency lists
+        if let Some(from_node) = graph.nodes.get_mut(&from) {
+            if !from_node.dependencies.contains(&to) {
+                from_node.dependencies.push(to.clone());
+            }
+        }
+        if let Some(to_node) = graph.nodes.get_mut(&to) {
+            if !to_node.dependents.contains(&from) {
+                to_node.dependents.push(from.clone());
+            }
+        }
+    }
+}
+
+/// Perform topological sort to get compilation order
+///
+/// Returns modules ordered so each module appears after all its dependencies.
+/// Returns an error if a circular dependency is detected.
+///
+/// # Parameters
+/// - `graph`: The dependency graph to sort
+///
+/// # Returns
+/// Result containing ordered Vec of module paths, or CircularDependency error
+///
+/// # Examples
+/// ```
+/// let order = topological_sort(graph)?;
+/// ```
+export fn topological_sort(graph: &DependencyGraph) -> Result<Vec<String>, CircularDependency> {
+    let mut result: Vec<String> = Vec::new();
+    let mut visited: HashMap<String, bool> = HashMap::new();
+    let mut in_stack: HashMap<String, bool> = HashMap::new();
+
+    // Initialize all nodes as unvisited
+    for (path, _) in &graph.nodes {
+        visited.insert(path.clone(), false);
+        in_stack.insert(path.clone(), false);
+    }
+
+    // Run DFS from each unvisited node
+    for (path, _) in &graph.nodes {
+        if !visited.get(path).copied().unwrap_or(false) {
+            let mut stack_path: Vec<String> = Vec::new();
+            dfs_topo(graph, path, &mut visited, &mut in_stack, &mut result, &mut stack_path)?;
+        }
+    }
+
+    Ok(result)
+}
+
+/// DFS helper for topological sort with cycle detection
+fn dfs_topo(
+    graph: &DependencyGraph,
+    node: &String,
+    visited: &mut HashMap<String, bool>,
+    in_stack: &mut HashMap<String, bool>,
+    result: &mut Vec<String>,
+    stack_path: &mut Vec<String>
+) -> Result<(), CircularDependency> {
+    visited.insert(node.clone(), true);
+    in_stack.insert(node.clone(), true);
+    stack_path.push(node.clone());
+
+    // Visit all dependencies
+    if let Some(graph_node) = graph.nodes.get(node) {
+        for dep in &graph_node.dependencies {
+            if !visited.get(dep).copied().unwrap_or(false) {
+                dfs_topo(graph, dep, visited, in_stack, result, stack_path)?;
+            } else if in_stack.get(dep).copied().unwrap_or(false) {
+                // Found a cycle - extract the cycle path
+                let cycle = extract_cycle(stack_path, dep);
+                return Err(CircularDependency { cycle_path: cycle });
+            }
+        }
+    }
+
+    in_stack.insert(node.clone(), false);
+    stack_path.pop();
+    result.push(node.clone());
+
+    Ok(())
+}
+
+/// Extract the cycle path from the current DFS stack
+fn extract_cycle(stack_path: &Vec<String>, cycle_start: &String) -> Vec<String> {
+    let mut cycle: Vec<String> = Vec::new();
+    let mut in_cycle = false;
+
+    for node in stack_path {
+        if node == cycle_start {
+            in_cycle = true;
+        }
+        if in_cycle {
+            cycle.push(node.clone());
+        }
+    }
+
+    // Close the cycle by adding the start node again
+    cycle.push(cycle_start.clone());
+    cycle
+}
+
+/// Detect circular dependencies using DFS
+///
+/// Returns the first cycle found, or None if the graph is acyclic.
+///
+/// # Parameters
+/// - `graph`: The dependency graph to check
+///
+/// # Returns
+/// Option containing CircularDependency if a cycle exists
+///
+/// # Examples
+/// ```
+/// if let Some(cycle) = detect_cycles(&graph) {
+///     seeAm("Cycle: " + cycle.cycle_path.join(" -> "));
+/// }
+/// ```
+export fn detect_cycles(graph: &DependencyGraph) -> Option<CircularDependency> {
+    match topological_sort(graph) {
+        Ok(_) => None,
+        Err(cycle) => Some(cycle)
+    }
+}
+
+/// Get all transitive dependencies of a module
+///
+/// Recursively collects all modules that a given module depends on,
+/// directly or indirectly. Handles diamond dependencies correctly
+/// (each module appears at most once).
+///
+/// # Parameters
+/// - `graph`: The dependency graph
+/// - `module_path`: The module to get transitive deps for
+///
+/// # Returns
+/// Vec of all transitive dependency paths (excluding the module itself)
+///
+/// # Examples
+/// ```
+/// let all_deps = get_transitive_deps(&graph, "src/main.ov");
+/// ```
+export fn get_transitive_deps(graph: &DependencyGraph, module_path: &String) -> Vec<String> {
+    let mut result: Vec<String> = Vec::new();
+    let mut visited: HashMap<String, bool> = HashMap::new();
+    collect_transitive_deps(graph, module_path, &mut visited, &mut result);
+    result
+}
+
+/// Recursive helper for transitive dependency collection
+fn collect_transitive_deps(
+    graph: &DependencyGraph,
+    module_path: &String,
+    visited: &mut HashMap<String, bool>,
+    result: &mut Vec<String>
+) {
+    if visited.get(module_path).copied().unwrap_or(false) {
+        return; // Already processed, avoid infinite loops
+    }
+    visited.insert(module_path.clone(), true);
+
+    if let Some(node) = graph.nodes.get(module_path) {
+        for dep in &node.dependencies {
+            if !result.contains(dep) {
+                result.push(dep.clone());
+            }
+            collect_transitive_deps(graph, dep, visited, result);
+        }
+    }
+}
+
+/// Update the dependency graph incrementally when a module changes
+///
+/// Removes all existing edges for the module and re-adds them based on
+/// the new import list. This produces the same result as rebuilding from scratch.
+///
+/// # Parameters
+/// - `graph`: Mutable reference to the dependency graph
+/// - `module_path`: The module that changed
+/// - `new_dependencies`: The updated list of dependencies for this module
+///
+/// # Examples
+/// ```
+/// update_module_deps(&mut graph, "src/parser.ov", new_deps);
+/// ```
+export fn update_module_deps(
+    graph: &mut DependencyGraph,
+    module_path: &String,
+    new_dependencies: Vec<String>
+) {
+    // Remove old outgoing edges from this module
+    graph.edges.retain(|e| &e.from != module_path);
+
+    // Remove this module from dependents lists of old dependencies
+    let old_deps: Vec<String> = match graph.nodes.get(module_path) {
+        Some(node) => node.dependencies.clone(),
+        None => Vec::new()
+    };
+
+    for old_dep in &old_deps {
+        if let Some(dep_node) = graph.nodes.get_mut(old_dep) {
+            dep_node.dependents.retain(|d| d != module_path);
+        }
+    }
+
+    // Clear the module's dependency list
+    if let Some(node) = graph.nodes.get_mut(module_path) {
+        node.dependencies = Vec::new();
+    }
+
+    // Add new dependencies
+    for dep in new_dependencies {
+        add_dependency(graph, module_path.clone(), dep);
+    }
+}
+
+/// Find the shortest cycle path for clearer error reporting
+///
+/// Given a CircularDependency, returns the shortest cycle found
+/// by trying BFS from each node in the cycle.
+///
+/// # Parameters
+/// - `graph`: The dependency graph
+/// - `cycle`: The detected circular dependency
+///
+/// # Returns
+/// Vec of module paths forming the shortest cycle
+///
+/// # Examples
+/// ```
+/// let short_cycle = find_shortest_cycle(&graph, cycle);
+/// ```
+export fn find_shortest_cycle(graph: &DependencyGraph, cycle: &CircularDependency) -> Vec<String> {
+    let mut shortest: Vec<String> = cycle.cycle_path.clone();
+
+    // Try to find a shorter cycle starting from each node in the detected cycle
+    for start in &cycle.cycle_path {
+        if let Some(shorter) = bfs_find_cycle(graph, start) {
+            if shorter.len() < shortest.len() {
+                shortest = shorter;
+            }
+        }
+    }
+
+    shortest
+}
+
+/// BFS-based cycle finder starting from a given node
+fn bfs_find_cycle(graph: &DependencyGraph, start: &String) -> Option<Vec<String>> {
+    // Simple BFS to find if start can reach itself
+    let mut queue: Vec<(String, Vec<String>)> = Vec::new();
+    queue.push((start.clone(), vec![start.clone()]));
+
+    let mut visited_in_bfs: HashMap<String, bool> = HashMap::new();
+
+    while !queue.is_empty() {
+        let (current, path) = queue.remove(0);
+
+        if let Some(node) = graph.nodes.get(&current) {
+            for dep in &node.dependencies {
+                if dep == start && path.len() > 1 {
+                    // Found a cycle back to start
+                    let mut cycle = path.clone();
+                    cycle.push(start.clone());
+                    return Some(cycle);
+                }
+
+                if !visited_in_bfs.get(dep).copied().unwrap_or(false) {
+                    visited_in_bfs.insert(dep.clone(), true);
+                    let mut new_path = path.clone();
+                    new_path.push(dep.clone());
+                    queue.push((dep.clone(), new_path));
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Format a circular dependency error message with suggestions
+///
+/// # Parameters
+/// - `cycle`: The circular dependency to format
+///
+/// # Returns
+/// Human-readable error message with the cycle path and suggestions
+///
+/// # Examples
+/// ```
+/// let msg = format_cycle_error(&cycle);
+/// seeAm(msg);
+/// ```
+export fn format_cycle_error(cycle: &CircularDependency) -> String {
+    let cycle_str = cycle.cycle_path.join(" -> ");
+    format!(
+        "Circular dependency detected: {}\n\
+        \nSuggestions to break the cycle:\n\
+        1. Extract shared types/interfaces into a separate module that both can import\n\
+        2. Use dependency injection to invert the dependency direction\n\
+        3. Merge the cyclic modules if they are tightly coupled\n\
+        4. Restructure to use a layered architecture",
+        cycle_str
+    )
+}

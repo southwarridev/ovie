@@ -146,7 +146,8 @@ mod grammar_compliance {
                         Statement::Return { .. } |
                         Statement::Expression { .. } |
                         Statement::Struct { .. } |
-                        Statement::Enum { .. } => {
+                        Statement::Enum { .. } |
+                        Statement::TypeAlias { .. } => {
                             // Valid statement type
                         }
                     }
@@ -1689,7 +1690,7 @@ pub mod bootstrap_verification_properties {
                 
                 // If verification passed, key components should be working
                 if result.passed {
-                    prop_assert!(result.hash_match || result.tokens_match || result.performance_acceptable);
+                    prop_assert!(result.tokens_match || result.performance_acceptable);
                 }
             }
         }

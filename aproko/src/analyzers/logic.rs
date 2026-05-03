@@ -201,7 +201,7 @@ impl LogicAnalyzer {
                 // Function parameters are declared in function scope
                 let mut function_vars = declared_vars.clone();
                 for param in parameters {
-                    function_vars.insert(param.clone());
+                    function_vars.insert(param.name.clone());
                 }
                 
                 for (i, stmt) in body.iter().enumerate() {
@@ -312,6 +312,32 @@ impl LogicAnalyzer {
                 for element in elements {
                     findings.extend(self.check_expression_variables(element, declared_vars, line));
                 }
+            }
+            Expression::Match { value, arms } => {
+                findings.extend(self.check_expression_variables(value, declared_vars, line));
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        findings.extend(self.check_expression_variables(guard, declared_vars, line));
+                    }
+                    // Match arms can introduce new bindings, but we'll keep it simple for now
+                    // Create a mutable clone for the match arm scope
+                    let mut arm_vars = declared_vars.clone();
+                    for stmt in &arm.body {
+                        findings.extend(self.check_variable_usage(stmt, &mut arm_vars, line));
+                    }
+                }
+            }
+            Expression::MethodCall { object, arguments, .. } => {
+                findings.extend(self.check_expression_variables(object, declared_vars, line));
+                for arg in arguments {
+                    findings.extend(self.check_expression_variables(arg, declared_vars, line));
+                }
+            }
+            Expression::Try { expression } => {
+                findings.extend(self.check_expression_variables(expression, declared_vars, line));
+            }
+            Expression::Null => {
+                // Null literal doesn't reference variables
             }
             Expression::Literal(_) => {
                 // Literals don't reference variables

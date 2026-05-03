@@ -196,7 +196,7 @@ pub use codegen::CodegenBackend;
 pub use codegen::WasmBackend;
 pub use package::{PackageRegistry, PackageId, PackageMetadata, PackageLock, DependencyResolver, ProjectConfig, DependencySpec, IntegrityManifest, PackageSignature, OfflineMetadata};
 pub use security::{NetworkMonitor, CryptographicVerifier, SupplyChainSecurity, SecurityPolicies, SecurityReport, UnsafeOperationAnalyzer, UnsafeOperation, UnsafeAuditEntry, TelemetryMonitor, TelemetryAttempt, PrivacySettings, PrivacyComplianceReport, NetworkSecurityReport, ComprehensiveSecurityReport};
-pub use self_hosting::{SelfHostingManager, SelfHostingStage, BootstrapVerifier, BootstrapConfig, BootstrapVerificationResult, BootstrapIntegration, IntegrationMode, IntegrationVerificationResult};
+pub use self_hosting::{SelfHostingManager, SelfHostingStage, RealBootstrapVerifier, RealBootstrapConfig, RealBootstrapResult, BootstrapIntegration, IntegrationMode, IntegrationVerificationResult};
 pub use branding::{BrandingConfig, ProjectTemplate, ProjectMetadata};
 pub use release::{ReleaseManager, SecurityLevel, ReleaseMetadata, DistributionConfig, DistributionManager, ReleasePackage, SignatureResult, VerificationResult};
 pub use cross_target_validation::{CrossTargetValidator, CrossTargetValidationConfig, CrossTargetValidationResults, TargetPlatform, TargetValidationResult, PlatformGuarantee, GuaranteeType, ConsistencyResults, PerformanceResults, ValidationSummary};

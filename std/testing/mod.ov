@@ -6,6 +6,17 @@ use core::{Result, Option, Vec, HashMap, ok, err, some, none};
 use io::{print, println, eprint, eprintln};
 use time::{Instant, Duration};
 
+// ===== EXPORTS =====
+export TestResult, TestCase, TestSuite, TestStats, TestConfig, PropertyConfig;
+export TestRunner;
+export Generator, RandomGenerator;
+export NumberGenerator, BooleanGenerator, StringGenerator;
+export assert, assert_eq, assert_ne, assert_ok, assert_err, assert_some, assert_none;
+export assert_in_range, assert_approx_eq;
+export property_test, shrink_value;
+export test, test_panic, test_ignore, run_tests;
+export combine_stats, format_duration;
+
 // ===== TEST TYPES =====
 
 // Test result enumeration

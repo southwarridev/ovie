@@ -158,7 +158,7 @@ impl SyntaxAnalyzer {
 
                 // Check parameter names
                 for param in parameters {
-                    if param.is_empty() {
+                    if param.name.is_empty() {
                         findings.push(Finding {
                             category: AnalysisCategory::Syntax,
                             severity: Severity::Error,
@@ -205,7 +205,7 @@ impl SyntaxAnalyzer {
 
                 // Check parameter names
                 for param in parameters {
-                    if param.is_empty() {
+                    if param.name.is_empty() {
                         findings.push(Finding {
                             category: AnalysisCategory::Syntax,
                             severity: Severity::Error,
@@ -343,6 +343,62 @@ impl SyntaxAnalyzer {
                     });
                 }
             }
+            Statement::FieldMutation { object, field: _, value } => {
+                findings.extend(self.check_expression_syntax(object, line));
+                findings.extend(self.check_expression_syntax(value, line));
+            }
+            Statement::Break | Statement::Continue => {
+                // Break and continue statements don't have syntax issues
+            }
+            Statement::CompoundAssignment { identifier, value, .. } => {
+                if identifier.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Error,
+                        message: "Empty identifier in compound assignment".to_string(),
+                        suggestion: Some("Provide a valid identifier name".to_string()),
+                        location: (line, 1),
+                        span_length: 0,
+                        rule_id: "empty_identifier".to_string(),
+                    });
+                }
+                findings.extend(self.check_expression_syntax(value, line));
+            }
+            Statement::ConstDeclaration { name, value } => {
+                if name.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Error,
+                        message: "Empty constant name".to_string(),
+                        suggestion: Some("Provide a valid constant name".to_string()),
+                        location: (line, 1),
+                        span_length: 0,
+                        rule_id: "empty_const_name".to_string(),
+                    });
+                }
+                findings.extend(self.check_expression_syntax(value, line));
+            }
+            Statement::Use { .. } | Statement::Import { .. } | Statement::Export { .. } => {
+                // Import/export statements don't have complex syntax to check
+            }
+            Statement::TypeAlias { name, .. } => {
+                if name.is_empty() {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Syntax,
+                        severity: Severity::Error,
+                        message: "Empty type alias name".to_string(),
+                        suggestion: Some("Provide a valid type alias name".to_string()),
+                        location: (line, 1),
+                        span_length: 0,
+                        rule_id: "empty_type_alias_name".to_string(),
+                    });
+                }
+            }
+            Statement::Block { statements } => {
+                for (i, stmt) in statements.iter().enumerate() {
+                    findings.extend(self.check_statement_syntax(stmt, line + i));
+                }
+            }
         }
 
         findings
@@ -460,6 +516,29 @@ impl SyntaxAnalyzer {
                 for element in elements {
                     findings.extend(self.check_expression_syntax(element, line));
                 }
+            }
+            Expression::Match { value, arms } => {
+                findings.extend(self.check_expression_syntax(value, line));
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        findings.extend(self.check_expression_syntax(guard, line));
+                    }
+                    for stmt in &arm.body {
+                        findings.extend(self.check_statement_syntax(stmt, line));
+                    }
+                }
+            }
+            Expression::MethodCall { object, arguments, .. } => {
+                findings.extend(self.check_expression_syntax(object, line));
+                for arg in arguments {
+                    findings.extend(self.check_expression_syntax(arg, line));
+                }
+            }
+            Expression::Try { expression } => {
+                findings.extend(self.check_expression_syntax(expression, line));
+            }
+            Expression::Null => {
+                // Null literal is fine syntactically
             }
             Expression::Literal(_) => {
                 // Literals are generally fine syntactically

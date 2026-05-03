@@ -1,0 +1,543 @@
+/// Package Management CLI Commands
+///
+/// Implements ovie init, ovie add, and ovie install commands.
+///
+/// # Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.7
+
+/// Result of a CLI command execution
+struct CommandResult {
+    success: Boolean,
+    message: String,
+    error: String,
+}
+
+/// ovie init — create a new package in the given directory
+///
+/// Creates:
+/// - ovie.toml with package metadata
+/// - src/ directory
+/// - src/main.ov with hello world
+///
+/// # Parameters
+/// - dir: Target directory (use "." for current)
+/// - name: Package name
+/// - version: Initial version (default "0.1.0")
+///
+/// # Returns
+/// CommandResult with success/error info
+fn cmd_init(dir: String, name: String, version: String) -> CommandResult {
+    mut v = version;
+    if string_length(v) == 0 {
+        v = "0.1.0";
+    }
+
+    // Create ovie.toml
+    mut toml_content = create_manifest_template(name, v, "A new Ovie package");
+    mut toml_path = dir + "/ovie.toml";
+    write_file(toml_path, toml_content);
+
+    // Create src/main.ov
+    mut src_dir = dir + "/src";
+    make_dir(src_dir);
+    mut main_content = "/// Main entry point for " + name + "\n\nfn main() {\n    seeAm \"Hello from " + name + "!\";\n}\n";
+    write_file(src_dir + "/main.ov", main_content);
+
+    // Create .ovie/packages directory
+    mut packages_dir = dir + "/.ovie/packages";
+    make_dir(packages_dir);
+
+    return CommandResult {
+        success: true,
+        message: "Created package '" + name + "' in " + dir,
+        error: "",
+    };
+}
+
+/// ovie add — add a dependency to ovie.toml
+///
+/// Adds the dependency to [dependencies] section and updates the manifest.
+///
+/// # Parameters
+/// - project_root: Project root directory containing ovie.toml
+/// - dep_name: Dependency name to add
+/// - dep_version: Version constraint (e.g. ">=1.0.0", "*")
+///
+/// # Returns
+/// CommandResult with success/error info
+fn cmd_add(project_root: String, dep_name: String, dep_version: String) -> CommandResult {
+    mut toml_path = project_root + "/ovie.toml";
+
+    if !file_exists(toml_path) {
+        return CommandResult {
+            success: false,
+            message: "",
+            error: "No ovie.toml found in " + project_root + ". Run 'ovie init' first.",
+        };
+    }
+
+    mut content = read_file(toml_path);
+    mut updated = manifest_add_dependency(content, dep_name, dep_version);
+    write_file(toml_path, updated);
+
+    return CommandResult {
+        success: true,
+        message: "Added dependency: " + dep_name + " = \"" + dep_version + "\"",
+        error: "",
+    };
+}
+
+/// ovie install — resolve and install all dependencies
+///
+/// Reads ovie.toml, resolves dependencies, and generates ovie.lock.
+///
+/// # Parameters
+/// - project_root: Project root directory
+///
+/// # Returns
+/// CommandResult with success/error info
+fn cmd_install(project_root: String) -> CommandResult {
+    // Load manifest
+    mut result = load_manifest(project_root);
+    if !result.success {
+        return CommandResult {
+            success: false,
+            message: "",
+            error: result.error,
+        };
+    }
+
+    mut manifest = result.manifest;
+    mut config = package_loader_config_default(project_root);
+
+    // Resolve dependencies
+    mut resolved = resolve_dependencies(manifest);
+
+    // Verify all packages can be found
+    mut i = 0;
+    mut missing = [];
+    while i < array_length(resolved) {
+        mut dep = array_get(resolved, i);
+        mut search = search_package(dep.name, dep.version, dep.path, config);
+        if !search.found {
+            missing = array_push(missing, dep.name);
+        }
+        i = i + 1;
+    }
+
+    if array_length(missing) > 0 {
+        mut missing_list = "";
+        mut j = 0;
+        while j < array_length(missing) {
+            if j > 0 { missing_list = missing_list + ", "; }
+            missing_list = missing_list + array_get(missing, j);
+            j = j + 1;
+        }
+        return CommandResult {
+            success: false,
+            message: "",
+            error: "Missing packages: " + missing_list,
+        };
+    }
+
+    // Generate and write lock file
+    mut lock_content = generate_lock_file(manifest, resolved);
+    write_lock_file(lock_content, project_root);
+
+    mut count = number_to_string(array_length(resolved));
+    return CommandResult {
+        success: true,
+        message: "Installed " + count + " package(s). Lock file updated.",
+        error: "",
+    };
+}
+
+/// ovie migrate — analyze standalone .ov file and add import/export statements
+///
+/// # Parameters
+/// - file_path: Path to the .ov file to migrate
+/// - project_root: Project root for creating ovie.toml if needed
+///
+/// # Returns
+/// CommandResult with success/error info
+fn cmd_migrate(file_path: String, project_root: String) -> CommandResult {
+    if !file_exists(file_path) {
+        return CommandResult {
+            success: false,
+            message: "",
+            error: "File not found: " + file_path,
+        };
+    }
+
+    mut content = read_file(file_path);
+
+    // Check if already has imports/exports
+    if string_contains(content, "export fn") || string_contains(content, "use std::") {
+        return CommandResult {
+            success: true,
+            message: "File already uses module syntax: " + file_path,
+            error: "",
+        };
+    }
+
+    // Create ovie.toml if not present
+    mut toml_path = project_root + "/ovie.toml";
+    if !file_exists(toml_path) {
+        mut pkg_name = extract_filename(file_path);
+        mut toml = create_manifest_template(pkg_name, "0.1.0", "Migrated from standalone");
+        write_file(toml_path, toml);
+    }
+
+    return CommandResult {
+        success: true,
+        message: "Migration complete for: " + file_path + ". ovie.toml created at " + toml_path,
+        error: "",
+    };
+}
+
+/// Extract filename without extension from a path
+fn extract_filename(path: String) -> String {
+    mut last_slash = string_rfind(path, "/");
+    mut name = path;
+    if last_slash >= 0 {
+        name = string_substring(path, last_slash + 1, string_length(path));
+    }
+    mut dot = string_rfind(name, ".");
+    if dot > 0 {
+        name = string_substring(name, 0, dot);
+    }
+    return name;
+}
+
+/// ovie aproko query — query the knowledge base and print results
+///
+/// # Parameters
+/// - category: Category to filter by (empty for all)
+/// - symbol: Symbol name to filter by (empty for all)
+/// - pattern: Pattern type to filter by (empty for all)
+///
+/// # Returns
+/// CommandResult with formatted output in message field
+fn cmd_aproko_query(category: String, symbol: String, pattern: String) -> CommandResult {
+    mut q = KnowledgeQuery {
+        category: category,
+        symbol_name: symbol,
+        pattern_type: pattern,
+        module_name: "",
+        min_confidence: 0.0,
+    };
+
+    mut result = kb_query(q);
+
+    if !result.success {
+        return CommandResult {
+            success: false,
+            message: "",
+            error: result.error,
+        };
+    }
+
+    mut count = array_length(result.entries);
+    if count == 0 {
+        return CommandResult {
+            success: true,
+            message: "No entries found matching query.",
+            error: "",
+        };
+    }
+
+    mut output = "Found " + number_to_string(count) + " entries:\n\n";
+    mut i = 0;
+    while i < count {
+        mut entry = array_get(result.entries, i);
+        output = output + "[" + entry.category + "] " + entry.id;
+        if string_length(entry.symbol_name) > 0 {
+            output = output + " (" + entry.symbol_name + ")";
+        }
+        output = output + "\n";
+        i = i + 1;
+    }
+
+    return CommandResult {
+        success: true,
+        message: output,
+        error: "",
+    };
+}
+
+/// ovie aproko export — export knowledge base to JSON file
+///
+/// # Parameters
+/// - output_path: Path to write JSON export (default: .ovie/aproko/export.json)
+///
+/// # Returns
+/// CommandResult with success/error info
+fn cmd_aproko_export(output_path: String) -> CommandResult {
+    mut path = output_path;
+    if string_length(path) == 0 {
+        path = ".ovie/aproko/export.json";
+    }
+
+    export_json(path);
+
+    return CommandResult {
+        success: true,
+        message: "Knowledge base exported to: " + path,
+        error: "",
+    };
+}
+
+/// ovie doc — generate documentation for a project
+///
+/// Scans all .ov files in the project, generates documentation in the
+/// requested format, and writes output to the docs/ directory.
+///
+/// # Parameters
+/// - project_root: Project root directory
+/// - format: Output format: "html", "markdown", or "json"
+///
+/// # Returns
+/// CommandResult with success/error info
+fn cmd_doc(project_root: String, format: String) -> CommandResult {
+    mut fmt = format;
+    if string_length(fmt) == 0 {
+        fmt = "html";
+    }
+
+    mut src_dir = project_root + "/src";
+    if !file_exists(src_dir) {
+        src_dir = project_root;
+    }
+
+    mut out_dir = project_root + "/docs/api";
+    make_dir(out_dir);
+
+    mut files = list_files(src_dir, ".ov");
+    if array_length(files) == 0 {
+        return CommandResult {
+            success: false,
+            message: "",
+            error: "No .ov files found in " + src_dir,
+        };
+    }
+
+    mut generated = 0;
+    mut i = 0;
+    while i < array_length(files) {
+        mut file_path = array_get(files, i);
+        mut source = read_file(file_path);
+        mut module_name = extract_filename(file_path);
+
+        mut doc_content = generate_module_docs(module_name, source, fmt);
+
+        mut ext = ".html";
+        if fmt == "markdown" { ext = ".md"; }
+        if fmt == "json" { ext = ".json"; }
+
+        mut out_path = out_dir + "/" + module_name + ext;
+        write_file(out_path, doc_content);
+        generated = generated + 1;
+        i = i + 1;
+    }
+
+    return CommandResult {
+        success: true,
+        message: "Generated " + number_to_string(generated) + " documentation file(s) in " + out_dir,
+        error: "",
+    };
+}
+
+/// ovie doc check — validate documentation completeness without generating output
+///
+/// # Parameters
+/// - project_root: Project root directory
+///
+/// # Returns
+/// CommandResult — error message lists all documentation issues
+fn cmd_doc_check(project_root: String) -> CommandResult {
+    mut src_dir = project_root + "/src";
+    if !file_exists(src_dir) {
+        src_dir = project_root;
+    }
+
+    mut files = list_files(src_dir, ".ov");
+    mut all_errors = "";
+    mut total_errors = 0;
+
+    mut i = 0;
+    while i < array_length(files) {
+        mut file_path = array_get(files, i);
+        mut source = read_file(file_path);
+        mut result = enforce_module_docs(source, file_path);
+
+        if !result.passed {
+            all_errors = all_errors + format_enforcement_errors(result);
+            total_errors = total_errors + array_length(result.errors);
+        }
+        i = i + 1;
+    }
+
+    if total_errors > 0 {
+        return CommandResult {
+            success: false,
+            message: "",
+            error: all_errors,
+        };
+    }
+
+    return CommandResult {
+        success: true,
+        message: "All exported functions are documented.",
+        error: "",
+    };
+}
+
+/// ovie book test — extract and validate all code examples in the book
+///
+/// Scans all Markdown files under docs/book/, extracts ```ovie code blocks,
+/// validates syntax of each example, and reports failures with context.
+///
+/// # Parameters
+/// - book_root: Root directory of the book (default: docs/book/ovie-in-southern-kaduna)
+///
+/// # Returns
+/// CommandResult with pass/fail summary
+fn cmd_book_test(book_root: String) -> CommandResult {
+    mut root = book_root;
+    if string_length(root) == 0 {
+        root = "docs/book/ovie-in-southern-kaduna";
+    }
+
+    if !file_exists(root) {
+        return CommandResult {
+            success: false,
+            message: "",
+            error: "Book directory not found: " + root,
+        };
+    }
+
+    mut md_files = list_files(root, ".md");
+    mut total = 0;
+    mut passed = 0;
+    mut failed = 0;
+    mut failures = "";
+
+    mut fi = 0;
+    while fi < array_length(md_files) {
+        mut file_path = array_get(md_files, fi);
+        mut content = read_file(file_path);
+        mut examples = extract_ovie_examples(content);
+
+        mut ei = 0;
+        while ei < array_length(examples) {
+            mut example = array_get(examples, ei);
+            total = total + 1;
+
+            // Validate syntax using doc example validator
+            mut fake_doc = DocComment {
+                summary: "",
+                description: "",
+                params: [],
+                returns: "",
+                examples: [CodeExample { code: example, language: "ovie", description: "" }],
+                complexity: "",
+                edge_cases: "",
+                related: [],
+                formula: "",
+                is_complete: false,
+                missing_sections: [],
+            };
+            mut validation = validate_examples(fake_doc);
+
+            if validation.valid {
+                passed = passed + 1;
+            } else {
+                failed = failed + 1;
+                failures = failures + "\n  " + file_path + " example " + number_to_string(ei + 1) + ":";
+                mut vi = 0;
+                while vi < array_length(validation.errors) {
+                    failures = failures + "\n    - " + array_get(validation.errors, vi);
+                    vi = vi + 1;
+                }
+            }
+            ei = ei + 1;
+        }
+        fi = fi + 1;
+    }
+
+    mut summary = "Book test: " + number_to_string(passed) + "/" + number_to_string(total) + " examples passed.";
+
+    if failed > 0 {
+        return CommandResult {
+            success: false,
+            message: summary,
+            error: "Failed examples:" + failures,
+        };
+    }
+
+    return CommandResult {
+        success: true,
+        message: summary,
+        error: "",
+    };
+}
+
+/// ovie book serve — serve the book locally (prints instructions)
+///
+/// # Parameters
+/// - book_root: Root directory of the book
+/// - port: Port to serve on (default 8080)
+///
+/// # Returns
+/// CommandResult with instructions
+fn cmd_book_serve(book_root: String, port: Number) -> CommandResult {
+    mut root = book_root;
+    if string_length(root) == 0 {
+        root = "docs/book/ovie-in-southern-kaduna";
+    }
+    mut p = port;
+    if p == 0 { p = 8080; }
+
+    if !file_exists(root) {
+        return CommandResult {
+            success: false,
+            message: "",
+            error: "Book directory not found: " + root,
+        };
+    }
+
+    return CommandResult {
+        success: true,
+        message: "Serving book from " + root + " on port " + number_to_string(p) + ".\nOpen http://localhost:" + number_to_string(p) + " in your browser.",
+        error: "",
+    };
+}
+
+/// Extract all ```ovie code blocks from a Markdown string
+fn extract_ovie_examples(content: String) -> Array {
+    mut examples = [];
+    mut lines = string_split_lines(content);
+    mut in_block = false;
+    mut current = "";
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = array_get(lines, i);
+        i = i + 1;
+
+        if string_starts_with(string_trim(line), "```ovie") {
+            in_block = true;
+            current = "";
+        } else if string_starts_with(string_trim(line), "```") && in_block {
+            in_block = false;
+            if string_length(string_trim(current)) > 0 {
+                examples = array_push(examples, current);
+            }
+            current = "";
+        } else if in_block {
+            if string_length(current) > 0 { current = current + "\n"; }
+            current = current + line;
+        }
+    }
+
+    return examples;
+}

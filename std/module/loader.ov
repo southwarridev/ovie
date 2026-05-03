@@ -1,0 +1,1460 @@
+/// Module Loader - Core functionality for loading and managing Ovie modules
+/// This component discovers, loads, and manages .ov module files
+
+use std::fs;
+use std::io;
+use std::core::{Vec, HashMap, Option, Result};
+use std::lexer::{tokenize, Token, TokenType};
+use ./types::{Module, Import, ExportTable, ModuleError, ModuleResult, FunctionSignature, TypeDefinition, ConstantInfo, EnumDefinition, Parameter, Type, TypeKind, Field, EnumVariant};
+
+/// Global registry of loaded modules
+static mut LOADED_MODULES: HashMap<String, Module> = HashMap::new();
+
+/// Load a module from file path
+/// Returns the loaded module or error if not found/invalid
+///
+/// # Parameters
+/// - `path`: Absolute or relative path to the .ov file
+///
+/// # Returns
+/// Result containing the loaded Module or ModuleError
+///
+/// # Examples
+/// ```
+/// let module = load_module("std/math/mod.ov")?;
+/// ```
+export fn load_module(path: String) -> ModuleResult<Module> {
+    // Check if already loaded
+    if is_loaded(path) {
+        return Ok(get_module(path).unwrap());
+    }
+    
+    // Validate file extension
+    if !path.ends_with(".ov") {
+        return Err(ModuleError::NotFound(
+            format!("Invalid module file: {} (must have .ov extension)", path)
+        ));
+    }
+    
+    // Read file contents
+    let source = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(e) => return Err(ModuleError::NotFound(
+            format!("Failed to read module {}: {}", path, e)
+        ))
+    };
+    
+    // Parse module structure
+    let module = parse_module(path, source)?;
+    
+    // Register in global registry
+    unsafe {
+        LOADED_MODULES.insert(path.clone(), module.clone());
+    }
+    
+    Ok(module)
+}
+
+/// Load all dependencies of a module recursively
+/// Returns ordered list based on dependency graph
+///
+/// # Parameters
+/// - `module`: The module whose dependencies to load
+///
+/// # Returns
+/// Result containing Vec of loaded modules in dependency order
+export fn load_dependencies(module: Module) -> ModuleResult<Vec<Module>> {
+    let mut loaded = Vec::new();
+    
+    for imp in module.imports {
+        // Resolve import path to actual file
+        let resolved_path = resolve_import_path(imp.module_path)?;
+        
+        // Load the dependency
+        let dep_module = load_module(resolved_path)?;
+        
+        // Recursively load its dependencies
+        let transitive = load_dependencies(dep_module.clone())?;
+        
+        // Add to loaded list
+        for dep in transitive {
+            if !loaded.contains(&dep) {
+                loaded.push(dep);
+            }
+        }
+        
+        if !loaded.contains(&dep_module) {
+            loaded.push(dep_module);
+        }
+    }
+    
+    Ok(loaded)
+}
+
+/// Check if a module is already loaded
+///
+/// # Parameters
+/// - `path`: Path to check
+///
+/// # Returns
+/// true if module is loaded, false otherwise
+export fn is_loaded(path: String) -> bool {
+    unsafe {
+        LOADED_MODULES.contains_key(&path)
+    }
+}
+
+/// Get a loaded module by path
+///
+/// # Parameters
+/// - `path`: Path of the module
+///
+/// # Returns
+/// Option containing the Module if loaded
+export fn get_module(path: String) -> Option<Module> {
+    unsafe {
+        LOADED_MODULES.get(&path).cloned()
+    }
+}
+
+/// Register an export in the export table
+///
+/// This function validates that the exported symbol actually exists in the module
+/// and registers it in the appropriate section of the ExportTable.
+///
+/// # Parameters
+/// - `module`: Mutable reference to the module
+/// - `symbol_name`: Name of the symbol to export
+/// - `symbol_type`: Type of the symbol ("function", "type", "constant", "enum")
+///
+/// # Returns
+/// Result indicating success or error
+///
+/// # Errors
+/// - Returns ExportError if symbol doesn't exist in module
+/// - Returns ExportError if symbol_type is invalid
+export fn register_export(
+    module: &mut Module,
+    symbol_name: String,
+    symbol_type: String
+) -> ModuleResult<()> {
+    // Validate symbol exists in the appropriate table
+    match symbol_type.as_str() {
+        "function" => {
+            if !module.exports.functions.contains_key(&symbol_name) {
+                return Err(ModuleError::ExportError(
+                    format!(
+                        "Cannot export undefined function '{}'. Available functions: {}",
+                        symbol_name,
+                        get_available_functions(module)
+                    )
+                ));
+            }
+        },
+        "type" => {
+            if !module.exports.types.contains_key(&symbol_name) {
+                return Err(ModuleError::ExportError(
+                    format!(
+                        "Cannot export undefined type '{}'. Available types: {}",
+                        symbol_name,
+                        get_available_types(module)
+                    )
+                ));
+            }
+        },
+        "constant" => {
+            if !module.exports.constants.contains_key(&symbol_name) {
+                return Err(ModuleError::ExportError(
+                    format!(
+                        "Cannot export undefined constant '{}'. Available constants: {}",
+                        symbol_name,
+                        get_available_constants(module)
+                    )
+                ));
+            }
+        },
+        "enum" => {
+            if !module.exports.enums.contains_key(&symbol_name) {
+                return Err(ModuleError::ExportError(
+                    format!(
+                        "Cannot export undefined enum '{}'. Available enums: {}",
+                        symbol_name,
+                        get_available_enums(module)
+                    )
+                ));
+            }
+        },
+        _ => {
+            return Err(ModuleError::ExportError(
+                format!("Invalid symbol type '{}'. Must be one of: function, type, constant, enum", symbol_type)
+            ));
+        }
+    }
+    
+    // Symbol exists and is already registered in the export table
+    // (registration happens during parsing in parse_tokens_into_module)
+    Ok(())
+}
+
+/// Validate that all imports can be resolved
+///
+/// # Parameters
+/// - `module`: The module to validate
+///
+/// # Returns
+/// Result indicating success or error
+export fn validate_imports(module: Module) -> ModuleResult<()> {
+    for imp in module.imports {
+        // Check if import path can be resolved
+        match resolve_import_path(imp.module_path.clone()) {
+            Ok(_) => continue,
+            Err(e) => return Err(ModuleError::ImportError(
+                format!("Cannot resolve import '{}': {}", imp.module_path, e)
+            ))
+        }
+    }
+    Ok(())
+}
+
+/// Validate that all exported symbols actually exist in the module
+///
+/// This function ensures that:
+/// 1. All exported functions are defined in the module
+/// 2. All exported types are defined in the module
+/// 3. All exported constants are defined in the module
+/// 4. All exported enums are defined in the module
+/// 5. Symbol names and type signatures are preserved correctly
+///
+/// # Parameters
+/// - `module`: The module to validate
+///
+/// # Returns
+/// Result indicating success or error
+///
+/// # Errors
+/// Returns ExportError if any exported symbol is undefined
+fn validate_exports(module: &Module) -> ModuleResult<()> {
+    // All exports are already validated during parsing
+    // This function performs additional semantic checks
+    
+    // Check that function signatures are complete
+    for (name, func_sig) in &module.exports.functions {
+        if func_sig.name.is_empty() {
+            return Err(ModuleError::ExportError(
+                format!("Exported function '{}' has empty name", name)
+            ));
+        }
+        
+        // Verify function name matches key
+        if func_sig.name != *name {
+            return Err(ModuleError::ExportError(
+                format!(
+                    "Exported function key '{}' doesn't match function name '{}'",
+                    name, func_sig.name
+                )
+            ));
+        }
+        
+        // Check that return type is specified
+        if func_sig.return_type.name.is_empty() {
+            return Err(ModuleError::ExportError(
+                format!("Exported function '{}' has no return type", name)
+            ));
+        }
+    }
+    
+    // Check that type definitions are complete
+    for (name, type_def) in &module.exports.types {
+        if type_def.name.is_empty() {
+            return Err(ModuleError::ExportError(
+                format!("Exported type '{}' has empty name", name)
+            ));
+        }
+        
+        // Verify type name matches key
+        if type_def.name != *name {
+            return Err(ModuleError::ExportError(
+                format!(
+                    "Exported type key '{}' doesn't match type name '{}'",
+                    name, type_def.name
+                )
+            ));
+        }
+    }
+    
+    // Check that constant definitions are complete
+    for (name, const_info) in &module.exports.constants {
+        if const_info.name.is_empty() {
+            return Err(ModuleError::ExportError(
+                format!("Exported constant '{}' has empty name", name)
+            ));
+        }
+        
+        // Verify constant name matches key
+        if const_info.name != *name {
+            return Err(ModuleError::ExportError(
+                format!(
+                    "Exported constant key '{}' doesn't match constant name '{}'",
+                    name, const_info.name
+                )
+            ));
+        }
+        
+        // Check that type is specified
+        if const_info.const_type.name.is_empty() {
+            return Err(ModuleError::ExportError(
+                format!("Exported constant '{}' has no type", name)
+            ));
+        }
+    }
+    
+    // Check that enum definitions are complete
+    for (name, enum_def) in &module.exports.enums {
+        if enum_def.name.is_empty() {
+            return Err(ModuleError::ExportError(
+                format!("Exported enum '{}' has empty name", name)
+            ));
+        }
+        
+        // Verify enum name matches key
+        if enum_def.name != *name {
+            return Err(ModuleError::ExportError(
+                format!(
+                    "Exported enum key '{}' doesn't match enum name '{}'",
+                    name, enum_def.name
+                )
+            ));
+        }
+        
+        // Check that enum has at least one variant
+        if enum_def.variants.is_empty() {
+            return Err(ModuleError::ExportError(
+                format!("Exported enum '{}' has no variants", name)
+            ));
+        }
+    }
+    
+    Ok(())
+}
+
+/// Parse a module from source code
+/// Internal helper function
+/// 
+/// This function tokenizes the source code and extracts:
+/// - Function declarations (export fn ...)
+/// - Type definitions (export struct/enum ...)
+/// - Constants (export const ...)
+/// - Import statements (use/import ...)
+fn parse_module(path: String, source: String) -> ModuleResult<Module> {
+    // Extract module name from path
+    let name = extract_module_name(path.clone());
+    
+    // Initialize empty module
+    let mut module = Module {
+        path: path.clone(),
+        name: name,
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: compute_hash(source.clone()),
+        compiled_at: current_timestamp(),
+        doc_comments: HashMap::new()
+    };
+    
+    // Tokenize the source code
+    let tokens = match tokenize(source.clone()) {
+        Ok(toks) => toks,
+        Err(e) => return Err(ModuleError::ParseError(
+            format!("Failed to tokenize module {}: {}", path, e)
+        ))
+    };
+    
+    // Parse tokens to extract module structure
+    parse_tokens_into_module(&mut module, tokens)?;
+    
+    // Validate all exports reference valid symbols
+    validate_exports(&module)?;
+    
+    Ok(module)
+}
+
+/// Parse tokens and populate module structure
+/// Extracts exports, imports, and documentation
+fn parse_tokens_into_module(module: &mut Module, tokens: Vec<Token>) -> ModuleResult<()> {
+    let mut i = 0;
+    let mut current_doc_comment = String::new();
+    
+    while i < tokens.len() {
+        let token = &tokens[i];
+        
+        match token.token_type {
+            // Handle doc comments (/// or /** */)
+            TokenType::Identifier(ref id) if id.starts_with("///") || id.starts_with("/**") => {
+                current_doc_comment = extract_doc_comment(id);
+                i += 1;
+            },
+            
+            // Handle export keyword
+            TokenType::Identifier(ref id) if id == "export" => {
+                i += 1;
+                if i >= tokens.len() {
+                    return Err(ModuleError::ParseError(
+                        "Unexpected end after 'export' keyword".to_string()
+                    ));
+                }
+                
+                // Parse what's being exported
+                let next_token = &tokens[i];
+                match next_token.token_type {
+                    TokenType::Fn => {
+                        let func_sig = parse_function_signature(&tokens, &mut i, current_doc_comment.clone())?;
+                        module.exports.functions.insert(func_sig.name.clone(), func_sig);
+                        current_doc_comment = String::new();
+                    },
+                    TokenType::Struct => {
+                        let type_def = parse_struct_definition(&tokens, &mut i, current_doc_comment.clone())?;
+                        module.exports.types.insert(type_def.name.clone(), type_def);
+                        current_doc_comment = String::new();
+                    },
+                    TokenType::Enum => {
+                        let enum_def = parse_enum_definition(&tokens, &mut i, current_doc_comment.clone())?;
+                        module.exports.enums.insert(enum_def.name.clone(), enum_def);
+                        current_doc_comment = String::new();
+                    },
+                    TokenType::Identifier(ref id) if id == "const" => {
+                        let const_info = parse_constant(&tokens, &mut i, current_doc_comment.clone())?;
+                        module.exports.constants.insert(const_info.name.clone(), const_info);
+                        current_doc_comment = String::new();
+                    },
+                    _ => {
+                        return Err(ModuleError::ParseError(
+                            format!("Unexpected token after 'export': {:?}", next_token.token_type)
+                        ));
+                    }
+                }
+            },
+            
+            // Handle use/import statements
+            TokenType::Identifier(ref id) if id == "use" || id == "import" => {
+                let import = parse_import_statement(&tokens, &mut i)?;
+                module.imports.push(import);
+            },
+            
+            _ => {
+                i += 1;
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Parse a function signature from tokens
+fn parse_function_signature(tokens: &Vec<Token>, i: &mut usize, doc_comment: String) -> ModuleResult<FunctionSignature> {
+    *i += 1; // Skip 'fn' keyword
+    
+    // Get function name
+    if *i >= tokens.len() {
+        return Err(ModuleError::ParseError("Expected function name".to_string()));
+    }
+    
+    let name = match &tokens[*i].token_type {
+        TokenType::Identifier(id) => id.clone(),
+        _ => return Err(ModuleError::ParseError("Expected function name".to_string()))
+    };
+    *i += 1;
+    
+    // Parse parameters (simplified - just count them for now)
+    let parameters = parse_parameters(tokens, i)?;
+    
+    // Parse return type (simplified)
+    let return_type = parse_return_type(tokens, i)?;
+    
+    Ok(FunctionSignature {
+        name: name,
+        parameters: parameters,
+        return_type: return_type,
+        doc_comment: doc_comment,
+        is_generic: false
+    })
+}
+
+/// Parse function parameters
+fn parse_parameters(tokens: &Vec<Token>, i: &mut usize) -> ModuleResult<Vec<Parameter>> {
+    let mut params = Vec::new();
+    
+    // Expect '('
+    if *i >= tokens.len() || tokens[*i].token_type != TokenType::LeftParen {
+        return Ok(params); // No parameters
+    }
+    *i += 1;
+    
+    // Parse until ')'
+    while *i < tokens.len() && tokens[*i].token_type != TokenType::RightParen {
+        // Simple parameter parsing: name: type
+        if let TokenType::Identifier(param_name) = &tokens[*i].token_type {
+            let name = param_name.clone();
+            *i += 1;
+            
+            // Skip ':' if present
+            if *i < tokens.len() && tokens[*i].token_type == TokenType::Colon {
+                *i += 1;
+            }
+            
+            // Get type
+            let param_type = if *i < tokens.len() {
+                if let TokenType::Identifier(type_name) = &tokens[*i].token_type {
+                    Type {
+                        name: type_name.clone(),
+                        is_generic: false,
+                        type_params: Vec::new()
+                    }
+                } else {
+                    Type {
+                        name: "unknown".to_string(),
+                        is_generic: false,
+                        type_params: Vec::new()
+                    }
+                }
+            } else {
+                Type {
+                    name: "unknown".to_string(),
+                    is_generic: false,
+                    type_params: Vec::new()
+                }
+            };
+            *i += 1;
+            
+            params.push(Parameter {
+                name: name,
+                param_type: param_type,
+                is_mutable: false
+            });
+            
+            // Skip comma if present
+            if *i < tokens.len() && tokens[*i].token_type == TokenType::Comma {
+                *i += 1;
+            }
+        } else {
+            *i += 1;
+        }
+    }
+    
+    // Skip ')'
+    if *i < tokens.len() && tokens[*i].token_type == TokenType::RightParen {
+        *i += 1;
+    }
+    
+    Ok(params)
+}
+
+/// Parse return type
+fn parse_return_type(tokens: &Vec<Token>, i: &mut usize) -> ModuleResult<Type> {
+    // Look for '->'
+    if *i < tokens.len() {
+        if let TokenType::Identifier(id) = &tokens[*i].token_type {
+            if id == "->" {
+                *i += 1;
+                if *i < tokens.len() {
+                    if let TokenType::Identifier(type_name) = &tokens[*i].token_type {
+                        *i += 1;
+                        return Ok(Type {
+                            name: type_name.clone(),
+                            is_generic: false,
+                            type_params: Vec::new()
+                        });
+                    }
+                }
+            }
+        }
+    }
+    
+    // Default to void/unit type
+    Ok(Type {
+        name: "()".to_string(),
+        is_generic: false,
+        type_params: Vec::new()
+    })
+}
+
+/// Parse a struct definition
+fn parse_struct_definition(tokens: &Vec<Token>, i: &mut usize, doc_comment: String) -> ModuleResult<TypeDefinition> {
+    *i += 1; // Skip 'struct' keyword
+    
+    // Get struct name
+    if *i >= tokens.len() {
+        return Err(ModuleError::ParseError("Expected struct name".to_string()));
+    }
+    
+    let name = match &tokens[*i].token_type {
+        TokenType::Identifier(id) => id.clone(),
+        _ => return Err(ModuleError::ParseError("Expected struct name".to_string()))
+    };
+    *i += 1;
+    
+    // Parse fields (simplified)
+    let fields = parse_struct_fields(tokens, i)?;
+    
+    Ok(TypeDefinition {
+        name: name,
+        kind: TypeKind::Struct,
+        fields: fields,
+        doc_comment: doc_comment
+    })
+}
+
+/// Parse struct fields
+fn parse_struct_fields(tokens: &Vec<Token>, i: &mut usize) -> ModuleResult<Vec<Field>> {
+    let mut fields = Vec::new();
+    
+    // Expect '{'
+    if *i >= tokens.len() || tokens[*i].token_type != TokenType::LeftBrace {
+        return Ok(fields);
+    }
+    *i += 1;
+    
+    // Parse until '}'
+    while *i < tokens.len() && tokens[*i].token_type != TokenType::RightBrace {
+        if let TokenType::Identifier(field_name) = &tokens[*i].token_type {
+            let name = field_name.clone();
+            *i += 1;
+            
+            // Skip ':' if present
+            if *i < tokens.len() && tokens[*i].token_type == TokenType::Colon {
+                *i += 1;
+            }
+            
+            // Get type
+            let field_type = if *i < tokens.len() {
+                if let TokenType::Identifier(type_name) = &tokens[*i].token_type {
+                    Type {
+                        name: type_name.clone(),
+                        is_generic: false,
+                        type_params: Vec::new()
+                    }
+                } else {
+                    Type {
+                        name: "unknown".to_string(),
+                        is_generic: false,
+                        type_params: Vec::new()
+                    }
+                }
+            } else {
+                Type {
+                    name: "unknown".to_string(),
+                    is_generic: false,
+                    type_params: Vec::new()
+                }
+            };
+            *i += 1;
+            
+            fields.push(Field {
+                name: name,
+                field_type: field_type,
+                is_public: true
+            });
+            
+            // Skip comma if present
+            if *i < tokens.len() && tokens[*i].token_type == TokenType::Comma {
+                *i += 1;
+            }
+        } else {
+            *i += 1;
+        }
+    }
+    
+    // Skip '}'
+    if *i < tokens.len() && tokens[*i].token_type == TokenType::RightBrace {
+        *i += 1;
+    }
+    
+    Ok(fields)
+}
+
+/// Parse an enum definition
+fn parse_enum_definition(tokens: &Vec<Token>, i: &mut usize, doc_comment: String) -> ModuleResult<EnumDefinition> {
+    *i += 1; // Skip 'enum' keyword
+    
+    // Get enum name
+    if *i >= tokens.len() {
+        return Err(ModuleError::ParseError("Expected enum name".to_string()));
+    }
+    
+    let name = match &tokens[*i].token_type {
+        TokenType::Identifier(id) => id.clone(),
+        _ => return Err(ModuleError::ParseError("Expected enum name".to_string()))
+    };
+    *i += 1;
+    
+    // Parse variants (simplified)
+    let variants = parse_enum_variants(tokens, i)?;
+    
+    Ok(EnumDefinition {
+        name: name,
+        variants: variants,
+        doc_comment: doc_comment
+    })
+}
+
+/// Parse enum variants
+fn parse_enum_variants(tokens: &Vec<Token>, i: &mut usize) -> ModuleResult<Vec<EnumVariant>> {
+    let mut variants = Vec::new();
+    
+    // Expect '{'
+    if *i >= tokens.len() || tokens[*i].token_type != TokenType::LeftBrace {
+        return Ok(variants);
+    }
+    *i += 1;
+    
+    // Parse until '}'
+    while *i < tokens.len() && tokens[*i].token_type != TokenType::RightBrace {
+        if let TokenType::Identifier(variant_name) = &tokens[*i].token_type {
+            let name = variant_name.clone();
+            *i += 1;
+            
+            variants.push(EnumVariant {
+                name: name,
+                fields: None
+            });
+            
+            // Skip comma if present
+            if *i < tokens.len() && tokens[*i].token_type == TokenType::Comma {
+                *i += 1;
+            }
+        } else {
+            *i += 1;
+        }
+    }
+    
+    // Skip '}'
+    if *i < tokens.len() && tokens[*i].token_type == TokenType::RightBrace {
+        *i += 1;
+    }
+    
+    Ok(variants)
+}
+
+/// Parse a constant definition
+fn parse_constant(tokens: &Vec<Token>, i: &mut usize, doc_comment: String) -> ModuleResult<ConstantInfo> {
+    *i += 1; // Skip 'const' keyword
+    
+    // Get constant name
+    if *i >= tokens.len() {
+        return Err(ModuleError::ParseError("Expected constant name".to_string()));
+    }
+    
+    let name = match &tokens[*i].token_type {
+        TokenType::Identifier(id) => id.clone(),
+        _ => return Err(ModuleError::ParseError("Expected constant name".to_string()))
+    };
+    *i += 1;
+    
+    // Skip ':' and get type
+    let const_type = if *i < tokens.len() && tokens[*i].token_type == TokenType::Colon {
+        *i += 1;
+        if *i < tokens.len() {
+            if let TokenType::Identifier(type_name) = &tokens[*i].token_type {
+                *i += 1;
+                Type {
+                    name: type_name.clone(),
+                    is_generic: false,
+                    type_params: Vec::new()
+                }
+            } else {
+                Type {
+                    name: "unknown".to_string(),
+                    is_generic: false,
+                    type_params: Vec::new()
+                }
+            }
+        } else {
+            Type {
+                name: "unknown".to_string(),
+                is_generic: false,
+                type_params: Vec::new()
+            }
+        }
+    } else {
+        Type {
+            name: "unknown".to_string(),
+            is_generic: false,
+            type_params: Vec::new()
+        }
+    };
+    
+    // Skip '=' and get value (simplified - just store as string)
+    let value = if *i < tokens.len() && tokens[*i].token_type == TokenType::Equal {
+        *i += 1;
+        if *i < tokens.len() {
+            let val = tokens[*i].lexeme.clone();
+            *i += 1;
+            val
+        } else {
+            String::new()
+        }
+    } else {
+        String::new()
+    };
+    
+    Ok(ConstantInfo {
+        name: name,
+        const_type: const_type,
+        value: value,
+        doc_comment: doc_comment
+    })
+}
+
+/// Parse an import statement
+fn parse_import_statement(tokens: &Vec<Token>, i: &mut usize) -> ModuleResult<Import> {
+    let is_use = match &tokens[*i].token_type {
+        TokenType::Identifier(id) => id == "use",
+        _ => false
+    };
+    *i += 1;
+    
+    // Get module path
+    let mut module_path = String::new();
+    let mut symbols: Option<Vec<String>> = None;
+    let mut alias: Option<String> = None;
+    
+    // Parse module path
+    while *i < tokens.len() {
+        match &tokens[*i].token_type {
+            TokenType::Identifier(id) => {
+                if id == "as" {
+                    // Handle alias
+                    *i += 1;
+                    if *i < tokens.len() {
+                        if let TokenType::Identifier(alias_name) = &tokens[*i].token_type {
+                            alias = Some(alias_name.clone());
+                            *i += 1;
+                        }
+                    }
+                    break;
+                } else {
+                    module_path.push_str(id);
+                    *i += 1;
+                }
+            },
+            TokenType::Colon => {
+                module_path.push_str(":");
+                *i += 1;
+            },
+            TokenType::Dot => {
+                module_path.push_str(".");
+                *i += 1;
+            },
+            TokenType::Slash => {
+                module_path.push_str("/");
+                *i += 1;
+            },
+            TokenType::LeftBrace => {
+                // Parse specific symbols
+                *i += 1;
+                let mut syms = Vec::new();
+                while *i < tokens.len() && tokens[*i].token_type != TokenType::RightBrace {
+                    if let TokenType::Identifier(sym) = &tokens[*i].token_type {
+                        syms.push(sym.clone());
+                    }
+                    *i += 1;
+                    if *i < tokens.len() && tokens[*i].token_type == TokenType::Comma {
+                        *i += 1;
+                    }
+                }
+                symbols = Some(syms);
+                if *i < tokens.len() && tokens[*i].token_type == TokenType::RightBrace {
+                    *i += 1;
+                }
+                break;
+            },
+            TokenType::Semicolon => {
+                *i += 1;
+                break;
+            },
+            TokenType::StringLiteral(path) => {
+                module_path = path.clone();
+                *i += 1;
+                break;
+            },
+            _ => {
+                *i += 1;
+                break;
+            }
+        }
+    }
+    
+    Ok(Import {
+        module_path: module_path,
+        symbols: symbols,
+        alias: alias
+    })
+}
+
+/// Extract documentation comment text
+fn extract_doc_comment(comment: &str) -> String {
+    // Remove /// or /** */ markers
+    let trimmed = comment.trim();
+    if trimmed.starts_with("///") {
+        trimmed[3..].trim().to_string()
+    } else if trimmed.starts_with("/**") && trimmed.ends_with("*/") {
+        trimmed[3..trimmed.len()-2].trim().to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// Extract module name from file path
+fn extract_module_name(path: String) -> String {
+    // Simple implementation: get filename without extension
+    let parts: Vec<&str> = path.split("/").collect();
+    let filename = parts.last().unwrap_or(&"unknown");
+    let name_parts: Vec<&str> = filename.split(".").collect();
+    name_parts.first().unwrap_or(&"unknown").to_string()
+}
+
+/// Compute hash of source content
+fn compute_hash(source: String) -> String {
+    // Placeholder - will use proper hashing in cache implementation
+    format!("hash_{}", source.len())
+}
+
+/// Get current timestamp
+fn current_timestamp() -> i64 {
+    // Placeholder - will use std::time in actual implementation
+    0
+}
+
+/// Resolve import path to actual file path
+/// This is a placeholder - full implementation in resolver.ov
+fn resolve_import_path(import_path: String) -> ModuleResult<String> {
+    // Basic implementation - just return the path
+    Ok(import_path)
+}
+
+/// Get list of available functions for error messages
+fn get_available_functions(module: &Module) -> String {
+    let mut names = Vec::new();
+    for (name, _) in &module.exports.functions {
+        names.push(name.clone());
+    }
+    if names.is_empty() {
+        return "(none)".to_string();
+    }
+    names.join(", ")
+}
+
+/// Get list of available types for error messages
+fn get_available_types(module: &Module) -> String {
+    let mut names = Vec::new();
+    for (name, _) in &module.exports.types {
+        names.push(name.clone());
+    }
+    if names.is_empty() {
+        return "(none)".to_string();
+    }
+    names.join(", ")
+}
+
+/// Get list of available constants for error messages
+fn get_available_constants(module: &Module) -> String {
+    let mut names = Vec::new();
+    for (name, _) in &module.exports.constants {
+        names.push(name.clone());
+    }
+    if names.is_empty() {
+        return "(none)".to_string();
+    }
+    names.join(", ")
+}
+
+/// Get list of available enums for error messages
+fn get_available_enums(module: &Module) -> String {
+    let mut names = Vec::new();
+    for (name, _) in &module.exports.enums {
+        names.push(name.clone());
+    }
+    if names.is_empty() {
+        return "(none)".to_string();
+    }
+    names.join(", ")
+}
+
+/// Check for name collisions between imported symbols and a local namespace
+///
+/// Detects conflicts between:
+/// 1. Imported symbols and locally defined symbols
+/// 2. Symbols imported from different modules with the same name
+///
+/// # Parameters
+/// - `module`: The module being validated
+/// - `loaded_modules`: All modules loaded so far (for cross-module collision check)
+///
+/// # Returns
+/// Result indicating success, or NameCollision error with details
+///
+/// # Examples
+/// ```
+/// let result = check_name_collisions(module, loaded_modules);
+/// ```
+export fn check_name_collisions(
+    module: &Module,
+    loaded_modules: &Vec<Module>
+) -> ModuleResult<()> {
+    // Build a map of symbol -> source_module for all imported symbols
+    let mut imported_symbols: HashMap<String, String> = HashMap::new();
+
+    for import in &module.imports {
+        // Find the loaded module this import refers to
+        let source_module = find_loaded_module(&imp.module_path, loaded_modules);
+
+        match source_module {
+            None => continue, // Module not loaded yet, skip collision check
+            Some(src) => {
+                // Determine which symbols are being imported
+                let symbols_to_check = match &import.symbols {
+                    // Specific symbols: use module_path::symbol as key
+                    Some(syms) => syms.clone(),
+                    // Import all: collect all exported symbol names
+                    None => collect_all_exported_names(src)
+                };
+
+                // Use alias as the namespace prefix if present
+                let namespace = match &import.alias {
+                    Some(alias) => alias.clone(),
+                    None => imp.module_path.clone()
+                };
+
+                for sym in symbols_to_check {
+                    // When aliased, symbols are accessed as alias::sym, no collision
+                    // When not aliased, check for direct name conflicts
+                    if import.alias.is_none() {
+                        if let Some(existing_source) = imported_symbols.get(&sym) {
+                            if existing_source != &namespace {
+                                return Err(ModuleError::NameCollision(
+                                    format!(
+                                        "Symbol '{}' is imported from both '{}' and '{}'. \
+                                        Use explicit qualification: {}::{} or {}::{}",
+                                        sym,
+                                        existing_source,
+                                        namespace,
+                                        existing_source, sym,
+                                        namespace, sym
+                                    )
+                                ));
+                            }
+                        } else {
+                            imported_symbols.insert(sym, namespace.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check imported symbols against local definitions
+    check_imported_vs_local(module, &imported_symbols)?;
+
+    Ok(())
+}
+
+/// Check that imported symbol names don't shadow local definitions
+///
+/// # Parameters
+/// - `module`: The module to check
+/// - `imported_symbols`: Map of symbol name -> source module path
+///
+/// # Returns
+/// Result indicating success or NameCollision error
+fn check_imported_vs_local(
+    module: &Module,
+    imported_symbols: &HashMap<String, String>
+) -> ModuleResult<()> {
+    // Check functions
+    for (name, _) in &module.exports.functions {
+        if let Some(source) = imported_symbols.get(name) {
+            return Err(ModuleError::NameCollision(
+                format!(
+                    "Local function '{}' conflicts with imported symbol '{}' from '{}'. \
+                    Rename the local function or use an alias for the import.",
+                    name, name, source
+                )
+            ));
+        }
+    }
+
+    // Check types
+    for (name, _) in &module.exports.types {
+        if let Some(source) = imported_symbols.get(name) {
+            return Err(ModuleError::NameCollision(
+                format!(
+                    "Local type '{}' conflicts with imported symbol '{}' from '{}'. \
+                    Rename the local type or use an alias for the import.",
+                    name, name, source
+                )
+            ));
+        }
+    }
+
+    // Check constants
+    for (name, _) in &module.exports.constants {
+        if let Some(source) = imported_symbols.get(name) {
+            return Err(ModuleError::NameCollision(
+                format!(
+                    "Local constant '{}' conflicts with imported symbol '{}' from '{}'. \
+                    Rename the local constant or use an alias for the import.",
+                    name, name, source
+                )
+            ));
+        }
+    }
+
+    // Check enums
+    for (name, _) in &module.exports.enums {
+        if let Some(source) = imported_symbols.get(name) {
+            return Err(ModuleError::NameCollision(
+                format!(
+                    "Local enum '{}' conflicts with imported symbol '{}' from '{}'. \
+                    Rename the local enum or use an alias for the import.",
+                    name, name, source
+                )
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// Collect all exported symbol names from a module
+///
+/// # Parameters
+/// - `module`: The module to collect names from
+///
+/// # Returns
+/// Vec of all exported symbol names
+fn collect_all_exported_names(module: &Module) -> Vec<String> {
+    let mut names = Vec::new();
+    for (name, _) in &module.exports.functions {
+        names.push(name.clone());
+    }
+    for (name, _) in &module.exports.types {
+        names.push(name.clone());
+    }
+    for (name, _) in &module.exports.constants {
+        names.push(name.clone());
+    }
+    for (name, _) in &module.exports.enums {
+        names.push(name.clone());
+    }
+    names
+}
+
+/// Find a loaded module by its import path
+///
+/// # Parameters
+/// - `import_path`: The module path from an import statement
+/// - `loaded_modules`: All currently loaded modules
+///
+/// # Returns
+/// Option containing a reference to the matching module
+fn find_loaded_module(import_path: String, loaded_modules: Vec<Module>) -> Option<Module> {
+    for m in loaded_modules {
+        // Match by path or by name (handles both "std::math" and "std/math/mod.ov")
+        if &m.path == import_path || &m.name == import_path {
+            return Some(m);
+        }
+        // Also match if the import path is a suffix of the module path
+        if m.path.ends_with(import_path.as_str()) {
+            return Some(m);
+        }
+    }
+    None
+}
+
+/// Load a module directly from source content (used by lazy registry)
+///
+/// Unlike `load_module()` which reads from disk, this accepts pre-loaded source.
+/// Ensures the module is registered in the global cache after parsing.
+///
+/// # Parameters
+/// - `path`: Module path identifier
+/// - `source`: Source code content
+///
+/// # Returns
+/// Result containing the parsed Module
+///
+/// # Examples
+/// ```
+/// let module = load_module_from_source("std/math/mod.ov", source_str)?;
+/// ```
+export fn load_module_from_source(path: String, source: String) -> ModuleResult<Module> {
+    // Return cached module if already parsed (parse-at-most-once guarantee)
+    if is_loaded(path.clone()) {
+        return Ok(get_module(path).unwrap());
+    }
+
+    let module = parse_module(path.clone(), source)?;
+
+    unsafe {
+        LOADED_MODULES.insert(path.clone(), module.clone());
+    }
+
+    Ok(module)
+}
+
+// ============================================================
+// Backward Compatibility Layer (Tasks 17.1, 17.2)
+// ============================================================
+
+/// Detect if a source file is a standalone .ov file (legacy mode)
+///
+/// A file is considered standalone if it contains no `import`, `use`, or
+/// `export` statements. Such files are compiled using legacy semantics
+/// without the module system, preserving backward compatibility.
+///
+/// # Parameters
+/// - `source`: Source code content to inspect
+///
+/// # Returns
+/// true if the file has no import/export statements (standalone/legacy mode)
+///
+/// # Examples
+/// ```
+/// let src = "fn main() { seeAm(\"hello\"); }";
+/// assert(is_standalone_file(src) == true);
+/// ```
+export fn is_standalone_file(source: &String) -> bool {
+    // A file is standalone if it has no module-system keywords at the top level
+    let lines: Vec<String> = source.lines().map(|l| l.trim().to_string()).collect();
+
+    for line in &lines {
+        // Skip blank lines and comments
+        if line.is_empty() || line.starts_with("//") || line.starts_with("///") {
+            continue;
+        }
+        // If any non-comment line starts with import/use/export, it's modular
+        if line.starts_with("import ") || line.starts_with("use ") || line.starts_with("export ") {
+            return false;
+        }
+    }
+    true
+}
+
+/// Load a standalone .ov file using legacy semantics
+///
+/// Standalone files are compiled without the module system. They have access
+/// to built-in functions and types but cannot import other modules.
+/// This preserves backward compatibility with pre-2.3 Ovie code.
+///
+/// # Parameters
+/// - `path`: Path to the .ov file
+/// - `source`: Source code content
+///
+/// # Returns
+/// Result containing a Module with no imports/exports (legacy module)
+///
+/// # Examples
+/// ```
+/// let module = load_standalone("examples/hello.ov", source)?;
+/// assert(module.imports.is_empty());
+/// assert(module.exports.is_empty());
+/// ```
+export fn load_standalone(path: String, source: String) -> ModuleResult<Module> {
+    // Return cached if already loaded
+    if is_loaded(path.clone()) {
+        return Ok(get_module(path).unwrap());
+    }
+
+    // Parse as a module but mark it as standalone (no imports/exports enforced)
+    let mut module = parse_module(path.clone(), source)?;
+    module.is_standalone = true;
+
+    unsafe {
+        LOADED_MODULES.insert(path.clone(), module.clone());
+    }
+
+    Ok(module)
+}
+
+/// Determine the correct load mode for a source file and load it
+///
+/// Automatically detects whether a file is standalone or modular and
+/// dispatches to the appropriate loader. This is the primary entry point
+/// for the compatibility layer.
+///
+/// # Parameters
+/// - `path`: Path to the .ov file
+/// - `source`: Source code content
+///
+/// # Returns
+/// Result containing the loaded Module
+///
+/// # Examples
+/// ```
+/// let module = load_with_compat("examples/hello.ov", source)?;
+/// ```
+export fn load_with_compat(path: String, source: String) -> ModuleResult<Module> {
+    if is_standalone_file(&source) {
+        load_standalone(path, source)
+    } else {
+        load_module_from_source(path, source)
+    }
+}
+
+/// Check if a loaded module was compiled in standalone (legacy) mode
+///
+/// # Parameters
+/// - `module`: The module to check
+///
+/// # Returns
+/// true if the module was loaded as a standalone file
+///
+/// # Examples
+/// ```
+/// if is_legacy_module(&module) {
+///     // handle legacy semantics
+/// }
+/// ```
+export fn is_legacy_module(module: &Module) -> bool {
+    module.is_standalone
+}
+
+// ============================================================
+// Compatibility Mode for Legacy Std Usage (Task 17.2)
+// ============================================================
+
+/// Compatibility mode configuration
+///
+/// Controls how the module system handles legacy code that uses
+/// the standard library without explicit import/export statements.
+struct CompatMode {
+    /// Allow standalone files to implicitly access std builtins
+    allow_implicit_std: bool,
+    /// Emit deprecation warnings for legacy usage patterns
+    warn_on_legacy: bool,
+    /// Treat missing exports as warnings rather than errors
+    lenient_exports: bool
+}
+
+/// Default compatibility mode — permissive for smooth migration
+///
+/// # Returns
+/// CompatMode with safe defaults that allow legacy code to compile
+///
+/// # Examples
+/// ```
+/// let compat = default_compat_mode();
+/// assert(compat.allow_implicit_std == true);
+/// ```
+export fn default_compat_mode() -> CompatMode {
+    CompatMode {
+        allow_implicit_std: true,
+        warn_on_legacy: true,
+        lenient_exports: false
+    }
+}
+
+/// Strict compatibility mode — enforces full module system usage
+///
+/// # Returns
+/// CompatMode that requires explicit imports/exports
+///
+/// # Examples
+/// ```
+/// let compat = strict_compat_mode();
+/// assert(compat.allow_implicit_std == false);
+/// ```
+export fn strict_compat_mode() -> CompatMode {
+    CompatMode {
+        allow_implicit_std: false,
+        warn_on_legacy: false,
+        lenient_exports: false
+    }
+}
+
+/// Load a module respecting the given compatibility mode
+///
+/// In permissive mode, standalone files are allowed and legacy std usage
+/// is supported. In strict mode, all files must use explicit imports/exports.
+///
+/// # Parameters
+/// - `path`: Path to the .ov file
+/// - `source`: Source code content
+/// - `compat`: Compatibility mode configuration
+///
+/// # Returns
+/// Result containing the loaded Module
+///
+/// # Examples
+/// ```
+/// let compat = default_compat_mode();
+/// let module = load_with_mode("examples/hello.ov", source, compat)?;
+/// ```
+export fn load_with_mode(
+    path: String,
+    source: String,
+    compat: CompatMode
+) -> ModuleResult<Module> {
+    let standalone = is_standalone_file(&source);
+
+    if standalone && !compat.allow_implicit_std {
+        return Err(ModuleError::ParseError(format!(
+            "File '{}' has no import/export statements. \
+             Use explicit imports or enable compatibility mode.",
+            path
+        )));
+    }
+
+    if standalone && compat.warn_on_legacy {
+        // Emit a deprecation warning (non-fatal)
+        eprintln(&format!(
+            "Warning: '{}' uses legacy standalone mode. \
+             Consider adding explicit import/export statements.",
+            path
+        ));
+    }
+
+    load_with_compat(path, source)
+}
+
+/// Check if a module uses legacy std library access patterns
+///
+/// Detects patterns like `use core::{...}` without a preceding `import`
+/// that indicate the old implicit std access style.
+///
+/// # Parameters
+/// - `source`: Source code to inspect
+///
+/// # Returns
+/// true if legacy std usage patterns are detected
+///
+/// # Examples
+/// ```
+/// let src = "use core::{Vec};\nfn main() {}";
+/// assert(has_legacy_std_usage(src) == true);
+/// ```
+export fn has_legacy_std_usage(source: &String) -> bool {
+    // Legacy pattern: `use core::{...}` or `use fs::{...}` without full path
+    let legacy_patterns = vec![
+        "use core::",
+        "use fs::",
+        "use io::",
+        "use math::",
+        "use time::",
+        "use env::",
+        "use cli::",
+        "use log::",
+        "use testing::",
+    ];
+
+    for pattern in &legacy_patterns {
+        if source.contains(pattern) {
+            return true;
+        }
+    }
+    false
+}
+

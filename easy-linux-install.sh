@@ -23,13 +23,13 @@ echo "  ╚██████╔╝ ╚████╔╝ ██║████�
 echo "   ╚═════╝   ╚═══╝  ╚═╝╚══════╝"
 echo -e "${NC}"
 echo -e "${GREEN}  🚀 LOW-LEVEL LANGUAGE WITH HIGH-LEVEL FEATURES${NC}"
-echo -e "${YELLOW}  📦 Easy Linux Installation v2.2.0${NC}"
+echo -e "${YELLOW}  📦 Easy Linux Installation v2.3.0${NC}"
 echo ""
 echo "============================================================================"
 
 INSTALL_DIR="$HOME/ovie"
 BIN_DIR="$HOME/ovie/bin"
-OVIE_VERSION="2.2.0"
+OVIE_VERSION="2.3.0"
 
 echo -e "${GREEN}🎯 Welcome to Ovie Easy Installer!${NC}"
 echo ""
@@ -170,7 +170,7 @@ fi
 if [ ! -f "$BIN_DIR/ovie" ]; then
     cat > "$BIN_DIR/ovie" << 'EOF'
 #!/bin/bash
-# Ovie CLI Tool - Stage 2.1 Self-Hosted
+# Ovie CLI Tool - Stage 2.2 Self-Hosted
 
 if [ "$1" = "--version" ]; then
     echo "ovie 2.2.0 - Self-Hosted Programming Language"
@@ -207,7 +207,7 @@ if [ "$1" = "new" ]; then
     echo "Creating new Ovie project: $2"
     mkdir -p "$2"
     cat > "$2/main.ov" << 'OVIE_EOF'
-// Hello World in Ovie - Stage 2.1 Self-Hosted!
+// Hello World in Ovie - Stage 2.2 Self-Hosted!
 // Compiled by a compiler written in Ovie itself
 
 seeAm "Hello, World from Ovie!"
@@ -235,7 +235,7 @@ fi
 if [ ! -f "$BIN_DIR/oviec" ]; then
     cat > "$BIN_DIR/oviec" << 'EOF'
 #!/bin/bash
-echo "Ovie Compiler (oviec) v2.2.0 - Stage 2.1 Self-Hosted"
+echo "Ovie Compiler (oviec) v2.2.0 - Stage 2.2 Self-Hosted"
 echo "This is the Ovie compiler that compiles itself!"
 echo ""
 echo "To build the full compiler:"
@@ -293,7 +293,7 @@ echo "==========================================================================
 echo -e "${GREEN}                          🎉 INSTALLATION COMPLETE! 🎉${NC}"
 echo "============================================================================"
 echo ""
-echo -e "${GREEN}✅ Ovie v${OVIE_VERSION} - Stage 2.1 Self-Hosted installed successfully!${NC}"
+echo -e "${GREEN}✅ Ovie v${OVIE_VERSION} - Stage 2.2 Self-Hosted installed successfully!${NC}"
 echo ""
 echo -e "📍 Installation Location: ${INSTALL_DIR}"
 echo -e "🔧 Binaries: ${BIN_DIR}"

@@ -128,6 +128,10 @@ impl UnsafeOperationAnalyzer {
             Statement::Assignment { mutable: _, identifier: _, value } => {
                 self.analyze_expression(value, file_name, unsafe_ops)?;
             }
+            Statement::FieldMutation { object, field: _, value } => {
+                self.analyze_expression(object, file_name, unsafe_ops)?;
+                self.analyze_expression(value, file_name, unsafe_ops)?;
+            }
             Statement::VariableDeclaration { mutable: _, identifier: _, value } => {
                 self.analyze_expression(value, file_name, unsafe_ops)?;
             }
@@ -180,6 +184,25 @@ impl UnsafeOperationAnalyzer {
             }
             Statement::Enum { name: _, variants: _ } => {
                 // Enum definitions are safe
+            }
+            // New statement types
+            Statement::CompoundAssignment { value, .. } => {
+                self.analyze_expression(value, file_name, unsafe_ops)?;
+            }
+            Statement::ConstDeclaration { value, .. } => {
+                self.analyze_expression(value, file_name, unsafe_ops)?;
+            }
+            Statement::Break | Statement::Continue => {}
+            Statement::Use { .. } | Statement::Import { .. } => {}
+            Statement::Export { statement } => {
+                self.analyze_statement(statement, file_name, unsafe_ops)?;
+            }
+            Statement::TypeAlias { .. } => {}
+            Statement::Block { statements } => {
+                // unsafe { } blocks — analyze contents
+                for stmt in statements {
+                    self.analyze_statement(stmt, file_name, unsafe_ops)?;
+                }
             }
         }
         Ok(())

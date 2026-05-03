@@ -7,7 +7,7 @@ use std::fmt;
 /// Token types for the Ovie language
 #[derive(Logos, Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
-    // Keywords (exactly 13 as per spec)
+    // Keywords
     #[token("fn")]
     Fn,
     #[token("mut")]
@@ -36,6 +36,31 @@ pub enum TokenType {
     SeeAm,
     #[token("let")]
     Let,
+    // Module system keywords
+    #[token("use")]
+    Use,
+    #[token("import")]
+    Import,
+    #[token("export")]
+    Export,
+    #[token("as")]
+    As,
+    #[token("mod")]
+    Mod,
+    #[token("pub")]
+    Pub,
+    // Control flow
+    #[token("match")]
+    Match,
+    #[token("break")]
+    Break,
+    #[token("continue")]
+    Continue,
+    // Type system
+    #[token("type")]
+    Type,
+    #[token("const")]
+    Const,
 
     // Identifiers and literals
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
@@ -43,6 +68,10 @@ pub enum TokenType {
     
     #[regex(r#""([^"\\]|\\.)*""#)]
     StringLiteral,
+    
+    // Char literal: 'a', '\n', '\t', '\\'
+    #[regex(r"'([^'\\]|\\.)'")]
+    CharLiteral,
     
     #[regex(r"\d+\.\d+")]
     FloatLiteral,
@@ -55,6 +84,16 @@ pub enum TokenType {
     
     // String token (alias for StringLiteral)
     String,
+
+    // Compound assignment operators (must come before single-char operators)
+    #[token("+=")]
+    PlusEqual,
+    #[token("-=")]
+    MinusEqual,
+    #[token("*=")]
+    StarEqual,
+    #[token("/=")]
+    SlashEqual,
 
     // Operators
     #[token("+")]
@@ -88,9 +127,22 @@ pub enum TokenType {
     AndAnd,
     #[token("||")]
     OrOr,
+    #[token("|")]
+    Pipe,
     #[token("!")]
     Bang,
+    #[token("&")]
+    Ampersand,
     
+    #[token("=>")]
+    FatArrow,
+    #[token("->")]
+    Arrow,
+    #[token("::")]
+    ColonColon,
+    #[token("?")]
+    Question,
+
     #[token("=")]
     Equal,
     
@@ -129,6 +181,7 @@ pub enum TokenType {
     // Whitespace and comments (ignored)
     #[regex(r"[ \t\r\n\f]+", logos::skip)]
     #[regex(r"//[^\r\n]*", logos::skip)]
+    #[regex(r"/\*[^*]*\*+(?:[^/*][^*]*\*+)*/", logos::skip)]
     Whitespace,
 
     // End of file
@@ -255,6 +308,17 @@ impl<'a> Lexer<'a> {
             "false" => TokenType::False,
             "seeAm" => TokenType::SeeAm,
             "in" => TokenType::In,
+            "use" => TokenType::Use,
+            "import" => TokenType::Import,
+            "export" => TokenType::Export,
+            "as" => TokenType::As,
+            "mod" => TokenType::Mod,
+            "pub" => TokenType::Pub,
+            "match" => TokenType::Match,
+            "break" => TokenType::Break,
+            "continue" => TokenType::Continue,
+            "type" => TokenType::Type,
+            "const" => TokenType::Const,
             _ => TokenType::Identifier,
         }
     }
@@ -277,12 +341,28 @@ impl fmt::Display for TokenType {
             TokenType::True => "true",
             TokenType::False => "false",
             TokenType::SeeAm => "seeAm",
+            TokenType::Use => "use",
+            TokenType::Import => "import",
+            TokenType::Export => "export",
+            TokenType::As => "as",
+            TokenType::Mod => "mod",
+            TokenType::Pub => "pub",
+            TokenType::Match => "match",
+            TokenType::Break => "break",
+            TokenType::Continue => "continue",
+            TokenType::Type => "type",
+            TokenType::Const => "const",
             TokenType::Identifier => "identifier",
             TokenType::StringLiteral => "string",
+            TokenType::CharLiteral => "char",
             TokenType::FloatLiteral => "float",
             TokenType::IntegerLiteral => "integer",
             TokenType::Number => "number",
             TokenType::String => "string",
+            TokenType::PlusEqual => "+=",
+            TokenType::MinusEqual => "-=",
+            TokenType::StarEqual => "*=",
+            TokenType::SlashEqual => "/=",
             TokenType::Plus => "+",
             TokenType::Minus => "-",
             TokenType::Star => "*",
@@ -297,7 +377,13 @@ impl fmt::Display for TokenType {
             TokenType::GreaterEqual => ">=",
             TokenType::AndAnd => "&&",
             TokenType::OrOr => "||",
+            TokenType::Pipe => "|",
             TokenType::Bang => "!",
+            TokenType::Ampersand => "&",
+            TokenType::FatArrow => "=>",
+            TokenType::Arrow => "->",
+            TokenType::ColonColon => "::",
+            TokenType::Question => "?",
             TokenType::Equal => "=",
             TokenType::Assign => "=",
             TokenType::LeftParen => "(",

@@ -1,0 +1,256 @@
+/// Documentation Enforcement
+///
+/// Integrates documentation validation into the compilation pipeline.
+/// Enforces that all exported functions have complete doc comments before
+/// compilation proceeds.
+///
+/// # Requirements: 22.1, 22.2, 22.3, 22.14, 22.16
+
+/// Result of enforcing documentation on a module
+struct DocEnforcementResult {
+    passed: Boolean,
+    errors: Array,    // Array of DocEnforcementError
+    warnings: Array,  // Array of String
+}
+
+/// A documentation enforcement error
+struct DocEnforcementError {
+    symbol_name: String,
+    file_path: String,
+    line_number: Number,
+    error_message: String,
+}
+
+/// Scan a module source and enforce documentation on all exported functions
+///
+/// Parses the source, finds all exported functions, extracts their doc
+/// comments, and validates completeness. Returns errors for any function
+/// missing required documentation.
+///
+/// # Parameters
+/// - source: Source code of the module
+/// - file_path: File path for error reporting
+///
+/// # Returns
+/// DocEnforcementResult with all errors and warnings
+export fn enforce_module_docs(source: String, file_path: String) -> DocEnforcementResult {
+    mut lines = string_split_lines(source);
+    mut errors = [];
+    mut warnings = [];
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+
+        if string_starts_with(line, "export fn ") {
+            mut sig = string_substring(line, 10, string_length(line));
+            // Remove trailing {
+            mut brace = string_find(sig, "{");
+            if brace > 0 {
+                sig = string_trim(string_substring(sig, 0, brace));
+            }
+            mut fn_name = extract_fn_name_doc(sig);
+            mut param_count = count_params(sig);
+            mut has_return = string_contains(sig, "->") && !string_contains(sig, "-> void");
+
+            // Extract doc comment
+            mut raw_doc = extract_doc_comment(lines, i);
+
+            if string_length(raw_doc) == 0 {
+                mut err = DocEnforcementError {
+                    symbol_name: fn_name,
+                    file_path: file_path,
+                    line_number: i + 1,
+                    error_message: "Exported function '" + fn_name + "' has no doc comment",
+                };
+                errors = array_push(errors, err);
+            } else {
+                mut doc = parse_doc_comment(raw_doc);
+                mut validation = validate_doc(doc, param_count, has_return, false, false);
+
+                if !validation.valid {
+                    mut vi = 0;
+                    while vi < array_length(validation.errors) {
+                        mut verr = array_get(validation.errors, vi);
+                        mut err = DocEnforcementError {
+                            symbol_name: fn_name,
+                            file_path: file_path,
+                            line_number: i + 1,
+                            error_message: "'" + fn_name + "': " + verr,
+                        };
+                        errors = array_push(errors, err);
+                        vi = vi + 1;
+                    }
+                }
+
+                // Collect warnings
+                mut wi = 0;
+                while wi < array_length(validation.warnings) {
+                    mut w = array_get(validation.warnings, wi);
+                    warnings = array_push(warnings, fn_name + ": " + w);
+                    wi = wi + 1;
+                }
+
+                // Validate examples
+                mut ex_validation = validate_examples(doc);
+                if !ex_validation.valid {
+                    mut ei = 0;
+                    while ei < array_length(ex_validation.errors) {
+                        mut eerr = array_get(ex_validation.errors, ei);
+                        mut err = DocEnforcementError {
+                            symbol_name: fn_name,
+                            file_path: file_path,
+                            line_number: i + 1,
+                            error_message: "'" + fn_name + "' example error: " + eerr,
+                        };
+                        errors = array_push(errors, err);
+                        ei = ei + 1;
+                    }
+                }
+            }
+        }
+
+        i = i + 1;
+    }
+
+    return DocEnforcementResult {
+        passed: array_length(errors) == 0,
+        errors: errors,
+        warnings: warnings,
+    };
+}
+
+/// Format enforcement errors as a human-readable string
+///
+/// # Parameters
+/// - result: DocEnforcementResult to format
+///
+/// # Returns
+/// Formatted error string
+export fn format_enforcement_errors(result: DocEnforcementResult) -> String {
+    if result.passed {
+        return "Documentation check passed.";
+    }
+
+    mut output = "Documentation errors found:\n\n";
+    mut i = 0;
+    while i < array_length(result.errors) {
+        mut err = array_get(result.errors, i);
+        output = output + "  " + err.file_path + ":" + number_to_string(err.line_number) + " — " + err.error_message + "\n";
+        i = i + 1;
+    }
+
+    if array_length(result.warnings) > 0 {
+        output = output + "\nWarnings:\n";
+        mut wi = 0;
+        while wi < array_length(result.warnings) {
+            output = output + "  " + array_get(result.warnings, wi) + "\n";
+            wi = wi + 1;
+        }
+    }
+
+    return output;
+}
+
+/// Build doc metadata map from a module source for inclusion in ExportTable
+///
+/// Returns a map of symbol_name -> doc_comment_summary for all exported symbols.
+///
+/// # Parameters
+/// - source: Module source code
+///
+/// # Returns
+/// Array of {name, summary} pairs as strings "name::summary"
+export fn build_doc_metadata(source: String) -> Array {
+    mut lines = string_split_lines(source);
+    mut metadata = [];
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+
+        if string_starts_with(line, "export fn ") || string_starts_with(line, "export struct ") || string_starts_with(line, "export enum ") {
+            mut raw_doc = extract_doc_comment(lines, i);
+            mut name = "";
+
+            if string_starts_with(line, "export fn ") {
+                mut sig = string_substring(line, 10, string_length(line));
+                name = extract_fn_name_doc(sig);
+            } else if string_starts_with(line, "export struct ") {
+                mut rest = string_substring(line, 14, string_length(line));
+                name = extract_first_word(rest);
+            } else if string_starts_with(line, "export enum ") {
+                mut rest = string_substring(line, 12, string_length(line));
+                name = extract_first_word(rest);
+            }
+
+            if string_length(name) > 0 {
+                mut summary = "";
+                if string_length(raw_doc) > 0 {
+                    mut doc = parse_doc_comment(raw_doc);
+                    summary = doc.summary;
+                }
+                metadata = array_push(metadata, name + "::" + summary);
+            }
+        }
+
+        i = i + 1;
+    }
+
+    return metadata;
+}
+
+/// Count parameters in a function signature string
+fn count_params(sig: String) -> Number {
+    mut open = string_find(sig, "(");
+    mut close = string_rfind(sig, ")");
+    if open < 0 || close <= open + 1 {
+        return 0;
+    }
+    mut params_str = string_trim(string_substring(sig, open + 1, close));
+    if string_length(params_str) == 0 {
+        return 0;
+    }
+    // Count commas at depth 0
+    mut count = 1;
+    mut depth = 0;
+    mut i = 0;
+    while i < string_length(params_str) {
+        mut ch = string_char_at(params_str, i);
+        if ch == "(" || ch == "<" { depth = depth + 1; }
+        if ch == ")" || ch == ">" { depth = depth - 1; }
+        if ch == "," && depth == 0 { count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+/// Extract function name from a signature string
+fn extract_fn_name_doc(sig: String) -> String {
+    mut i = 0;
+    mut name = "";
+    while i < string_length(sig) {
+        mut ch = string_char_at(sig, i);
+        if ch == "(" || ch == " " {
+            return name;
+        }
+        name = name + ch;
+        i = i + 1;
+    }
+    return name;
+}
+
+/// Extract first word from a string (up to space or {)
+fn extract_first_word(s: String) -> String {
+    mut i = 0;
+    mut word = "";
+    while i < string_length(s) {
+        mut ch = string_char_at(s, i);
+        if ch == " " || ch == "{" {
+            return word;
+        }
+        word = word + ch;
+        i = i + 1;
+    }
+    return word;
+}

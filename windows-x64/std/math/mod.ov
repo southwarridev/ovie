@@ -1,0 +1,846 @@
+// Ovie Standard Library - Math Module
+// Deterministic mathematical operations with overflow handling
+// All operations are designed to be reproducible across platforms
+
+use core::{Result, Option, ok, err, some, none};
+
+// ===== MATHEMATICAL CONSTANTS =====
+
+// Mathematical constants with deterministic precision
+const PI: Number = 3.141592653589793;
+const E: Number = 2.718281828459045;
+const TAU: Number = 6.283185307179586; // 2 * PI
+const SQRT_2: Number = 1.4142135623730951;
+const SQRT_3: Number = 1.7320508075688772;
+const LN_2: Number = 0.6931471805599453;
+const LN_10: Number = 2.302585092994046;
+const LOG2_E: Number = 1.4426950408889634;
+const LOG10_E: Number = 0.4342944819032518;
+
+// Floating-point limits
+const INFINITY: Number = 1.0 / 0.0;
+const NEG_INFINITY: Number = -1.0 / 0.0;
+const NAN: Number = 0.0 / 0.0;
+const EPSILON: Number = 2.220446049250313e-16;
+
+// Integer limits (64-bit)
+const MAX_INT: Number = 9223372036854775807;
+const MIN_INT: Number = -9223372036854775808;
+
+// ===== BASIC ARITHMETIC WITH OVERFLOW CHECKING =====
+
+// Checked addition
+fn checked_add(a: Number, b: Number) -> Result<Number, String> {
+    // Check for overflow in integer addition
+    if is_integer(a) && is_integer(b) {
+        if a > 0 && b > MAX_INT - a {
+            return err("Integer overflow in addition");
+        }
+        if a < 0 && b < MIN_INT - a {
+            return err("Integer underflow in addition");
+        }
+    }
+    
+    mut result = a + b;
+    
+    // Check for floating-point overflow
+    if is_infinite(result) && !is_infinite(a) && !is_infinite(b) {
+        return err("Floating-point overflow in addition");
+    }
+    
+    return ok(result);
+}
+
+// Checked subtraction
+fn checked_sub(a: Number, b: Number) -> Result<Number, String> {
+    // Check for overflow in integer subtraction
+    if is_integer(a) && is_integer(b) {
+        if b > 0 && a < MIN_INT + b {
+            return err("Integer underflow in subtraction");
+        }
+        if b < 0 && a > MAX_INT + b {
+            return err("Integer overflow in subtraction");
+        }
+    }
+    
+    mut result = a - b;
+    
+    // Check for floating-point overflow
+    if is_infinite(result) && !is_infinite(a) && !is_infinite(b) {
+        return err("Floating-point overflow in subtraction");
+    }
+    
+    return ok(result);
+}
+
+// Checked multiplication
+fn checked_mul(a: Number, b: Number) -> Result<Number, String> {
+    // Check for overflow in integer multiplication
+    if is_integer(a) && is_integer(b) {
+        if a != 0 && b != 0 {
+            if a > 0 && b > 0 && a > MAX_INT / b {
+                return err("Integer overflow in multiplication");
+            }
+            if a > 0 && b < 0 && b < MIN_INT / a {
+                return err("Integer underflow in multiplication");
+            }
+            if a < 0 && b > 0 && a < MIN_INT / b {
+                return err("Integer underflow in multiplication");
+            }
+            if a < 0 && b < 0 && a < MAX_INT / b {
+                return err("Integer overflow in multiplication");
+            }
+        }
+    }
+    
+    mut result = a * b;
+    
+    // Check for floating-point overflow
+    if is_infinite(result) && !is_infinite(a) && !is_infinite(b) {
+        return err("Floating-point overflow in multiplication");
+    }
+    
+    return ok(result);
+}
+
+// Checked division
+fn checked_div(a: Number, b: Number) -> Result<Number, String> {
+    if b == 0 {
+        return err("Division by zero");
+    }
+    
+    // Check for integer division overflow (MIN_INT / -1)
+    if is_integer(a) && is_integer(b) {
+        if a == MIN_INT && b == -1 {
+            return err("Integer overflow in division");
+        }
+    }
+    
+    mut result = a / b;
+    return ok(result);
+}
+
+// Checked modulo
+fn checked_mod(a: Number, b: Number) -> Result<Number, String> {
+    if b == 0 {
+        return err("Modulo by zero");
+    }
+    
+    // Check for integer modulo overflow (MIN_INT % -1)
+    if is_integer(a) && is_integer(b) {
+        if a == MIN_INT && b == -1 {
+            return err("Integer overflow in modulo");
+        }
+    }
+    
+    mut result = a % b;
+    return ok(result);
+}
+
+// ===== POWER AND ROOT FUNCTIONS =====
+
+// Power function with overflow checking
+fn pow(base: Number, exponent: Number) -> Result<Number, String> {
+    // Handle special cases
+    if base == 0 && exponent < 0 {
+        return err("Division by zero in power function");
+    }
+    
+    if base == 0 && exponent == 0 {
+        return ok(1); // 0^0 = 1 by convention
+    }
+    
+    if exponent == 0 {
+        return ok(1);
+    }
+    
+    if exponent == 1 {
+        return ok(base);
+    }
+    
+    // For integer exponents, use repeated multiplication
+    if is_integer(exponent) && exponent >= 0 {
+        return integer_pow(base, exponent);
+    }
+    
+    // For floating-point exponents, use logarithmic method
+    if base <= 0 {
+        return err("Cannot raise negative number to fractional power");
+    }
+    
+    mut result = exp(exponent * ln(base));
+    
+    if is_infinite(result) {
+        return err("Overflow in power function");
+    }
+    
+    return ok(result);
+}
+
+// Integer power using repeated multiplication
+fn integer_pow(base: Number, exponent: Number) -> Result<Number, String> {
+    mut result = 1;
+    mut current_base = base;
+    mut current_exp = exponent;
+    
+    while current_exp > 0 {
+        if current_exp % 2 == 1 {
+            mut mul_result = checked_mul(result, current_base);
+            if mul_result.is_err() {
+                return mul_result;
+            }
+            result = mul_result.unwrap();
+        }
+        
+        mut square_result = checked_mul(current_base, current_base);
+        if square_result.is_err() {
+            return square_result;
+        }
+        current_base = square_result.unwrap();
+        current_exp = current_exp / 2;
+    }
+    
+    return ok(result);
+}
+
+// Square root with error checking
+fn sqrt(x: Number) -> Result<Number, String> {
+    if x < 0 {
+        return err("Cannot take square root of negative number");
+    }
+    
+    if x == 0 || x == 1 {
+        return ok(x);
+    }
+    
+    // Newton's method for square root
+    mut guess = x / 2;
+    mut epsilon = 1e-15;
+    
+    for i in 0..100 { // Maximum iterations to ensure termination
+        mut new_guess = (guess + x / guess) / 2;
+        
+        if abs(new_guess - guess) < epsilon {
+            return ok(new_guess);
+        }
+        
+        guess = new_guess;
+    }
+    
+    return ok(guess);
+}
+
+// Cube root
+fn cbrt(x: Number) -> Number {
+    if x == 0 {
+        return 0;
+    }
+    
+    mut sign = if x < 0 { -1 } else { 1 };
+    mut abs_x = abs(x);
+    
+    // Newton's method for cube root
+    mut guess = abs_x / 3;
+    mut epsilon = 1e-15;
+    
+    for i in 0..100 {
+        mut new_guess = (2 * guess + abs_x / (guess * guess)) / 3;
+        
+        if abs(new_guess - guess) < epsilon {
+            return sign * new_guess;
+        }
+        
+        guess = new_guess;
+    }
+    
+    return sign * guess;
+}
+
+// ===== TRIGONOMETRIC FUNCTIONS =====
+
+// Sine function using Taylor series
+fn sin(x: Number) -> Number {
+    // Normalize to [-2π, 2π]
+    mut normalized_x = x % TAU;
+    if normalized_x > PI {
+        normalized_x = normalized_x - TAU;
+    } else if normalized_x < -PI {
+        normalized_x = normalized_x + TAU;
+    }
+    
+    // Taylor series: sin(x) = x - x³/3! + x⁵/5! - x⁷/7! + ...
+    mut result = 0;
+    mut term = normalized_x;
+    mut x_squared = normalized_x * normalized_x;
+    
+    for n in 0..20 { // 20 terms for good precision
+        if n % 2 == 0 {
+            result = result + term;
+        } else {
+            result = result - term;
+        }
+        
+        term = term * x_squared / ((2 * n + 2) * (2 * n + 3));
+    }
+    
+    return result;
+}
+
+// Cosine function
+fn cos(x: Number) -> Number {
+    return sin(x + PI / 2);
+}
+
+// Tangent function
+fn tan(x: Number) -> Result<Number, String> {
+    mut cos_x = cos(x);
+    
+    if abs(cos_x) < EPSILON {
+        return err("Tangent undefined (division by zero)");
+    }
+    
+    return ok(sin(x) / cos_x);
+}
+
+// Arcsine function
+fn asin(x: Number) -> Result<Number, String> {
+    if x < -1 || x > 1 {
+        return err("Arcsine domain error: input must be in [-1, 1]");
+    }
+    
+    if x == -1 {
+        return ok(-PI / 2);
+    }
+    if x == 1 {
+        return ok(PI / 2);
+    }
+    if x == 0 {
+        return ok(0);
+    }
+    
+    // Use Taylor series for small values, otherwise use identity
+    if abs(x) < 0.5 {
+        // Taylor series: asin(x) = x + x³/6 + 3x⁵/40 + ...
+        mut result = x;
+        mut term = x;
+   
+        mut x_squared = x * x;
+        
+        for n in 1..10 {
+            term = term * x_squared * (2 * n - 1) / (2 * n * (2 * n + 1));
+            result = result + term;
+        }
+        
+        return ok(result);
+    } else {
+        // Use identity: asin(x) = atan(x / sqrt(1 - x²))
+        mut sqrt_result = sqrt(1 - x * x);
+        if sqrt_result.is_err() {
+            return err("Arcsine calculation error");
+        }
+        
+        mut atan_result = atan(x / sqrt_result.unwrap());
+        return atan_result;
+    }
+}
+
+// Arccosine function
+fn acos(x: Number) -> Result<Number, String> {
+    if x < -1 || x > 1 {
+        return err("Arccosine domain error: input must be in [-1, 1]");
+    }
+    
+    mut asin_result = asin(x);
+    if asin_result.is_err() {
+        return asin_result;
+    }
+    
+    return ok(PI / 2 - asin_result.unwrap());
+}
+
+// Arctangent function
+fn atan(x: Number) -> Result<Number, String> {
+    if x == 0 {
+        return ok(0);
+    }
+    
+    if is_infinite(x) {
+        if x > 0 {
+            return ok(PI / 2);
+        } else {
+            return ok(-PI / 2);
+        }
+    }
+    
+    // Use Taylor series for small values
+    if abs(x) < 1 {
+        // Taylor series: atan(x) = x - x³/3 + x⁵/5 - x⁷/7 + ...
+        mut result = 0;
+        mut term = x;
+        mut x_squared = x * x;
+        
+        for n in 0..20 {
+            if n % 2 == 0 {
+                result = result + term / (2 * n + 1);
+            } else {
+                result = result - term / (2 * n + 1);
+            }
+            term = term * x_squared;
+        }
+        
+        return ok(result);
+    } else {
+        // Use identity: atan(x) = π/2 - atan(1/x) for |x| > 1
+        mut reciprocal_atan = atan(1 / x);
+        if reciprocal_atan.is_err() {
+            return reciprocal_atan;
+        }
+        
+        if x > 0 {
+            return ok(PI / 2 - reciprocal_atan.unwrap());
+        } else {
+            return ok(-PI / 2 - reciprocal_atan.unwrap());
+        }
+    }
+}
+
+// Two-argument arctangent
+fn atan2(y: Number, x: Number) -> Number {
+    if x > 0 {
+        return atan(y / x).unwrap_or(0);
+    } else if x < 0 {
+        if y >= 0 {
+            return atan(y / x).unwrap_or(0) + PI;
+        } else {
+            return atan(y / x).unwrap_or(0) - PI;
+        }
+    } else { // x == 0
+        if y > 0 {
+            return PI / 2;
+        } else if y < 0 {
+            return -PI / 2;
+        } else {
+            return 0; // Undefined, but return 0
+        }
+    }
+}
+
+// ===== EXPONENTIAL AND LOGARITHMIC FUNCTIONS =====
+
+// Natural exponential function
+fn exp(x: Number) -> Number {
+    if x == 0 {
+        return 1;
+    }
+    
+    if x > 700 { // Prevent overflow
+        return INFINITY;
+    }
+    
+    if x < -700 { // Prevent underflow
+        return 0;
+    }
+    
+    // Taylor series: e^x = 1 + x + x²/2! + x³/3! + ...
+    mut result = 1;
+    mut term = 1;
+    
+    for n in 1..50 {
+        term = term * x / n;
+        result = result + term;
+        
+        if abs(term) < EPSILON {
+            break;
+        }
+    }
+    
+    return result;
+}
+
+// Natural logarithm
+fn ln(x: Number) -> Result<Number, String> {
+    if x <= 0 {
+        return err("Natural logarithm domain error: input must be positive");
+    }
+    
+    if x == 1 {
+        return ok(0);
+    }
+    
+    if x == E {
+        return ok(1);
+    }
+    
+    // Use Newton's method: ln(x) = y where e^y = x
+    mut guess = if x > 1 { x / E } else { x - 1 };
+    mut epsilon = 1e-15;
+    
+    for i in 0..100 {
+        mut exp_guess = exp(guess);
+        mut new_guess = guess - (exp_guess - x) / exp_guess;
+        
+        if abs(new_guess - guess) < epsilon {
+            return ok(new_guess);
+        }
+        
+        guess = new_guess;
+    }
+    
+    return ok(guess);
+}
+
+// Base-10 logarithm
+fn log10(x: Number) -> Result<Number, String> {
+    mut ln_result = ln(x);
+    if ln_result.is_err() {
+        return ln_result;
+    }
+    
+    return ok(ln_result.unwrap() / LN_10);
+}
+
+// Base-2 logarithm
+fn log2(x: Number) -> Result<Number, String> {
+    mut ln_result = ln(x);
+    if ln_result.is_err() {
+        return ln_result;
+    }
+    
+    return ok(ln_result.unwrap() / LN_2);
+}
+
+// Logarithm with arbitrary base
+fn log(x: Number, base: Number) -> Result<Number, String> {
+    if base <= 0 || base == 1 {
+        return err("Logarithm base error: base must be positive and not equal to 1");
+    }
+    
+    mut ln_x = ln(x);
+    if ln_x.is_err() {
+        return ln_x;
+    }
+    
+    mut ln_base = ln(base);
+    if ln_base.is_err() {
+        return ln_base;
+    }
+    
+    return ok(ln_x.unwrap() / ln_base.unwrap());
+}
+
+// ===== UTILITY FUNCTIONS =====
+
+// Absolute value
+fn abs(x: Number) -> Number {
+    if x < 0 {
+        return -x;
+    } else {
+        return x;
+    }
+}
+
+// Sign function
+fn sign(x: Number) -> Number {
+    if x > 0 {
+        return 1;
+    } else if x < 0 {
+        return -1;
+    } else {
+        return 0;
+    }
+}
+
+// Floor function
+fn floor(x: Number) -> Number {
+    if is_integer(x) {
+        return x;
+    }
+    
+    if x >= 0 {
+        return truncate(x);
+    } else {
+        return truncate(x) - 1;
+    }
+}
+
+// Ceiling function
+fn ceil(x: Number) -> Number {
+    if is_integer(x) {
+        return x;
+    }
+    
+    if x >= 0 {
+        return truncate(x) + 1;
+    } else {
+        return truncate(x);
+    }
+}
+
+// Round to nearest integer
+fn round(x: Number) -> Number {
+    if x >= 0 {
+        return floor(x + 0.5);
+    } else {
+        return ceil(x - 0.5);
+    }
+}
+
+// Truncate to integer
+fn truncate(x: Number) -> Number {
+    // This would be implemented as a built-in function
+    // For now, we'll use a simple approximation
+    if x >= 0 {
+        return x - (x % 1);
+    } else {
+        return x - (x % 1);
+    }
+}
+
+// Fractional part
+fn fract(x: Number) -> Number {
+    return x - truncate(x);
+}
+
+// ===== COMPARISON AND CLASSIFICATION =====
+
+// Check if a number is an integer
+fn is_integer(x: Number) -> Boolean {
+    return x == truncate(x);
+}
+
+// Check if a number is finite
+fn is_finite(x: Number) -> Boolean {
+    return !is_infinite(x) && !is_nan(x);
+}
+
+// Check if a number is infinite
+fn is_infinite(x: Number) -> Boolean {
+    return x == INFINITY || x == NEG_INFINITY;
+}
+
+// Check if a number is NaN
+fn is_nan(x: Number) -> Boolean {
+    return x != x; // NaN is not equal to itself
+}
+
+// Check if a number is normal (not zero, infinite, or NaN)
+fn is_normal(x: Number) -> Boolean {
+    return is_finite(x) && x != 0;
+}
+
+// Compare floating-point numbers with epsilon
+fn approx_eq(a: Number, b: Number, epsilon: Number) -> Boolean {
+    return abs(a - b) < epsilon;
+}
+
+// ===== HYPERBOLIC FUNCTIONS =====
+
+// Hyperbolic sine
+fn sinh(x: Number) -> Number {
+    return (exp(x) - exp(-x)) / 2;
+}
+
+// Hyperbolic cosine
+fn cosh(x: Number) -> Number {
+    return (exp(x) + exp(-x)) / 2;
+}
+
+// Hyperbolic tangent
+fn tanh(x: Number) -> Number {
+    mut exp_2x = exp(2 * x);
+    return (exp_2x - 1) / (exp_2x + 1);
+}
+
+// Inverse hyperbolic sine
+fn asinh(x: Number) -> Number {
+    return ln(x + sqrt(x * x + 1).unwrap_or(0));
+}
+
+// Inverse hyperbolic cosine
+fn acosh(x: Number) -> Result<Number, String> {
+    if x < 1 {
+        return err("Inverse hyperbolic cosine domain error: input must be >= 1");
+    }
+    
+    mut sqrt_result = sqrt(x * x - 1);
+    if sqrt_result.is_err() {
+        return err("Inverse hyperbolic cosine calculation error");
+    }
+    
+    return ok(ln(x + sqrt_result.unwrap()));
+}
+
+// Inverse hyperbolic tangent
+fn atanh(x: Number) -> Result<Number, String> {
+    if abs(x) >= 1 {
+        return err("Inverse hyperbolic tangent domain error: input must be in (-1, 1)");
+    }
+    
+    return ok(0.5 * ln((1 + x) / (1 - x)));
+}
+
+// ===== SPECIAL FUNCTIONS =====
+
+// Factorial function
+fn factorial(n: Number) -> Result<Number, String> {
+    if !is_integer(n) || n < 0 {
+        return err("Factorial domain error: input must be a non-negative integer");
+    }
+    
+    if n > 170 { // Prevent overflow
+        return err("Factorial overflow: input too large");
+    }
+    
+    if n == 0 || n == 1 {
+        return ok(1);
+    }
+    
+    mut result = 1;
+    for i in 2..n + 1 {
+        result = result * i;
+    }
+    
+    return ok(result);
+}
+
+// Gamma function (approximation using Stirling's formula)
+fn gamma(x: Number) -> Result<Number, String> {
+    if x <= 0 && is_integer(x) {
+        return err("Gamma function pole: input cannot be zero or negative integer");
+    }
+    
+    if x > 171 { // Prevent overflow
+        return err("Gamma function overflow: input too large");
+    }
+    
+    // For positive integers, gamma(n) = (n-1)!
+    if is_integer(x) && x > 0 {
+        return factorial(x - 1);
+    }
+    
+    // Stirling's approximation for large values
+    if x > 12 {
+        mut ln_gamma = (x - 0.5) * ln(x) - x + 0.5 * ln(2 * PI);
+        return ok(exp(ln_gamma));
+    }
+    
+    // Use recurrence relation: gamma(x+1) = x * gamma(x)
+    if x < 1 {
+        mut gamma_x_plus_1 = gamma(x + 1);
+        if gamma_x_plus_1.is_err() {
+            return gamma_x_plus_1;
+        }
+        return ok(gamma_x_plus_1.unwrap() / x);
+    }
+    
+    // Lanczos approximation for 1 <= x <= 12
+    mut g = 7;
+    mut coefficients = [
+        0.99999999999980993,
+        676.5203681218851,
+        -1259.1392167224028,
+        771.32342877765313,
+        -176.61502916214059,
+        12.507343278686905,
+        -0.13857109526572012,
+        9.9843695780195716e-6,
+        1.5056327351493116e-7
+    ];
+    
+    mut z = x - 1;
+    mut result = coefficients[0];
+    
+    for i in 1..9 {
+        result = result + coefficients[i] / (z + i);
+    }
+    
+    mut t = z + g + 0.5;
+    mut sqrt_2pi = sqrt(2 * PI).unwrap_or(0);
+    
+    return ok(sqrt_2pi * pow(t, z + 0.5).unwrap_or(0) * exp(-t) * result);
+}
+
+// Greatest common divisor
+fn gcd(a: Number, b: Number) -> Result<Number, String> {
+    if !is_integer(a) || !is_integer(b) {
+        return err("GCD domain error: inputs must be integers");
+    }
+    
+    mut x = abs(a);
+    mut y = abs(b);
+    
+    while y != 0 {
+        mut temp = y;
+        y = x % y;
+        x = temp;
+    }
+    
+    return ok(x);
+}
+
+// Least common multiple
+fn lcm(a: Number, b: Number) -> Result<Number, String> {
+    if a == 0 || b == 0 {
+        return ok(0);
+    }
+    
+    mut gcd_result = gcd(a, b);
+    if gcd_result.is_err() {
+        return gcd_result;
+    }
+    
+    return ok(abs(a * b) / gcd_result.unwrap());
+}
+
+// ===== RANDOM NUMBER GENERATION (DETERMINISTIC) =====
+
+// Linear congruential generator for deterministic random numbers
+struct Random {
+    seed: Number,
+}
+
+impl Random {
+    // Create a new random number generator with seed
+    fn new(seed: Number) -> Random {
+        return Random {
+            seed: seed % 2147483647, // Keep seed in valid range
+        };
+    }
+    
+    // Generate next random number (0 to 2^31 - 1)
+    fn next(mut self) -> Number {
+        self.seed = (self.seed * 16807) % 2147483647;
+        return self.seed;
+    }
+    
+    // Generate random float between 0 and 1
+    fn next_float(mut self) -> Number {
+        return self.next() / 2147483647;
+    }
+    
+    // Generate random integer in range [min, max]
+    fn next_range(mut self, min_val: Number, max_val: Number) -> Number {
+        if min_val >= max_val {
+            return min_val;
+        }
+        
+        mut range = max_val - min_val + 1;
+        return min_val + (self.next() % range);
+    }
+}
+
+// Create a random number generator with current time as seed
+fn random_with_time_seed() -> Random {
+    // This would use system time as seed
+    // For deterministic behavior, we use a fixed seed
+    return Random.new(12345);
+}
+
+// ===== BUILT-IN FUNCTION DECLARATIONS =====
+// These functions are implemented by the runtime
+
+// Check if a number is an integer (built-in)
+fn is_integer_builtin(x: Number) -> Boolean;
+
+// Truncate to integer (built-in)
+fn truncate_builtin(x: Number) -> Number;

@@ -1,0 +1,132 @@
+/// Test file for module loader functionality
+/// Tests basic module file recognition and parsing
+
+use ./loader::{load_module};
+use ./types::{Module, ModuleError};
+
+/// Test loading a simple module with exports
+fn test_load_simple_module() {
+    // Create a test module file content
+    let test_source = "
+/// Test function
+export fn test_function(x: i32, y: i32) -> i32 {
+    return x + y;
+}
+
+/// Test struct
+export struct TestStruct {
+    field1: String,
+    field2: i32
+}
+
+/// Test enum
+export enum TestEnum {
+    Variant1,
+    Variant2
+}
+
+/// Test constant
+export const TEST_CONSTANT: i32 = 42;
+";
+    
+    // Write test file
+    let test_path = "test_module.ov";
+    std::fs::write_string(test_path, test_source);
+    
+    // Load the module
+    let result = load_module(test_path);
+    
+    match result {
+        Ok(module) => {
+            // Verify module was loaded
+            assert(module.name == "test_module", "Module name should be test_module");
+            assert(module.path == test_path, "Module path should match");
+            
+            // Verify exports were parsed
+            assert(module.exports.functions.len() > 0, "Should have parsed function exports");
+            assert(module.exports.types.len() > 0, "Should have parsed struct exports");
+            assert(module.exports.enums.len() > 0, "Should have parsed enum exports");
+            assert(module.exports.constants.len() > 0, "Should have parsed constant exports");
+            
+            println("✓ test_load_simple_module passed");
+        },
+        Err(e) => {
+            println("✗ test_load_simple_module failed: {}", e);
+        }
+    }
+    
+    // Cleanup
+    std::fs::remove(test_path);
+}
+
+/// Test loading a module with imports
+fn test_load_module_with_imports() {
+    let test_source = "
+use std::core::{Vec, HashMap};
+use std::io;
+import \"./other_module.ov\";
+
+export fn process_data() {
+    // Function body
+}
+";
+    
+    let test_path = "test_imports.ov";
+    std::fs::write_string(test_path, test_source);
+    
+    let result = load_module(test_path);
+    
+    match result {
+        Ok(module) => {
+            // Verify imports were parsed
+            assert(module.imports.len() > 0, "Should have parsed imports");
+            
+            println("✓ test_load_module_with_imports passed");
+        },
+        Err(e) => {
+            println("✗ test_load_module_with_imports failed: {}", e);
+        }
+    }
+    
+    std::fs::remove(test_path);
+}
+
+/// Test that non-.ov files are rejected
+fn test_reject_non_ov_files() {
+    let result = load_module("test.txt");
+    
+    match result {
+        Err(ModuleError::NotFound(_)) => {
+            println("✓ test_reject_non_ov_files passed");
+        },
+        _ => {
+            println("✗ test_reject_non_ov_files failed: should reject non-.ov files");
+        }
+    }
+}
+
+/// Test that missing files are handled
+fn test_missing_file() {
+    let result = load_module("nonexistent.ov");
+    
+    match result {
+        Err(ModuleError::NotFound(_)) => {
+            println("✓ test_missing_file passed");
+        },
+        _ => {
+            println("✗ test_missing_file failed: should report missing file");
+        }
+    }
+}
+
+/// Run all tests
+fn main() {
+    println("Running module loader tests...\n");
+    
+    test_load_simple_module();
+    test_load_module_with_imports();
+    test_reject_non_ov_files();
+    test_missing_file();
+    
+    println("\nAll tests completed!");
+}

@@ -1,0 +1,113 @@
+/// Integration test for export validation with actual module loading
+/// Tests Task 2.3 implementation with real module files
+
+use std::io;
+use ./loader::{load_module};
+
+fn main() {
+    io::println("=== Export Validation Integration Test ===\n");
+    
+    // Test 1: Load module with valid exports
+    io::println("Test 1: Loading module with valid exports");
+    match load_module("std/module/test_module_with_exports.ov") {
+        Ok(module) => {
+            io::println("  ✓ Module loaded successfully");
+            io::println("  Module name: {}", module.name);
+            io::println("  Module path: {}", module.path);
+            
+            // Check exports
+            io::println("\n  Exported functions:");
+            for (name, func) in module.exports.functions {
+                io::println("    - {} : ({}) -> {}", 
+                    name, 
+                    format_parameters(func.parameters),
+                    func.return_type.name
+                );
+            }
+            
+            io::println("\n  Exported types:");
+            for (name, type_def) in module.exports.types {
+                io::println("    - {} ({})", name, format_type_kind(type_def.kind));
+            }
+            
+            io::println("\n  Exported enums:");
+            for (name, enum_def) in module.exports.enums {
+                io::println("    - {} with {} variants", name, enum_def.variants.len());
+            }
+            
+            io::println("\n  Exported constants:");
+            for (name, const_info) in module.exports.constants {
+                io::println("    - {} : {} = {}", name, const_info.const_type.name, const_info.value);
+            }
+            
+            // Verify specific exports exist
+            io::println("\n  Verification:");
+            if module.exports.functions.contains_key("add") {
+                io::println("    ✓ Function 'add' exported");
+            } else {
+                io::println("    ✗ Function 'add' not found");
+            }
+            
+            if module.exports.functions.contains_key("multiply") {
+                io::println("    ✓ Function 'multiply' exported");
+            } else {
+                io::println("    ✗ Function 'multiply' not found");
+            }
+            
+            if module.exports.types.contains_key("Point") {
+                io::println("    ✓ Type 'Point' exported");
+            } else {
+                io::println("    ✗ Type 'Point' not found");
+            }
+            
+            if module.exports.enums.contains_key("Color") {
+                io::println("    ✓ Enum 'Color' exported");
+            } else {
+                io::println("    ✗ Enum 'Color' not found");
+            }
+            
+            if module.exports.constants.contains_key("MAX_SIZE") {
+                io::println("    ✓ Constant 'MAX_SIZE' exported");
+            } else {
+                io::println("    ✗ Constant 'MAX_SIZE' not found");
+            }
+            
+            // Verify private function is NOT exported
+            if !module.exports.functions.contains_key("internal_helper") {
+                io::println("    ✓ Private function 'internal_helper' correctly not exported");
+            } else {
+                io::println("    ✗ Private function 'internal_helper' incorrectly exported");
+            }
+        },
+        Err(e) => {
+            io::println("  ✗ Failed to load module: {}", e);
+        }
+    }
+    
+    io::println("\n=== Integration Test Complete ===");
+}
+
+/// Helper function to format parameters
+fn format_parameters(params: Vec<Parameter>) -> String {
+    if params.is_empty() {
+        return String::new();
+    }
+    
+    let mut result = String::new();
+    for (i, param) in params.iter().enumerate() {
+        if i > 0 {
+            result.push_str(", ");
+        }
+        result.push_str(&format!("{}: {}", param.name, param.param_type.name));
+    }
+    result
+}
+
+/// Helper function to format type kind
+fn format_type_kind(kind: TypeKind) -> String {
+    match kind {
+        TypeKind::Struct => "struct".to_string(),
+        TypeKind::Enum => "enum".to_string(),
+        TypeKind::Alias => "alias".to_string()
+    }
+}

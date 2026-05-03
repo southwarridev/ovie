@@ -280,6 +280,43 @@ impl SecurityAnalyzer {
                     findings.extend(self.check_expression_safety(element, line));
                 }
             }
+            Expression::Match { value, arms } => {
+                findings.extend(self.check_expression_safety(value, line));
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        findings.extend(self.check_expression_safety(guard, line));
+                    }
+                    for stmt in &arm.body {
+                        findings.extend(self.check_statement_safety(stmt, line));
+                    }
+                }
+            }
+            Expression::MethodCall { object, method, arguments } => {
+                findings.extend(self.check_expression_safety(object, line));
+                
+                // Check for potentially unsafe method calls
+                if self.is_potentially_unsafe_function(method) {
+                    findings.push(Finding {
+                        category: AnalysisCategory::Security,
+                        severity: Severity::Warning,
+                        message: format!("Call to potentially unsafe method: '{}'", method),
+                        suggestion: Some("Ensure proper input validation and error handling".to_string()),
+                        location: (line, 1),
+                        span_length: method.len(),
+                        rule_id: "unsafe_method_call".to_string(),
+                    });
+                }
+                
+                for arg in arguments {
+                    findings.extend(self.check_expression_safety(arg, line));
+                }
+            }
+            Expression::Try { expression } => {
+                findings.extend(self.check_expression_safety(expression, line));
+            }
+            Expression::Null => {
+                // Null literal is generally safe
+            }
             Expression::Literal(_) => {
                 // Other literals are generally safe
             }

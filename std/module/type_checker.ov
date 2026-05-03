@@ -1,0 +1,298 @@
+/// Cross-Module Type Checker
+///
+/// Validates that imported symbols are used with correct types across
+/// module boundaries. Loads type information from imported modules and
+/// checks call sites against exported function signatures.
+///
+/// # Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6
+
+/// A type error found during cross-module type checking
+struct TypeCheckError {
+    module_name: String,
+    file_path: String,
+    line_number: Number,
+    symbol_name: String,
+    expected_type: String,
+    actual_type: String,
+    message: String,
+    definition_module: String,   // where the symbol is defined
+    definition_line: Number,
+}
+
+/// Result of cross-module type checking
+struct TypeCheckResult {
+    valid: Boolean,
+    errors: Array,    // Array of TypeCheckError
+    warnings: Array,  // Array of String
+}
+
+/// A resolved function signature from an imported module
+struct ResolvedSignature {
+    module_name: String,
+    fn_name: String,
+    param_types: Array,    // Array of String type names
+    return_type: String,
+    param_names: Array,    // Array of String param names
+}
+
+/// Load type signatures for all exported functions from a module source
+///
+/// Parses export fn declarations and extracts parameter and return types.
+///
+/// # Parameters
+/// - module_name: Name of the module
+/// - source: Source code of the module
+///
+/// # Returns
+/// Array of ResolvedSignature
+export fn load_module_signatures(module_name: String, source: String) -> Array {
+    mut signatures = [];
+    mut lines = string_split_lines(source);
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        i = i + 1;
+
+        if string_starts_with(line, "export fn ") {
+            mut sig_str = string_substring(line, 10, string_length(line));
+            // Remove trailing {
+            mut brace = string_find(sig_str, "{");
+            if brace > 0 {
+                sig_str = string_trim(string_substring(sig_str, 0, brace));
+            }
+
+            mut sig = parse_fn_signature(module_name, sig_str);
+            signatures = array_push(signatures, sig);
+        }
+    }
+
+    return signatures;
+}
+
+/// Parse a function signature string into a ResolvedSignature
+///
+/// Handles: fn_name(param: Type, ...) -> ReturnType
+///
+/// # Parameters
+/// - module_name: Module this signature belongs to
+/// - sig_str: Signature string without "export fn" prefix
+///
+/// # Returns
+/// ResolvedSignature with parsed types
+export fn parse_fn_signature(module_name: String, sig_str: String) -> ResolvedSignature {
+    mut fn_name = "";
+    mut param_types = [];
+    mut param_names = [];
+    mut return_type = "void";
+
+    // Extract function name
+    mut paren = string_find(sig_str, "(");
+    if paren > 0 {
+        fn_name = string_trim(string_substring(sig_str, 0, paren));
+    } else {
+        fn_name = string_trim(sig_str);
+        return ResolvedSignature {
+            module_name: module_name,
+            fn_name: fn_name,
+            param_types: [],
+            return_type: "void",
+            param_names: [],
+        };
+    }
+
+    // Extract parameters
+    mut close_paren = string_rfind(sig_str, ")");
+    if close_paren > paren {
+        mut params_str = string_trim(string_substring(sig_str, paren + 1, close_paren));
+        if string_length(params_str) > 0 {
+            mut params = string_split(params_str, ",");
+            mut pi = 0;
+            while pi < array_length(params) {
+                mut param = string_trim(array_get(params, pi));
+                mut colon = string_find(param, ":");
+                if colon > 0 {
+                    mut pname = string_trim(string_substring(param, 0, colon));
+                    mut ptype = string_trim(string_substring(param, colon + 1, string_length(param)));
+                    param_names = array_push(param_names, pname);
+                    param_types = array_push(param_types, ptype);
+                } else {
+                    param_names = array_push(param_names, param);
+                    param_types = array_push(param_types, "Any");
+                }
+                pi = pi + 1;
+            }
+        }
+    }
+
+    // Extract return type
+    mut arrow = string_find(sig_str, "->");
+    if arrow > 0 {
+        return_type = string_trim(string_substring(sig_str, arrow + 2, string_length(sig_str)));
+    }
+
+    return ResolvedSignature {
+        module_name: module_name,
+        fn_name: fn_name,
+        param_types: param_types,
+        return_type: return_type,
+        param_names: param_names,
+    };
+}
+
+/// Build a signature lookup map from an array of signatures
+/// Returns array of "module::fn_name" -> signature pairs as strings
+///
+/// # Parameters
+/// - signatures: Array of ResolvedSignature
+///
+/// # Returns
+/// Array of "module_name::fn_name" strings (keys for lookup)
+export fn build_signature_index(signatures: Array) -> Array {
+    mut index = [];
+    mut i = 0;
+    while i < array_length(signatures) {
+        mut sig = array_get(signatures, i);
+        mut key = sig.module_name + "::" + sig.fn_name;
+        index = array_push(index, key);
+        i = i + 1;
+    }
+    return index;
+}
+
+/// Check argument count at a call site against a known signature
+///
+/// # Parameters
+/// - sig: ResolvedSignature of the called function
+/// - arg_count: Number of arguments provided at call site
+/// - call_line: Line number of the call
+/// - calling_module: Module making the call
+///
+/// # Returns
+/// TypeCheckError or empty string if valid
+export fn check_arg_count(sig: ResolvedSignature, arg_count: Number, call_line: Number, calling_module: String) -> String {
+    mut expected = array_length(sig.param_types);
+    if arg_count != expected {
+        return "Call to " + sig.module_name + "::" + sig.fn_name +
+               " expects " + number_to_string(expected) +
+               " argument(s), got " + number_to_string(arg_count) +
+               " (line " + number_to_string(call_line) + " in " + calling_module + ")";
+    }
+    return "";
+}
+
+/// Perform cross-module type checking for a module
+///
+/// Loads signatures from all imported modules and validates call sites
+/// in the given source against those signatures.
+///
+/// # Parameters
+/// - source: Source code of the module being checked
+/// - module_name: Name of the module being checked
+/// - file_path: File path for error reporting
+/// - imported_signatures: Array of ResolvedSignature from all imports
+///
+/// # Returns
+/// TypeCheckResult with any type errors found
+export fn check_cross_module_types(source: String, module_name: String, file_path: String, imported_signatures: Array) -> TypeCheckResult {
+    mut errors = [];
+    mut warnings = [];
+    mut lines = string_split_lines(source);
+
+    // Build a quick lookup: fn_name -> ResolvedSignature
+    // We scan call sites and match against imported signatures
+
+    mut i = 0;
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        mut line_num = i + 1;
+        i = i + 1;
+
+        // Skip comments and declarations
+        if string_starts_with(line, "//") { continue; }
+        if string_starts_with(line, "fn ") { continue; }
+        if string_starts_with(line, "export fn ") { continue; }
+
+        // Look for function calls: identifier(
+        // Simple heuristic: find "name(" patterns that aren't declarations
+        mut j = 0;
+        while j < array_length(imported_signatures) {
+            mut sig = array_get(imported_signatures, j);
+            mut call_pattern = sig.fn_name + "(";
+
+            if string_contains(line, call_pattern) {
+                // Found a potential call site — check argument count
+                mut call_pos = string_find(line, call_pattern);
+                mut args_start = call_pos + string_length(call_pattern);
+                mut args_end = string_find_from(line, ")", args_start);
+
+                if args_end > args_start {
+                    mut args_str = string_trim(string_substring(line, args_start, args_end));
+                    mut arg_count = 0;
+                    if string_length(args_str) > 0 {
+                        // Count commas at depth 0
+                        arg_count = 1;
+                        mut depth = 0;
+                        mut ci = 0;
+                        while ci < string_length(args_str) {
+                            mut ch = string_char_at(args_str, ci);
+                            if ch == "(" || ch == "[" { depth = depth + 1; }
+                            if ch == ")" || ch == "]" { depth = depth - 1; }
+                            if ch == "," && depth == 0 { arg_count = arg_count + 1; }
+                            ci = ci + 1;
+                        }
+                    }
+
+                    mut err_msg = check_arg_count(sig, arg_count, line_num, module_name);
+                    if string_length(err_msg) > 0 {
+                        mut err = TypeCheckError {
+                            module_name: module_name,
+                            file_path: file_path,
+                            line_number: line_num,
+                            symbol_name: sig.fn_name,
+                            expected_type: number_to_string(array_length(sig.param_types)) + " args",
+                            actual_type: number_to_string(arg_count) + " args",
+                            message: err_msg,
+                            definition_module: sig.module_name,
+                            definition_line: 0,
+                        };
+                        errors = array_push(errors, err);
+                    }
+                }
+            }
+            j = j + 1;
+        }
+    }
+
+    return TypeCheckResult {
+        valid: array_length(errors) == 0,
+        errors: errors,
+        warnings: warnings,
+    };
+}
+
+/// Format type check errors as a human-readable string
+///
+/// # Parameters
+/// - result: TypeCheckResult to format
+///
+/// # Returns
+/// Formatted error string
+export fn format_type_errors(result: TypeCheckResult) -> String {
+    if result.valid {
+        return "Type checking passed.";
+    }
+
+    mut output = "Type errors found:\n\n";
+    mut i = 0;
+    while i < array_length(result.errors) {
+        mut err = array_get(result.errors, i);
+        output = output + "  " + err.file_path + ":" + number_to_string(err.line_number);
+        output = output + " — " + err.message + "\n";
+        if string_length(err.definition_module) > 0 {
+            output = output + "    Defined in: " + err.definition_module + "\n";
+        }
+        i = i + 1;
+    }
+    return output;
+}

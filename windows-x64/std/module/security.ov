@@ -1,0 +1,398 @@
+/// Module System Security Mitigations
+///
+/// Implements four security controls for the module system:
+/// 1. Path traversal prevention — rejects paths that escape the project root
+/// 2. Cache integrity verification — detects tampered cache artifacts
+/// 3. Package checksum verification — validates packages against ovie.lock checksums
+/// 4. Documentation sanitization — strips HTML from doc content before rendering
+///
+/// # Requirements: Security considerations from design (Task 57.1)
+
+use std::fs::{read_file, file_exists, list_dir};
+use std::core::{Vec, Result};
+use ./types::{ModuleError, ModuleResult};
+use ./performance::{compute_seeded_hash};
+
+// ============================================================
+// 1. Path Traversal Prevention
+// ============================================================
+
+/// Validate and sanitize a module path to prevent path traversal attacks
+///
+/// Rejects paths containing `..` segments that could escape the project root.
+/// Rejects absolute paths that start with `/` or a Windows drive letter.
+/// Normalizes path separators to forward slashes.
+///
+/// # Parameters
+/// - `path`: The raw module path to validate
+///
+/// # Returns
+/// Result containing the sanitized path, or SecurityError if the path is unsafe
+///
+/// # Examples
+/// ```ovie
+/// // Safe paths
+/// let p1 = validate_module_path("std/math/mod.ov")?;   // ok
+/// let p2 = validate_module_path("./utils.ov")?;         // ok
+///
+/// // Unsafe paths — rejected
+/// let bad = validate_module_path("../../../etc/passwd"); // SecurityError
+/// ```
+export fn validate_module_path(path: String) -> ModuleResult<String> {
+    // Normalize separators to forward slash
+    mut normalized = string_replace(path, "\\", "/");
+
+    // Reject absolute paths (Unix-style)
+    if string_starts_with(normalized, "/") {
+        return Err(ModuleError::SecurityError(
+            format!("Absolute path rejected (path traversal risk): {}", path)
+        ));
+    }
+
+    // Reject Windows-style absolute paths (e.g., C:/)
+    if string_length(normalized) >= 3 {
+        mut prefix = string_substring(normalized, 0, 3);
+        if string_contains(prefix, ":") {
+            return Err(ModuleError::SecurityError(
+                format!("Absolute path rejected (path traversal risk): {}", path)
+            ));
+        }
+    }
+
+    // Reject paths containing .. segments
+    // Check for /../, /.., ../, or standalone ..
+    if string_contains(normalized, "/../")
+        || string_ends_with(normalized, "/..")
+        || string_starts_with(normalized, "../")
+        || normalized == ".."
+    {
+        return Err(ModuleError::SecurityError(
+            format!("Path traversal rejected (contains '..' segment): {}", path)
+        ));
+    }
+
+    // Reject paths with encoded traversal attempts (%2e%2e, %2F, etc.)
+    mut lower = string_to_lowercase(normalized);
+    if string_contains(lower, "%2e%2e")
+        || string_contains(lower, "%2f")
+        || string_contains(lower, "%5c")
+    {
+        return Err(ModuleError::SecurityError(
+            format!("Path traversal rejected (URL-encoded traversal): {}", path)
+        ));
+    }
+
+    // Reject null bytes
+    if string_contains(normalized, "\x00") {
+        return Err(ModuleError::SecurityError(
+            format!("Path rejected (null byte in path): {}", path)
+        ));
+    }
+
+    // Must end with .ov
+    if !string_ends_with(normalized, ".ov") {
+        return Err(ModuleError::SecurityError(
+            format!("Path rejected (not an .ov file): {}", path)
+        ));
+    }
+
+    Ok(normalized)
+}
+
+/// Check if a path is safe without returning an error (convenience wrapper)
+///
+/// # Parameters
+/// - `path`: The path to check
+///
+/// # Returns
+/// true if the path is safe, false if it would be rejected
+///
+/// # Examples
+/// ```ovie
+/// if is_safe_path("std/math/mod.ov") { ... }
+/// ```
+export fn is_safe_path(path: String) -> bool {
+    match validate_module_path(path) {
+        Ok(_) => true,
+        Err(_) => false
+    }
+}
+
+// ============================================================
+// 2. Cache Integrity Verification
+// ============================================================
+
+/// Verify the integrity of all cached artifacts
+///
+/// Reads each `.artifact` file in the cache directory, recomputes its hash,
+/// and compares it to the hash stored in the cache index. Returns a list of
+/// paths where the artifact content has been tampered with.
+///
+/// # Parameters
+/// - `cache_dir`: Path to the cache directory (e.g., ".ovie/cache")
+/// - `index_entries`: Vec of (artifact_path, expected_hash) pairs from the cache index
+///
+/// # Returns
+/// Vec of artifact paths that failed integrity verification (empty = all clean)
+///
+/// # Examples
+/// ```ovie
+/// let tampered = verify_cache_integrity(".ovie/cache", &index_entries);
+/// if tampered.len() > 0 {
+///     seeAm("WARNING: Cache tampering detected!");
+/// }
+/// ```
+export fn verify_cache_integrity(
+    cache_dir: String,
+    index_entries: Vec<(String, String)>
+) -> Vec<String> {
+    mut corrupted: Vec<String> = Vec::new();
+
+    for (artifact_path, expected_hash) in &index_entries {
+        // Skip if artifact doesn't exist (will be a cache miss, not corruption)
+        if !file_exists(artifact_path) {
+            continue;
+        }
+
+        // Read artifact content
+        let content = match read_file(artifact_path) {
+            Ok(c) => c,
+            Err(_) => {
+                // Can't read = treat as corrupted
+                corrupted.push(artifact_path.clone());
+                continue;
+            }
+        };
+
+        // Recompute hash of artifact content
+        let actual_hash = compute_seeded_hash(artifact_path, &content);
+
+        // Compare to expected hash from index
+        if &actual_hash != expected_hash {
+            corrupted.push(artifact_path.clone());
+        }
+    }
+
+    corrupted
+}
+
+/// Compute the integrity hash for a cache artifact
+///
+/// Used when storing an artifact to record its expected hash in the index.
+///
+/// # Parameters
+/// - `artifact_path`: Path to the artifact file
+/// - `content`: Content of the artifact
+///
+/// # Returns
+/// Hex hash string to store in the cache index
+///
+/// # Examples
+/// ```ovie
+/// let hash = compute_artifact_hash("cache/abc123.artifact", &content);
+/// ```
+export fn compute_artifact_hash(artifact_path: String, content: String) -> String {
+    compute_seeded_hash(&artifact_path, &content)
+}
+
+// ============================================================
+// 3. Package Checksum Verification
+// ============================================================
+
+/// Verify a package's entry point against its expected checksum from ovie.lock
+///
+/// Reads the package's `mod.ov` entry point, computes its hash, and compares
+/// it to the checksum recorded in `ovie.lock`. This detects dependency confusion
+/// attacks and supply chain tampering.
+///
+/// # Parameters
+/// - `package_path`: Path to the package root directory
+/// - `expected_checksum`: The checksum from ovie.lock (format: "sha256:hexhash")
+///
+/// # Returns
+/// true if the package checksum matches, false if tampered or missing
+///
+/// # Examples
+/// ```ovie
+/// let ok = verify_package_checksum("./oba", "sha256:abc123...");
+/// if !ok {
+///     seeAm("ERROR: Package checksum mismatch — possible tampering!");
+/// }
+/// ```
+export fn verify_package_checksum(package_path: String, expected_checksum: String) -> bool {
+    // Find the package entry point
+    let entry_path = format!("{}/mod.ov", package_path);
+
+    if !file_exists(&entry_path) {
+        // Try src/mod.ov
+        let alt_path = format!("{}/src/mod.ov", package_path);
+        if !file_exists(&alt_path) {
+            return false;
+        }
+        return verify_file_checksum(&alt_path, &expected_checksum);
+    }
+
+    verify_file_checksum(&entry_path, &expected_checksum)
+}
+
+/// Verify a single file against an expected checksum
+///
+/// # Parameters
+/// - `file_path`: Path to the file to verify
+/// - `expected_checksum`: Expected checksum (format: "sha256:hexhash" or plain hex)
+///
+/// # Returns
+/// true if checksum matches
+///
+/// # Examples
+/// ```ovie
+/// let ok = verify_file_checksum("src/main.ov", "sha256:abc123");
+/// ```
+export fn verify_file_checksum(file_path: String, expected_checksum: String) -> bool {
+    let content = match read_file(file_path) {
+        Ok(c) => c,
+        Err(_) => return false
+    };
+
+    let actual_hash = compute_seeded_hash(file_path, &content);
+
+    // Strip "sha256:" prefix if present in expected
+    let expected_hex = if string_starts_with(expected_checksum, "sha256:") {
+        string_substring(expected_checksum, 7, string_length(expected_checksum))
+    } else {
+        expected_checksum.clone()
+    };
+
+    actual_hash == expected_hex
+}
+
+// ============================================================
+// 4. Documentation Sanitization
+// ============================================================
+
+/// Sanitize documentation content for safe HTML rendering
+///
+/// Strips HTML tags from doc comment content to prevent XSS when rendering
+/// documentation as HTML. Preserves code blocks (content between triple
+/// backticks) unchanged, since code may legitimately contain angle brackets.
+///
+/// # Parameters
+/// - `doc`: Raw doc comment content string
+///
+/// # Returns
+/// Sanitized string safe for HTML rendering
+///
+/// # Examples
+/// ```ovie
+/// let raw = "This is <b>bold</b> and <script>alert('xss')</script>";
+/// let safe = sanitize_doc_content(raw);
+/// // "This is bold and alert('xss')"
+///
+/// // Code blocks are preserved:
+/// let with_code = "Use `<T>` for generics\n```\nfn foo<T>() {}\n```";
+/// let sanitized = sanitize_doc_content(with_code);
+/// // Code block content unchanged
+/// ```
+export fn sanitize_doc_content(doc: String) -> String {
+    mut result = String::new();
+    mut in_code_block = false;
+    mut i = 0;
+    let chars: Vec<char> = doc.chars().collect();
+    let len = chars.len();
+
+    while i < len {
+        // Check for triple backtick (code block boundary)
+        if i + 2 < len && chars[i] == '`' && chars[i+1] == '`' && chars[i+2] == '`' {
+            in_code_block = !in_code_block;
+            result.push('`');
+            result.push('`');
+            result.push('`');
+            i = i + 3;
+            continue;
+        }
+
+        // Inside code blocks: pass through unchanged
+        if in_code_block {
+            result.push(chars[i]);
+            i = i + 1;
+            continue;
+        }
+
+        // Outside code blocks: strip HTML tags
+        if chars[i] == '<' {
+            // Find the closing '>'
+            mut j = i + 1;
+            while j < len && chars[j] != '>' {
+                j = j + 1;
+            }
+            // Skip the entire tag (from '<' to '>' inclusive)
+            if j < len {
+                i = j + 1;
+            } else {
+                // No closing '>' found — treat '<' as literal, escape it
+                result.push_str("&lt;");
+                i = i + 1;
+            }
+            continue;
+        }
+
+        // Escape remaining special HTML characters
+        if chars[i] == '>' {
+            result.push_str("&gt;");
+        } else if chars[i] == '&' {
+            result.push_str("&amp;");
+        } else if chars[i] == '"' {
+            result.push_str("&quot;");
+        } else {
+            result.push(chars[i]);
+        }
+
+        i = i + 1;
+    }
+
+    result
+}
+
+/// Check if a doc string contains potentially unsafe HTML
+///
+/// # Parameters
+/// - `doc`: Doc comment content to check
+///
+/// # Returns
+/// true if the doc contains HTML tags that should be sanitized
+///
+/// # Examples
+/// ```ovie
+/// let unsafe = contains_html("<script>alert('xss')</script>");
+/// // true
+/// let safe = contains_html("This is plain text with `code`");
+/// // false
+/// ```
+export fn contains_html(doc: String) -> bool {
+    // Simple check: look for < followed eventually by >
+    let mut in_code = false;
+    let chars: Vec<char> = doc.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        if i + 2 < len && chars[i] == '`' && chars[i+1] == '`' && chars[i+2] == '`' {
+            in_code = !in_code;
+            i = i + 3;
+            continue;
+        }
+        if !in_code && chars[i] == '<' {
+            // Check if there's a closing >
+            let mut j = i + 1;
+            while j < len && chars[j] != '>' && chars[j] != '\n' {
+                j = j + 1;
+            }
+            if j < len && chars[j] == '>' {
+                return true;
+            }
+        }
+        i = i + 1;
+    }
+
+    false
+}

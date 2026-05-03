@@ -335,7 +335,7 @@ jobs:
         cat > RELEASE_NOTES.md << 'EOF'
         # 🚀 Ovie v${{ env.OVIE_VERSION }} - Low-Level Self-Hosted Programming Language
         
-        ## 🎯 Stage 2.1 - Formal Compiler Invariants & Bootstrap Verification
+        ## 🎯 Stage 2.2 - Formal Compiler Invariants & Bootstrap Verification
         
         Ovie v${{ env.OVIE_VERSION }} represents a major milestone in compiler correctness and self-hosting capabilities. This release introduces formal mathematical verification of compiler invariants and comprehensive bootstrap verification.
         
@@ -459,7 +459,7 @@ jobs:
         
         ---
         
-        **Full Changelog**: https://github.com/southwarridev/ovie/compare/v2.1.0...v${{ env.OVIE_VERSION }}
+        **Full Changelog**: https://github.com/southwarridev/ovie/compare/v2.2.0...v${{ env.OVIE_VERSION }}
         
         **Website**: https://ovie-lang.org  
         **Documentation**: https://ovie-lang.org/docs  

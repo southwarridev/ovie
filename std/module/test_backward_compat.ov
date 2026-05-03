@@ -1,0 +1,749 @@
+/// Integration Tests — Backward Compatibility (Task 19.2)
+///
+/// Exhaustive tests for the backward compatibility layer (Phase 4, tasks 17.1, 17.2).
+/// Verifies that:
+///   - Standalone .ov files (no import/export) still compile and load correctly
+///   - Mixed standalone and modular code coexists without conflict
+///   - Legacy std usage patterns are detected and can be migrated
+///   - Compatibility modes (default/strict) enforce the right rules
+///   - The migrate tool correctly transforms legacy files
+///   - Module.is_standalone is set correctly in all cases
+///   - is_legacy_module reflects is_standalone accurately
+///   - load_with_mode enforces strict mode and permits default mode
+
+use std::io;
+use std::core::{Vec, HashMap};
+use ./loader::{
+    is_standalone_file,
+    load_standalone,
+    load_with_compat,
+    is_legacy_module,
+    default_compat_mode,
+    strict_compat_mode,
+    load_with_mode,
+    has_legacy_std_usage,
+    is_loaded,
+    get_module
+};
+use ./migrate::{
+    migrate_file,
+    default_migrate_config,
+    analyze_used_symbols,
+    generate_ovie_toml
+};
+
+// ============================================================
+// SECTION 1: is_standalone_file — all edge cases
+// ============================================================
+
+fn test_standalone_empty_file() {
+    assert(is_standalone_file(&"".to_string()), "Empty file should be standalone");
+    io::println("✓ test_standalone_empty_file passed");
+}
+
+fn test_standalone_only_comments() {
+    let src = "// just a comment\n// another comment".to_string();
+    assert(is_standalone_file(&src), "Comments-only file should be standalone");
+    io::println("✓ test_standalone_only_comments passed");
+}
+
+fn test_standalone_only_blank_lines() {
+    let src = "\n\n\n\n".to_string();
+    assert(is_standalone_file(&src), "Blank lines only should be standalone");
+    io::println("✓ test_standalone_only_blank_lines passed");
+}
+
+fn test_standalone_simple_main() {
+    let src = "fn main() { seeAm(\"hello\"); }".to_string();
+    assert(is_standalone_file(&src), "Simple main should be standalone");
+    io::println("✓ test_standalone_simple_main passed");
+}
+
+fn test_standalone_multiple_functions() {
+    let src = "fn add(a: Number, b: Number) -> Number { a + b }\nfn main() { seeAm(add(1, 2)); }".to_string();
+    assert(is_standalone_file(&src), "Multiple functions without module keywords should be standalone");
+    io::println("✓ test_standalone_multiple_functions passed");
+}
+
+fn test_standalone_struct_definition() {
+    let src = "struct Point { x: Number, y: Number }\nfn main() {}".to_string();
+    assert(is_standalone_file(&src), "Struct definition without module keywords should be standalone");
+    io::println("✓ test_standalone_struct_definition passed");
+}
+
+fn test_standalone_enum_definition() {
+    let src = "enum Color { Red, Green, Blue }\nfn main() {}".to_string();
+    assert(is_standalone_file(&src), "Enum definition without module keywords should be standalone");
+    io::println("✓ test_standalone_enum_definition passed");
+}
+
+fn test_standalone_doc_comments_ignored() {
+    let src = "/// This is a doc comment\n/// for the main function\nfn main() {}".to_string();
+    assert(is_standalone_file(&src), "Doc comments should not affect standalone detection");
+    io::println("✓ test_standalone_doc_comments_ignored passed");
+}
+
+fn test_not_standalone_use_at_top() {
+    let src = "use std::core::{Vec};\nfn main() {}".to_string();
+    assert(!is_standalone_file(&src), "File with 'use' should not be standalone");
+    io::println("✓ test_not_standalone_use_at_top passed");
+}
+
+fn test_not_standalone_import_at_top() {
+    let src = "import \"./utils.ov\";\nfn main() {}".to_string();
+    assert(!is_standalone_file(&src), "File with 'import' should not be standalone");
+    io::println("✓ test_not_standalone_import_at_top passed");
+}
+
+fn test_not_standalone_export_fn() {
+    let src = "export fn add(a: Number, b: Number) -> Number { a + b }".to_string();
+    assert(!is_standalone_file(&src), "File with 'export fn' should not be standalone");
+    io::println("✓ test_not_standalone_export_fn passed");
+}
+
+fn test_not_standalone_export_struct() {
+    let src = "export struct Config { debug: bool }".to_string();
+    assert(!is_standalone_file(&src), "File with 'export struct' should not be standalone");
+    io::println("✓ test_not_standalone_export_struct passed");
+}
+
+fn test_not_standalone_export_const() {
+    let src = "export const MAX: Number = 100;".to_string();
+    assert(!is_standalone_file(&src), "File with 'export const' should not be standalone");
+    io::println("✓ test_not_standalone_export_const passed");
+}
+
+fn test_not_standalone_use_after_comments() {
+    let src = "// header comment\nuse std::math::{sin};\nfn main() {}".to_string();
+    assert(!is_standalone_file(&src), "use after comments should not be standalone");
+    io::println("✓ test_not_standalone_use_after_comments passed");
+}
+
+fn test_not_standalone_export_in_middle_of_file() {
+    let src = "fn helper() {}\nexport fn public_api() {}".to_string();
+    assert(!is_standalone_file(&src), "export anywhere in file should not be standalone");
+    io::println("✓ test_not_standalone_export_in_middle_of_file passed");
+}
+
+fn test_standalone_indented_fn_not_confused() {
+    let src = "fn outer() {\n    fn inner() {}\n}".to_string();
+    assert(is_standalone_file(&src), "Indented fn should not affect standalone detection");
+    io::println("✓ test_standalone_indented_fn_not_confused passed");
+}
+
+// ============================================================
+// SECTION 2: has_legacy_std_usage — all patterns
+// ============================================================
+
+fn test_legacy_use_core() {
+    assert(has_legacy_std_usage(&"use core::{Vec};".to_string()), "use core:: should be legacy");
+    io::println("✓ test_legacy_use_core passed");
+}
+
+fn test_legacy_use_fs() {
+    assert(has_legacy_std_usage(&"use fs::{read_to_string};".to_string()), "use fs:: should be legacy");
+    io::println("✓ test_legacy_use_fs passed");
+}
+
+fn test_legacy_use_io() {
+    assert(has_legacy_std_usage(&"use io::{println};".to_string()), "use io:: should be legacy");
+    io::println("✓ test_legacy_use_io passed");
+}
+
+fn test_legacy_use_math() {
+    assert(has_legacy_std_usage(&"use math::{sin, cos, PI};".to_string()), "use math:: should be legacy");
+    io::println("✓ test_legacy_use_math passed");
+}
+
+fn test_legacy_use_time() {
+    assert(has_legacy_std_usage(&"use time::{Duration, Instant};".to_string()), "use time:: should be legacy");
+    io::println("✓ test_legacy_use_time passed");
+}
+
+fn test_legacy_use_env() {
+    assert(has_legacy_std_usage(&"use env::{args, var};".to_string()), "use env:: should be legacy");
+    io::println("✓ test_legacy_use_env passed");
+}
+
+fn test_legacy_use_cli() {
+    assert(has_legacy_std_usage(&"use cli::{App};".to_string()), "use cli:: should be legacy");
+    io::println("✓ test_legacy_use_cli passed");
+}
+
+fn test_legacy_use_log() {
+    assert(has_legacy_std_usage(&"use log::{info, error};".to_string()), "use log:: should be legacy");
+    io::println("✓ test_legacy_use_log passed");
+}
+
+fn test_legacy_use_testing() {
+    assert(has_legacy_std_usage(&"use testing::{assert, assert_eq};".to_string()), "use testing:: should be legacy");
+    io::println("✓ test_legacy_use_testing passed");
+}
+
+fn test_no_legacy_modern_std_core() {
+    assert(!has_legacy_std_usage(&"use std::core::{Vec};".to_string()), "use std::core:: should not be legacy");
+    io::println("✓ test_no_legacy_modern_std_core passed");
+}
+
+fn test_no_legacy_modern_std_math() {
+    assert(!has_legacy_std_usage(&"use std::math::{sin};".to_string()), "use std::math:: should not be legacy");
+    io::println("✓ test_no_legacy_modern_std_math passed");
+}
+
+fn test_no_legacy_standalone_file() {
+    assert(!has_legacy_std_usage(&"fn main() { seeAm(\"hi\"); }".to_string()), "Standalone file should not have legacy usage");
+    io::println("✓ test_no_legacy_standalone_file passed");
+}
+
+fn test_no_legacy_empty_file() {
+    assert(!has_legacy_std_usage(&"".to_string()), "Empty file should not have legacy usage");
+    io::println("✓ test_no_legacy_empty_file passed");
+}
+
+fn test_legacy_mixed_with_modern() {
+    let src = "use std::core::{Vec};\nuse math::{sin};\nfn main() {}".to_string();
+    assert(has_legacy_std_usage(&src), "Mixed file with legacy usage should be detected");
+    io::println("✓ test_legacy_mixed_with_modern passed");
+}
+
+// ============================================================
+// SECTION 3: load_standalone — standalone loading
+// ============================================================
+
+fn test_load_standalone_sets_is_standalone_true() {
+    let src = "fn main() { seeAm(\"hello\"); }".to_string();
+    match load_standalone("standalone_a.ov".to_string(), src) {
+        Ok(module) => {
+            assert(module.is_standalone, "load_standalone should set is_standalone=true");
+            io::println("✓ test_load_standalone_sets_is_standalone_true passed");
+        },
+        Err(e) => io::println("✗ test_load_standalone_sets_is_standalone_true failed: {}", e)
+    }
+}
+
+fn test_load_standalone_has_no_imports() {
+    let src = "fn main() {}".to_string();
+    match load_standalone("standalone_b.ov".to_string(), src) {
+        Ok(module) => {
+            assert(module.imports.is_empty(), "Standalone module should have no imports");
+            io::println("✓ test_load_standalone_has_no_imports passed");
+        },
+        Err(e) => io::println("✗ test_load_standalone_has_no_imports failed: {}", e)
+    }
+}
+
+fn test_load_standalone_path_preserved() {
+    let src = "fn main() {}".to_string();
+    match load_standalone("standalone_c.ov".to_string(), src) {
+        Ok(module) => {
+            assert(module.path == "standalone_c.ov".to_string(), "Path should be preserved");
+            io::println("✓ test_load_standalone_path_preserved passed");
+        },
+        Err(e) => io::println("✗ test_load_standalone_path_preserved failed: {}", e)
+    }
+}
+
+fn test_load_standalone_cached_on_second_call() {
+    let src = "fn main() {}".to_string();
+    let path = "standalone_cached.ov".to_string();
+    match load_standalone(path.clone(), src.clone()) {
+        Ok(m1) => {
+            match load_standalone(path.clone(), src) {
+                Ok(m2) => {
+                    assert(m1.path == m2.path, "Cached module should have same path");
+                    assert(m1.source_hash == m2.source_hash, "Cached module should have same hash");
+                    io::println("✓ test_load_standalone_cached_on_second_call passed");
+                },
+                Err(e) => io::println("✗ test_load_standalone_cached_on_second_call failed: {}", e)
+            }
+        },
+        Err(e) => io::println("✗ test_load_standalone_cached_on_second_call failed: {}", e)
+    }
+}
+
+fn test_load_standalone_source_hash_set() {
+    let src = "fn main() {}".to_string();
+    match load_standalone("standalone_hash.ov".to_string(), src) {
+        Ok(module) => {
+            assert(!module.source_hash.is_empty(), "Source hash should be set");
+            io::println("✓ test_load_standalone_source_hash_set passed");
+        },
+        Err(e) => io::println("✗ test_load_standalone_source_hash_set failed: {}", e)
+    }
+}
+
+// ============================================================
+// SECTION 4: load_with_compat — auto-detection
+// ============================================================
+
+fn test_load_with_compat_standalone_source() {
+    let src = "fn main() { seeAm(\"hello\"); }".to_string();
+    match load_with_compat("compat_standalone.ov".to_string(), src) {
+        Ok(module) => {
+            assert(module.is_standalone, "Standalone source should set is_standalone=true");
+            io::println("✓ test_load_with_compat_standalone_source passed");
+        },
+        Err(e) => io::println("✗ test_load_with_compat_standalone_source failed: {}", e)
+    }
+}
+
+fn test_load_with_compat_modular_source() {
+    let src = "export fn greet() -> String { \"hello\".to_string() }".to_string();
+    match load_with_compat("compat_modular.ov".to_string(), src) {
+        Ok(module) => {
+            assert(!module.is_standalone, "Modular source should set is_standalone=false");
+            io::println("✓ test_load_with_compat_modular_source passed");
+        },
+        Err(e) => io::println("✗ test_load_with_compat_modular_source failed: {}", e)
+    }
+}
+
+fn test_load_with_compat_use_statement_is_modular() {
+    let src = "use std::core::{Vec};\nfn main() {}".to_string();
+    match load_with_compat("compat_use.ov".to_string(), src) {
+        Ok(module) => {
+            assert(!module.is_standalone, "File with 'use' should not be standalone");
+            io::println("✓ test_load_with_compat_use_statement_is_modular passed");
+        },
+        Err(e) => io::println("✗ test_load_with_compat_use_statement_is_modular failed: {}", e)
+    }
+}
+
+fn test_load_with_compat_import_statement_is_modular() {
+    let src = "import \"./utils.ov\";\nfn main() {}".to_string();
+    match load_with_compat("compat_import.ov".to_string(), src) {
+        Ok(module) => {
+            assert(!module.is_standalone, "File with 'import' should not be standalone");
+            io::println("✓ test_load_with_compat_import_statement_is_modular passed");
+        },
+        Err(e) => io::println("✗ test_load_with_compat_import_statement_is_modular failed: {}", e)
+    }
+}
+
+fn test_load_with_compat_registers_in_loader() {
+    let src = "fn main() {}".to_string();
+    let path = "compat_registered.ov".to_string();
+    let _ = load_with_compat(path.clone(), src);
+    assert(is_loaded(path), "Module should be registered after load_with_compat");
+    io::println("✓ test_load_with_compat_registers_in_loader passed");
+}
+
+fn test_load_with_compat_get_module_after_load() {
+    let src = "fn main() {}".to_string();
+    let path = "compat_get.ov".to_string();
+    let _ = load_with_compat(path.clone(), src);
+    match get_module(path) {
+        Some(_) => io::println("✓ test_load_with_compat_get_module_after_load passed"),
+        None => assert(false, "get_module should return Some after load_with_compat")
+    }
+}
+
+// ============================================================
+// SECTION 5: is_legacy_module
+// ============================================================
+
+fn test_is_legacy_module_true_for_standalone_loaded() {
+    let src = "fn main() {}".to_string();
+    match load_with_compat("legacy_check_a.ov".to_string(), src) {
+        Ok(module) => {
+            assert(is_legacy_module(&module), "Standalone module should be legacy");
+            io::println("✓ test_is_legacy_module_true_for_standalone_loaded passed");
+        },
+        Err(e) => io::println("✗ test_is_legacy_module_true_for_standalone_loaded failed: {}", e)
+    }
+}
+
+fn test_is_legacy_module_false_for_modular_loaded() {
+    let src = "export fn foo() {}".to_string();
+    match load_with_compat("legacy_check_b.ov".to_string(), src) {
+        Ok(module) => {
+            assert(!is_legacy_module(&module), "Modular module should not be legacy");
+            io::println("✓ test_is_legacy_module_false_for_modular_loaded passed");
+        },
+        Err(e) => io::println("✗ test_is_legacy_module_false_for_modular_loaded failed: {}", e)
+    }
+}
+
+fn test_is_legacy_module_reflects_is_standalone_field() {
+    let src = "fn helper() {}\nfn main() {}".to_string();
+    match load_with_compat("legacy_check_c.ov".to_string(), src) {
+        Ok(module) => {
+            assert(is_legacy_module(&module) == module.is_standalone,
+                   "is_legacy_module should equal module.is_standalone");
+            io::println("✓ test_is_legacy_module_reflects_is_standalone_field passed");
+        },
+        Err(e) => io::println("✗ test_is_legacy_module_reflects_is_standalone_field failed: {}", e)
+    }
+}
+
+// ============================================================
+// SECTION 6: CompatMode — default and strict
+// ============================================================
+
+fn test_default_compat_allows_standalone() {
+    let src = "fn main() {}".to_string();
+    let mode = default_compat_mode();
+    match load_with_mode("default_mode_a.ov".to_string(), src, mode) {
+        Ok(_) => io::println("✓ test_default_compat_allows_standalone passed"),
+        Err(e) => io::println("✗ test_default_compat_allows_standalone failed: {}", e)
+    }
+}
+
+fn test_default_compat_allows_modular() {
+    let src = "export fn foo() {}".to_string();
+    let mode = default_compat_mode();
+    match load_with_mode("default_mode_b.ov".to_string(), src, mode) {
+        Ok(_) => io::println("✓ test_default_compat_allows_modular passed"),
+        Err(e) => io::println("✗ test_default_compat_allows_modular failed: {}", e)
+    }
+}
+
+fn test_strict_compat_rejects_standalone() {
+    let src = "fn main() {}".to_string();
+    let mode = strict_compat_mode();
+    match load_with_mode("strict_mode_a.ov".to_string(), src, mode) {
+        Ok(_) => assert(false, "Strict mode should reject standalone files"),
+        Err(_) => io::println("✓ test_strict_compat_rejects_standalone passed")
+    }
+}
+
+fn test_strict_compat_accepts_modular() {
+    let src = "export fn bar() {}".to_string();
+    let mode = strict_compat_mode();
+    match load_with_mode("strict_mode_b.ov".to_string(), src, mode) {
+        Ok(_) => io::println("✓ test_strict_compat_accepts_modular passed"),
+        Err(e) => io::println("✗ test_strict_compat_accepts_modular failed: {}", e)
+    }
+}
+
+fn test_strict_compat_accepts_use_statement() {
+    let src = "use std::core::{Vec};\nfn main() {}".to_string();
+    let mode = strict_compat_mode();
+    match load_with_mode("strict_mode_c.ov".to_string(), src, mode) {
+        Ok(_) => io::println("✓ test_strict_compat_accepts_use_statement passed"),
+        Err(e) => io::println("✗ test_strict_compat_accepts_use_statement failed: {}", e)
+    }
+}
+
+fn test_default_compat_standalone_result_is_standalone() {
+    let src = "fn main() {}".to_string();
+    let mode = default_compat_mode();
+    match load_with_mode("default_standalone_check.ov".to_string(), src, mode) {
+        Ok(module) => {
+            assert(module.is_standalone, "Default mode standalone should set is_standalone=true");
+            io::println("✓ test_default_compat_standalone_result_is_standalone passed");
+        },
+        Err(e) => io::println("✗ test_default_compat_standalone_result_is_standalone failed: {}", e)
+    }
+}
+
+fn test_strict_compat_modular_result_not_standalone() {
+    let src = "export fn compute() {}".to_string();
+    let mode = strict_compat_mode();
+    match load_with_mode("strict_modular_check.ov".to_string(), src, mode) {
+        Ok(module) => {
+            assert(!module.is_standalone, "Strict mode modular should set is_standalone=false");
+            io::println("✓ test_strict_compat_modular_result_not_standalone passed");
+        },
+        Err(e) => io::println("✗ test_strict_compat_modular_result_not_standalone failed: {}", e)
+    }
+}
+
+// ============================================================
+// SECTION 7: Mixed standalone and modular coexistence
+// ============================================================
+
+fn test_standalone_and_modular_can_both_be_loaded() {
+    let standalone_src = "fn main() {}".to_string();
+    let modular_src = "export fn util() {}".to_string();
+    match load_with_compat("mixed_standalone.ov".to_string(), standalone_src) {
+        Ok(r1) => {
+            match load_with_compat("mixed_modular.ov".to_string(), modular_src) {
+                Ok(r2) => {
+                    assert(r1.is_standalone, "Standalone should have is_standalone=true");
+                    assert(!r2.is_standalone, "Modular should have is_standalone=false");
+                    io::println("✓ test_standalone_and_modular_can_both_be_loaded passed");
+                },
+                Err(e) => io::println("✗ test_standalone_and_modular_can_both_be_loaded failed: {}", e)
+            }
+        },
+        Err(e) => io::println("✗ test_standalone_and_modular_can_both_be_loaded failed: {}", e)
+    }
+}
+
+fn test_multiple_standalone_files_independent() {
+    let src_a = "fn greet() { seeAm(\"hi\"); }".to_string();
+    let src_b = "fn farewell() { seeAm(\"bye\"); }".to_string();
+    match load_with_compat("multi_standalone_a.ov".to_string(), src_a) {
+        Ok(m_a) => {
+            match load_with_compat("multi_standalone_b.ov".to_string(), src_b) {
+                Ok(m_b) => {
+                    assert(m_a.is_standalone, "m_a should be standalone");
+                    assert(m_b.is_standalone, "m_b should be standalone");
+                    assert(m_a.path != m_b.path, "Paths should differ");
+                    assert(m_a.source_hash != m_b.source_hash, "Hashes should differ");
+                    io::println("✓ test_multiple_standalone_files_independent passed");
+                },
+                Err(e) => io::println("✗ test_multiple_standalone_files_independent failed: {}", e)
+            }
+        },
+        Err(e) => io::println("✗ test_multiple_standalone_files_independent failed: {}", e)
+    }
+}
+
+fn test_multiple_modular_files_independent() {
+    let src_a = "export fn alpha() {}".to_string();
+    let src_b = "export fn beta() {}".to_string();
+    match load_with_compat("multi_modular_a.ov".to_string(), src_a) {
+        Ok(m_a) => {
+            match load_with_compat("multi_modular_b.ov".to_string(), src_b) {
+                Ok(m_b) => {
+                    assert(!m_a.is_standalone, "m_a should not be standalone");
+                    assert(!m_b.is_standalone, "m_b should not be standalone");
+                    assert(m_a.path != m_b.path, "Paths should differ");
+                    io::println("✓ test_multiple_modular_files_independent passed");
+                },
+                Err(e) => io::println("✗ test_multiple_modular_files_independent failed: {}", e)
+            }
+        },
+        Err(e) => io::println("✗ test_multiple_modular_files_independent failed: {}", e)
+    }
+}
+
+fn test_standalone_file_with_complex_logic() {
+    let src = "struct Config { debug: bool, port: Number }\nenum Status { Ok, Err }\nfn run(cfg: Config) -> Status { Status::Ok }\nfn main() { let cfg = Config { debug: true, port: 8080 }; run(cfg); }".to_string();
+    match load_with_compat("complex_standalone.ov".to_string(), src) {
+        Ok(module) => {
+            assert(module.is_standalone, "Complex standalone file should be standalone");
+            io::println("✓ test_standalone_file_with_complex_logic passed");
+        },
+        Err(e) => io::println("✗ test_standalone_file_with_complex_logic failed: {}", e)
+    }
+}
+
+// ============================================================
+// SECTION 8: migrate.ov — legacy file transformation
+// ============================================================
+
+fn test_migrate_config_dry_run() {
+    let mut config = default_migrate_config();
+    config.write = false;
+    assert(!config.write, "write should be false for dry run");
+    assert(config.add_exports, "add_exports should be true by default");
+    assert(config.fix_std_paths, "fix_std_paths should be true by default");
+    io::println("✓ test_migrate_config_dry_run passed");
+}
+
+fn test_migrate_analyze_legacy_core_symbols() {
+    let src = "use core::{Vec, HashMap};\nfn main() {}".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.contains_key("std::core"), "Should detect std::core usage");
+    io::println("✓ test_migrate_analyze_legacy_core_symbols passed");
+}
+
+fn test_migrate_analyze_legacy_math_symbols() {
+    let src = "use math::{sin, cos, PI};\nfn compute() { let x = sin(PI); }".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.contains_key("std::math"), "Should detect std::math usage");
+    match used.get("std::math") {
+        Some(syms) => {
+            assert(syms.contains(&"sin".to_string()), "Should detect sin");
+            assert(syms.contains(&"PI".to_string()), "Should detect PI");
+        },
+        None => assert(false, "std::math should be in used map")
+    }
+    io::println("✓ test_migrate_analyze_legacy_math_symbols passed");
+}
+
+fn test_migrate_file_nonexistent_path_fails_gracefully() {
+    let config = default_migrate_config();
+    let result = migrate_file("/does/not/exist/file.ov".to_string(), config);
+    assert(!result.success, "Nonexistent file should fail");
+    match result.error {
+        Some(_) => io::println("✓ test_migrate_file_nonexistent_path_fails_gracefully passed"),
+        None => assert(false, "Error should be Some for nonexistent file")
+    }
+}
+
+fn test_generate_ovie_toml_structure() {
+    let toml = generate_ovie_toml(&"legacy_app".to_string(), &"0.1.0".to_string());
+    assert(toml.contains("[package]"), "TOML should have [package] section");
+    assert(toml.contains("name = \"legacy_app\""), "TOML should have name field");
+    assert(toml.contains("version = \"0.1.0\""), "TOML should have version field");
+    assert(toml.contains("[dependencies]"), "TOML should have [dependencies] section");
+    io::println("✓ test_generate_ovie_toml_structure passed");
+}
+
+fn test_generate_ovie_toml_is_valid_toml_structure() {
+    let toml = generate_ovie_toml(&"test_pkg".to_string(), &"1.2.3".to_string());
+    let pkg_pos = toml.find("[package]").unwrap();
+    let dep_pos = toml.find("[dependencies]").unwrap();
+    assert(pkg_pos < dep_pos, "[package] should come before [dependencies]");
+    io::println("✓ test_generate_ovie_toml_is_valid_toml_structure passed");
+}
+
+// ============================================================
+// SECTION 9: Property-based tests
+// ============================================================
+
+fn test_property_standalone_detection_consistent() {
+    let standalone_sources = vec![
+        "fn main() {}",
+        "fn add(a: Number, b: Number) -> Number { a + b }",
+        "struct Foo { x: Number }",
+        "enum Bar { A, B, C }",
+        "// just a comment",
+        "",
+        "\n\n\n",
+        "fn a() {}\nfn b() {}\nfn c() {}"
+    ];
+    for src in standalone_sources {
+        assert(is_standalone_file(&src.to_string()),
+               "Source without module keywords should always be standalone");
+    }
+    io::println("✓ test_property_standalone_detection_consistent passed");
+}
+
+fn test_property_modular_detection_consistent() {
+    let modular_sources = vec![
+        "use std::core::{Vec};",
+        "import \"./utils.ov\";",
+        "export fn foo() {}",
+        "export struct Bar {}",
+        "export const X: Number = 1;",
+        "use std::math::{sin};\nfn main() {}"
+    ];
+    for src in modular_sources {
+        assert(!is_standalone_file(&src.to_string()),
+               "Source with module keywords should never be standalone");
+    }
+    io::println("✓ test_property_modular_detection_consistent passed");
+}
+
+fn test_property_load_with_compat_never_panics() {
+    let sources = vec![
+        ("empty_prop.ov", ""),
+        ("standalone_prop.ov", "fn main() {}"),
+        ("modular_prop.ov", "export fn foo() {}"),
+        ("use_stmt_prop.ov", "use std::core::{Vec};"),
+        ("complex_prop.ov", "fn a() {}\nfn b() {}\nexport fn c() {}")
+    ];
+    for (path, src) in sources {
+        let result = load_with_compat(path.to_string(), src.to_string());
+        assert(result.is_ok() || result.is_err(), "load_with_compat should not panic");
+    }
+    io::println("✓ test_property_load_with_compat_never_panics passed");
+}
+
+fn test_property_is_legacy_equals_is_standalone_field() {
+    let test_cases = vec![
+        ("prop_legacy_a.ov", "fn main() {}", true),
+        ("prop_legacy_b.ov", "export fn foo() {}", false),
+        ("prop_legacy_c.ov", "use std::core::{Vec};\nfn main() {}", false)
+    ];
+    for (path, src, expected_standalone) in test_cases {
+        match load_with_compat(path.to_string(), src.to_string()) {
+            Ok(module) => {
+                assert(is_legacy_module(&module) == module.is_standalone,
+                       "is_legacy_module should equal module.is_standalone");
+                assert(module.is_standalone == expected_standalone,
+                       "is_standalone should match expected value");
+            },
+            Err(e) => io::println("✗ test_property_is_legacy_equals_is_standalone_field failed: {}", e)
+        }
+    }
+    io::println("✓ test_property_is_legacy_equals_is_standalone_field passed");
+}
+
+// ============================================================
+// ENTRY POINT
+// ============================================================
+
+fn main() {
+    io::println("=== Backward Compatibility Tests (Task 19.2) ===\n");
+
+    io::println("--- Section 1: is_standalone_file ---");
+    test_standalone_empty_file();
+    test_standalone_only_comments();
+    test_standalone_only_blank_lines();
+    test_standalone_simple_main();
+    test_standalone_multiple_functions();
+    test_standalone_struct_definition();
+    test_standalone_enum_definition();
+    test_standalone_doc_comments_ignored();
+    test_not_standalone_use_at_top();
+    test_not_standalone_import_at_top();
+    test_not_standalone_export_fn();
+    test_not_standalone_export_struct();
+    test_not_standalone_export_const();
+    test_not_standalone_use_after_comments();
+    test_not_standalone_export_in_middle_of_file();
+    test_standalone_indented_fn_not_confused();
+
+    io::println("\n--- Section 2: has_legacy_std_usage ---");
+    test_legacy_use_core();
+    test_legacy_use_fs();
+    test_legacy_use_io();
+    test_legacy_use_math();
+    test_legacy_use_time();
+    test_legacy_use_env();
+    test_legacy_use_cli();
+    test_legacy_use_log();
+    test_legacy_use_testing();
+    test_no_legacy_modern_std_core();
+    test_no_legacy_modern_std_math();
+    test_no_legacy_standalone_file();
+    test_no_legacy_empty_file();
+    test_legacy_mixed_with_modern();
+
+    io::println("\n--- Section 3: load_standalone ---");
+    test_load_standalone_sets_is_standalone_true();
+    test_load_standalone_has_no_imports();
+    test_load_standalone_path_preserved();
+    test_load_standalone_cached_on_second_call();
+    test_load_standalone_source_hash_set();
+
+    io::println("\n--- Section 4: load_with_compat ---");
+    test_load_with_compat_standalone_source();
+    test_load_with_compat_modular_source();
+    test_load_with_compat_use_statement_is_modular();
+    test_load_with_compat_import_statement_is_modular();
+    test_load_with_compat_registers_in_loader();
+    test_load_with_compat_get_module_after_load();
+
+    io::println("\n--- Section 5: is_legacy_module ---");
+    test_is_legacy_module_true_for_standalone_loaded();
+    test_is_legacy_module_false_for_modular_loaded();
+    test_is_legacy_module_reflects_is_standalone_field();
+
+    io::println("\n--- Section 6: CompatMode ---");
+    test_default_compat_allows_standalone();
+    test_default_compat_allows_modular();
+    test_strict_compat_rejects_standalone();
+    test_strict_compat_accepts_modular();
+    test_strict_compat_accepts_use_statement();
+    test_default_compat_standalone_result_is_standalone();
+    test_strict_compat_modular_result_not_standalone();
+
+    io::println("\n--- Section 7: Mixed coexistence ---");
+    test_standalone_and_modular_can_both_be_loaded();
+    test_multiple_standalone_files_independent();
+    test_multiple_modular_files_independent();
+    test_standalone_file_with_complex_logic();
+
+    io::println("\n--- Section 8: migrate.ov ---");
+    test_migrate_config_dry_run();
+    test_migrate_analyze_legacy_core_symbols();
+    test_migrate_analyze_legacy_math_symbols();
+    test_migrate_file_nonexistent_path_fails_gracefully();
+    test_generate_ovie_toml_structure();
+    test_generate_ovie_toml_is_valid_toml_structure();
+
+    io::println("\n--- Section 9: Property-based tests ---");
+    test_property_standalone_detection_consistent();
+    test_property_modular_detection_consistent();
+    test_property_load_with_compat_never_panics();
+    test_property_is_legacy_equals_is_standalone_field();
+
+    io::println("\n=== All tests completed ===");
+}

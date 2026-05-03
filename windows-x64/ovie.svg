@@ -1,0 +1,36 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ovieGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0099cc;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="95" fill="#1a1a1a" stroke="url(#ovieGradient)" stroke-width="3"/>
+  
+  <!-- Main "O" Shape -->
+  <circle cx="100" cy="100" r="60" fill="none" stroke="url(#ovieGradient)" stroke-width="8" filter="url(#glow)"/>
+  
+  <!-- Inner "v" Shape -->
+  <path d="M 70 80 L 100 120 L 130 80" fill="none" stroke="url(#ovieGradient)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  
+  <!-- Dots for "i" and "e" -->
+  <circle cx="85" cy="65" r="4" fill="url(#ovieGradient)" filter="url(#glow)"/>
+  <circle cx="115" cy="65" r="4" fill="url(#ovieGradient)" filter="url(#glow)"/>
+  
+  <!-- Self-hosting indicator -->
+  <circle cx="160" cy="40" r="15" fill="url(#ovieGradient)" opacity="0.8"/>
+  <text x="160" y="46" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="12" font-weight="bold">✓</text>
+  
+  <!-- Programming language indicator -->
+  <rect x="30" y="160" width="140" height="20" rx="10" fill="rgba(0, 212, 255, 0.2)" stroke="url(#ovieGradient)" stroke-width="1"/>
+  <text x="100" y="173" text-anchor="middle" fill="url(#ovieGradient)" font-family="Arial, sans-serif" font-size="10" font-weight="bold">SELF-HOSTED</text>
+</svg>

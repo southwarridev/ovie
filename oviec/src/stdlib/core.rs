@@ -1743,3 +1743,211 @@ mod tests {
         let empty_vec: OvieVec<i32> = OvieVec::new();
         assert_eq!(empty_vec.iter().count(), 0);
     }
+
+// ===== STRING UTILITY FUNCTIONS =====
+// Runtime implementations for string operations needed by the Ovie lexer
+
+/// Get the length of a string
+pub fn builtin_string_length(s: &str) -> f64 {
+    s.chars().count() as f64
+}
+
+/// Get a character at a specific index in a string
+pub fn builtin_string_char_at(s: &str, index: f64) -> String {
+    let idx = index as usize;
+    s.chars().nth(idx).map(|c| c.to_string()).unwrap_or_else(|| "\0".to_string())
+}
+
+/// Get a substring from start to end (exclusive)
+pub fn builtin_string_substring(s: &str, start: f64, end: f64) -> String {
+    let start_idx = start as usize;
+    let end_idx = end as usize;
+    let chars: Vec<char> = s.chars().collect();
+    
+    if start_idx >= chars.len() {
+        return String::new();
+    }
+    
+    let actual_end = if end_idx > chars.len() { chars.len() } else { end_idx };
+    
+    if start_idx >= actual_end {
+        return String::new();
+    }
+    
+    chars[start_idx..actual_end].iter().collect()
+}
+
+// ===== ARRAY UTILITY FUNCTIONS =====
+// Runtime implementations for array operations needed by the Ovie lexer
+
+/// Push an element to an array (modifies the array in place)
+pub fn builtin_array_push<T>(arr: &mut Vec<T>, item: T) {
+    arr.push(item);
+}
+
+/// Get the length of an array
+pub fn builtin_array_length<T>(arr: &[T]) -> f64 {
+    arr.len() as f64
+}
+
+/// Get an element from an array at a specific index
+pub fn builtin_array_get<T: Clone>(arr: &[T], index: f64) -> Option<T> {
+    let idx = index as usize;
+    arr.get(idx).cloned()
+}
+
+/// Set an element in an array at a specific index
+pub fn builtin_array_set<T>(arr: &mut [T], index: f64, value: T) -> bool {
+    let idx = index as usize;
+    if idx < arr.len() {
+        arr[idx] = value;
+        true
+    } else {
+        false
+    }
+}
+
+/// Check if a string contains a pattern
+pub fn builtin_string_contains(s: &str, pattern: &str) -> bool {
+    s.contains(pattern)
+}
+
+/// Check if a string starts with a prefix
+pub fn builtin_string_starts_with(s: &str, prefix: &str) -> bool {
+    s.starts_with(prefix)
+}
+
+/// Check if a character is alphabetic
+pub fn builtin_is_alphabetic(c: &str) -> bool {
+    if let Some(ch) = c.chars().next() {
+        ch.is_alphabetic()
+    } else {
+        false
+    }
+}
+
+/// Check if a character is numeric
+pub fn builtin_is_numeric(c: &str) -> bool {
+    if let Some(ch) = c.chars().next() {
+        ch.is_numeric()
+    } else {
+        false
+    }
+}
+
+/// Check if a character is whitespace
+pub fn builtin_is_whitespace(c: &str) -> bool {
+    if let Some(ch) = c.chars().next() {
+        ch.is_whitespace()
+    } else {
+        false
+    }
+}
+
+/// Check if a character is alphanumeric
+pub fn builtin_is_alphanumeric(c: &str) -> bool {
+    if let Some(ch) = c.chars().next() {
+        ch.is_alphanumeric()
+    } else {
+        false
+    }
+}
+
+#[cfg(test)]
+mod string_array_tests {
+    use super::*;
+
+    #[test]
+    fn test_string_length() {
+        assert_eq!(builtin_string_length("hello"), 5.0);
+        assert_eq!(builtin_string_length(""), 0.0);
+        assert_eq!(builtin_string_length("🦀"), 1.0); // Unicode support
+    }
+
+    #[test]
+    fn test_string_char_at() {
+        assert_eq!(builtin_string_char_at("hello", 0.0), "h");
+        assert_eq!(builtin_string_char_at("hello", 4.0), "o");
+        assert_eq!(builtin_string_char_at("hello", 5.0), "\0"); // Out of bounds
+        assert_eq!(builtin_string_char_at("🦀rust", 0.0), "🦀"); // Unicode
+    }
+
+    #[test]
+    fn test_string_substring() {
+        assert_eq!(builtin_string_substring("hello", 1.0, 4.0), "ell");
+        assert_eq!(builtin_string_substring("hello", 0.0, 5.0), "hello");
+        assert_eq!(builtin_string_substring("hello", 2.0, 2.0), ""); // Empty range
+        assert_eq!(builtin_string_substring("hello", 10.0, 15.0), ""); // Out of bounds
+    }
+
+    #[test]
+    fn test_array_operations() {
+        let mut arr = vec![1, 2, 3];
+        
+        assert_eq!(builtin_array_length(&arr), 3.0);
+        assert_eq!(builtin_array_get(&arr, 1.0), Some(2));
+        assert_eq!(builtin_array_get(&arr, 5.0), None); // Out of bounds
+        
+        builtin_array_push(&mut arr, 4);
+        assert_eq!(builtin_array_length(&arr), 4.0);
+        assert_eq!(builtin_array_get(&arr, 3.0), Some(4));
+        
+        assert!(builtin_array_set(&mut arr, 0.0, 10));
+        assert_eq!(builtin_array_get(&arr, 0.0), Some(10));
+        assert!(!builtin_array_set(&mut arr, 10.0, 99)); // Out of bounds
+    }
+
+    #[test]
+    fn test_string_contains() {
+        assert!(builtin_string_contains("hello world", "world"));
+        assert!(builtin_string_contains("hello world", "hello"));
+        assert!(!builtin_string_contains("hello world", "goodbye"));
+        assert!(builtin_string_contains("", "")); // Empty pattern
+    }
+
+    #[test]
+    fn test_string_starts_with() {
+        assert!(builtin_string_starts_with("hello world", "hello"));
+        assert!(!builtin_string_starts_with("hello world", "world"));
+        assert!(builtin_string_starts_with("", "")); // Empty prefix
+        assert!(builtin_string_starts_with("test", ""));
+    }
+
+    #[test]
+    fn test_is_alphabetic() {
+        assert!(builtin_is_alphabetic("a"));
+        assert!(builtin_is_alphabetic("Z"));
+        assert!(!builtin_is_alphabetic("1"));
+        assert!(!builtin_is_alphabetic(" "));
+        assert!(!builtin_is_alphabetic(""));
+    }
+
+    #[test]
+    fn test_is_numeric() {
+        assert!(builtin_is_numeric("0"));
+        assert!(builtin_is_numeric("9"));
+        assert!(!builtin_is_numeric("a"));
+        assert!(!builtin_is_numeric(" "));
+        assert!(!builtin_is_numeric(""));
+    }
+
+    #[test]
+    fn test_is_whitespace() {
+        assert!(builtin_is_whitespace(" "));
+        assert!(builtin_is_whitespace("\t"));
+        assert!(builtin_is_whitespace("\n"));
+        assert!(!builtin_is_whitespace("a"));
+        assert!(!builtin_is_whitespace(""));
+    }
+
+    #[test]
+    fn test_is_alphanumeric() {
+        assert!(builtin_is_alphanumeric("a"));
+        assert!(builtin_is_alphanumeric("Z"));
+        assert!(builtin_is_alphanumeric("0"));
+        assert!(builtin_is_alphanumeric("9"));
+        assert!(!builtin_is_alphanumeric(" "));
+        assert!(!builtin_is_alphanumeric("!"));
+        assert!(!builtin_is_alphanumeric(""));
+    }
+}

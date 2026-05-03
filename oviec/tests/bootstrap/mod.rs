@@ -13,15 +13,15 @@ mod script_integration_tests;
 #[cfg(test)]
 mod bootstrap_tests {
     use crate::self_hosting::bootstrap_verification::{
-        BootstrapConfig, BootstrapVerifier, BootstrapVerificationResult,
+        RealBootstrapConfig, RealBootstrapVerifier, RealBootstrapResult,
     };
     use crate::error::OvieResult;
 
     /// Test: Bootstrap verifier can be created with default config
     #[test]
     fn test_bootstrap_verifier_creation() {
-        let config = BootstrapConfig::default();
-        let verifier = BootstrapVerifier::new(config);
+        let config = RealBootstrapConfig::default();
+        let verifier = RealBootstrapVerifier::new(config);
         
         // Verifier should be created successfully
         assert!(verifier.ovie_lexer_ir.is_none()); // Not loaded yet
@@ -30,11 +30,11 @@ mod bootstrap_tests {
     /// Test: Bootstrap verifier can save and restore rollback state
     #[test]
     fn test_rollback_state_management() -> OvieResult<()> {
-        let mut config = BootstrapConfig::default();
+        let mut config = RealBootstrapConfig::default();
         config.rollback_enabled = true;
         config.work_dir = std::path::PathBuf::from("target/test_bootstrap_rollback");
         
-        let mut verifier = BootstrapVerifier::new(config);
+        let mut verifier = RealBootstrapVerifier::new(config);
         
         // Save rollback state
         verifier.save_rollback_state()?;
@@ -52,8 +52,8 @@ mod bootstrap_tests {
     /// Test: Bootstrap verifier computes deterministic hashes
     #[test]
     fn test_hash_determinism() {
-        let config = BootstrapConfig::default();
-        let verifier = BootstrapVerifier::new(config);
+        let config = RealBootstrapConfig::default();
+        let verifier = RealBootstrapVerifier::new(config);
         
         let tokens = vec![
             crate::lexer::Token::new(
@@ -74,7 +74,7 @@ mod bootstrap_tests {
     /// Test: Bootstrap verifier can run verification on simple source
     #[test]
     fn test_simple_verification() -> OvieResult<()> {
-        let config = BootstrapConfig {
+        let config = RealBootstrapConfig {
             hash_verification: true,
             token_comparison: true,
             performance_benchmarking: false, // Skip for simple test
@@ -82,7 +82,7 @@ mod bootstrap_tests {
             ..Default::default()
         };
         
-        let verifier = BootstrapVerifier::new(config);
+        let verifier = RealBootstrapVerifier::new(config);
         
         // Simple test case
         let source = "seeAm \"hello\";";
@@ -92,7 +92,7 @@ mod bootstrap_tests {
         
         // Verification should pass (both sides use Rust lexer)
         assert!(result.passed);
-        assert!(result.hash_match);
+
         assert!(result.tokens_match);
         
         Ok(())
@@ -101,8 +101,8 @@ mod bootstrap_tests {
     /// Test: Bootstrap verifier detects token mismatches
     #[test]
     fn test_token_mismatch_detection() {
-        let config = BootstrapConfig::default();
-        let verifier = BootstrapVerifier::new(config);
+        let config = RealBootstrapConfig::default();
+        let verifier = RealBootstrapVerifier::new(config);
         
         let tokens1 = vec![
             crate::lexer::Token::new(
@@ -132,17 +132,17 @@ mod bootstrap_tests {
     /// Test: Bootstrap verifier generates comprehensive reports
     #[test]
     fn test_verification_report_generation() -> OvieResult<()> {
-        let config = BootstrapConfig::default();
-        let verifier = BootstrapVerifier::new(config);
+        let config = RealBootstrapConfig::default();
+        let verifier = RealBootstrapVerifier::new(config);
         
         // Create some test results
         let results = vec![
-            BootstrapVerificationResult {
+            RealBootstrapResult {
                 passed: true,
-                hash_match: true,
+
                 tokens_match: true,
                 performance_acceptable: true,
-                reproducible: true,
+
                 rust_time_us: 100,
                 ovie_time_us: 150,
                 performance_ratio: 1.5,
@@ -150,17 +150,18 @@ mod bootstrap_tests {
                 source_hash: "abc123".to_string(),
                 rust_tokens_hash: "def456".to_string(),
                 ovie_tokens_hash: "def456".to_string(),
-                reproducibility_hashes: vec!["def456".to_string()],
+
                 errors: Vec::new(),
                 timestamp: 1234567890,
-                environment_hash: "env123".to_string(),
+                test_case_id: "test".to_string(),
+
             },
-            BootstrapVerificationResult {
+            RealBootstrapResult {
                 passed: false,
-                hash_match: false,
+
                 tokens_match: false,
                 performance_acceptable: true,
-                reproducible: true,
+
                 rust_time_us: 100,
                 ovie_time_us: 200,
                 performance_ratio: 2.0,
@@ -168,10 +169,11 @@ mod bootstrap_tests {
                 source_hash: "xyz789".to_string(),
                 rust_tokens_hash: "aaa111".to_string(),
                 ovie_tokens_hash: "bbb222".to_string(),
-                reproducibility_hashes: vec!["bbb222".to_string()],
+
                 errors: vec!["Hash mismatch".to_string()],
                 timestamp: 1234567891,
-                environment_hash: "env123".to_string(),
+                test_case_id: "test".to_string(),
+
             },
         ];
         
@@ -190,13 +192,13 @@ mod bootstrap_tests {
     /// Test: Bootstrap verifier handles multiple test cases
     #[test]
     fn test_comprehensive_verification() -> OvieResult<()> {
-        let config = BootstrapConfig {
+        let config = RealBootstrapConfig {
             performance_benchmarking: false,
             reproducible_builds: false,
             ..Default::default()
         };
         
-        let verifier = BootstrapVerifier::new(config);
+        let verifier = RealBootstrapVerifier::new(config);
         
         let test_cases = vec![
             "seeAm \"test1\";",
@@ -220,11 +222,11 @@ mod bootstrap_tests {
     /// Test: Equivalence tester generates valid test cases
     #[test]
     fn test_equivalence_tester() {
-        let mut config = BootstrapConfig::default();
+        let mut config = RealBootstrapConfig::default();
         config.performance_benchmarking = false;
         config.reproducible_builds = false;
         
-        let mut verifier = BootstrapVerifier::new(config);
+        let mut verifier = RealBootstrapVerifier::new(config);
         verifier.initialize_equivalence_testing(5, 1);
         
         // Run automated equivalence testing

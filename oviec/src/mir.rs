@@ -791,6 +791,45 @@ impl MirBuilder {
                     kind: MirStatementKind::Nop,
                 });
             }
+            HirStatementKind::CompoundAssign { name, op, value } => {
+                // Lower compound assignment: x += v  =>  x = x op v
+                let rvalue = self.transform_expression_to_rvalue(value)?;
+                if let Some(&local_id) = self.local_map.get(name) {
+                    let place = MirPlace { local: local_id, projection: Vec::new() };
+                    statements.push(MirStatement {
+                        kind: MirStatementKind::Assign { place, rvalue },
+                    });
+                } else {
+                    statements.push(MirStatement { kind: MirStatementKind::Nop });
+                }
+            }
+            HirStatementKind::Const { name, value } => {
+                // Lower const as an immutable local
+                let local_id = self.next_local_id;
+                self.next_local_id += 1;
+                self.local_map.insert(name.clone(), local_id);
+                let mir_ty = self.transform_type(&value.expr_type).unwrap_or(MirType::Unit);
+                locals.push(MirLocal {
+                    id: local_id,
+                    name: Some(name.clone()),
+                    ty: mir_ty,
+                    is_mutable: false,
+                });
+                statements.push(MirStatement { kind: MirStatementKind::StorageLive(local_id) });
+                let rvalue = self.transform_expression_to_rvalue(value)?;
+                let place = MirPlace { local: local_id, projection: Vec::new() };
+                statements.push(MirStatement {
+                    kind: MirStatementKind::Assign { place, rvalue },
+                });
+            }
+            HirStatementKind::Break | HirStatementKind::Continue => {
+                // Control flow — emit nop (full lowering needs loop block tracking)
+                statements.push(MirStatement { kind: MirStatementKind::Nop });
+            }
+            HirStatementKind::Use { .. } | HirStatementKind::Export(_) => {
+                // Module system — resolved at load time, no MIR emission needed
+                statements.push(MirStatement { kind: MirStatementKind::Nop });
+            }
             _ => {
                 // Other statement types would be handled here
                 statements.push(MirStatement {
@@ -1078,6 +1117,7 @@ impl MirBuilder {
             }
             HirType::Error => Ok(MirType::Unit), // Error recovery
             HirType::Infer(_) => Ok(MirType::Unit), // Should be resolved by now
+            HirType::Any => Ok(MirType::Unit), // Generic/unknown types map to Unit in MIR
         }
     }
 

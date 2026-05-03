@@ -1,0 +1,549 @@
+/* Book Reader Styles - v2.3 Enhanced Readability */
+
+body.book-page {
+  background: var(--bg-primary);
+  padding-top: 0;
+  font-size: 18px; /* Increased base font size for better readability */
+  line-height: 1.8; /* Improved line height */
+}
+
+/* Book Navigation */
+.book-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  background: rgba(13, 17, 23, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-primary);
+  z-index: 1000;
+  height: 70px; /* Increased for better touch targets */
+}
+
+.book-nav-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.book-nav-home {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 1rem; /* Increased from 0.9rem */
+  transition: color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.book-nav-home:hover { color: var(--brand-primary); }
+
+.book-nav-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1.1rem; /* Increased from 0.95rem */
+}
+
+.book-nav-icon { font-size: 1.4rem; /* Increased from 1.2rem */ }
+
+.book-nav-version {
+  background: var(--brand-gradient);
+  color: white;
+  padding: 4px 10px; /* Increased from 2px 8px */
+  border-radius: 12px;
+  font-size: 0.85rem; /* Increased from 0.75rem */
+  font-weight: 600;
+}
+
+.book-nav-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+/* Layout */
+.book-layout {
+  display: flex;
+  min-height: 100vh;
+  padding-top: 70px;
+}
+
+/* Sidebar */
+.book-sidebar {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  width: 280px;
+  height: calc(100vh - 70px);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-primary);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-normal);
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.sidebar-book-cover {
+  width: 100%;
+  height: 120px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.sidebar-cover-inner { text-align: center; }
+
+.sidebar-nav {
+  flex: 1;
+  padding: var(--spacing-lg); /* Increased from md */
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm); /* Increased from xs */
+}
+
+.sidebar-section-label {
+  color: var(--text-muted);
+  font-size: 0.85rem; /* Increased from 0.75rem */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-sm); /* Increased from xs */
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md); /* Increased from sm */
+  padding: var(--spacing-md) var(--spacing-lg); /* Increased padding */
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 1rem; /* Increased from 0.9rem */
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  min-height: 48px; /* Added minimum touch target */
+}
+
+.sidebar-link:hover {
+  color: var(--text-primary);
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.sidebar-link.active {
+  color: var(--brand-primary);
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.sidebar-num {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  width: 28px; /* Increased from 24px */
+  height: 28px; /* Increased from 24px */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem; /* Increased from 0.7rem */
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.sidebar-link.active .sidebar-num {
+  background: var(--brand-gradient);
+  color: white;
+}
+
+.sidebar-footer {
+  padding: var(--spacing-lg);
+  border-top: 1px solid var(--border-primary);
+}
+
+/* Main Content — fills all space to the right of the fixed sidebar */
+.book-content {
+  margin-left: 280px;
+  flex: 1;
+  min-width: 0;
+  width: calc(100% - 280px);
+  padding: 3rem 4rem;
+  box-sizing: border-box;
+}
+
+/* Book Hero */
+.book-hero {
+  text-align: center;
+  padding: var(--spacing-3xl) 0;
+  margin-bottom: var(--spacing-3xl);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.book-hero-badge {
+  display: inline-block;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: var(--brand-primary);
+  padding: var(--spacing-md) var(--spacing-xl); /* Increased from sm/lg */
+  border-radius: var(--radius-xl);
+  font-size: 1rem; /* Increased from 0.85rem */
+  font-weight: 600;
+  margin-bottom: var(--spacing-xl);
+}
+
+.book-hero h1 {
+  font-size: 3.5rem; /* Increased from 3rem */
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-lg);
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+
+.book-hero-sub {
+  font-size: 1.3rem; /* Increased from 1.15rem */
+  color: var(--text-secondary);
+  max-width: 700px; /* Increased from 600px */
+  margin: 0 auto var(--spacing-lg);
+  line-height: 1.8; /* Increased from 1.7 */
+}
+
+.book-hero-meta {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg); /* Increased from md */
+  color: var(--text-muted);
+  font-size: 1rem; /* Increased from 0.9rem */
+  margin-bottom: var(--spacing-xl);
+}
+
+.book-hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-lg); /* Increased from md */
+  flex-wrap: wrap;
+}
+
+/* Chapters */
+.chapter {
+  margin-bottom: var(--spacing-3xl);
+  padding-bottom: var(--spacing-3xl);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.chapter-header {
+  margin-bottom: var(--spacing-2xl);
+}
+
+.chapter-number {
+  color: var(--brand-primary);
+  font-size: 1rem; /* Increased from 0.85rem */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: var(--spacing-md); /* Increased from sm */
+}
+
+.chapter-title {
+  font-size: 2.5rem; /* Increased from 2rem */
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.chapter-body h3 {
+  color: var(--text-primary);
+  font-size: 1.6rem; /* Increased from 1.25rem */
+  margin-top: var(--spacing-2xl);
+  margin-bottom: var(--spacing-lg); /* Increased from md */
+  padding-bottom: var(--spacing-md); /* Increased from sm */
+  border-bottom: 1px solid var(--border-primary);
+  line-height: 1.4;
+}
+
+.chapter-body h4 {
+  color: var(--text-primary);
+  font-size: 1.3rem; /* Added for h4 */
+  margin-top: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
+  line-height: 1.4;
+}
+
+.chapter-body h5 {
+  color: var(--text-primary);
+  font-size: 1.1rem; /* Added for h5 */
+  margin-top: var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.4;
+}
+
+.chapter-body p {
+  color: var(--text-secondary);
+  line-height: 1.9; /* Increased from 1.8 */
+  margin-bottom: var(--spacing-lg); /* Increased from md */
+  font-size: 1.1rem; /* Added explicit size */
+}
+
+.chapter-body ul, .chapter-body ol {
+  color: var(--text-secondary);
+  padding-left: var(--spacing-2xl); /* Increased from xl */
+  margin-bottom: var(--spacing-lg); /* Increased from md */
+  line-height: 1.9; /* Increased from 1.8 */
+  font-size: 1.05rem; /* Added explicit size */
+}
+
+.chapter-body li { 
+  margin-bottom: var(--spacing-md); /* Increased from sm */
+}
+
+.chapter-body strong { 
+  color: var(--text-primary); 
+  font-weight: 600;
+}
+
+.chapter-body code { 
+  font-family: var(--font-mono); 
+  color: var(--brand-primary); 
+  font-size: 1rem; /* Increased from 0.9em */
+  background: rgba(245,158,11,0.1); 
+  padding: 3px 8px; /* Increased from 2px 6px */
+  border-radius: 5px; /* Increased from 4px */
+}
+
+/* Code windows inside book chapters must not overflow */
+.chapter-body .code-window {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.chapter-body .code-content {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.chapter-body blockquote {
+  border-left: 4px solid var(--brand-primary);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  margin: var(--spacing-xl) 0;
+  background: rgba(245, 158, 11, 0.05);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1.8;
+}
+
+.code-example { margin: var(--spacing-xl) 0; }
+.code-example-label { 
+  color: var(--text-muted); 
+  font-size: 0.9rem; /* Increased from 0.8rem */
+  margin-bottom: var(--spacing-sm); 
+  font-family: var(--font-mono); 
+}
+
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-2xl);
+  padding-top: var(--spacing-xl);
+  gap: var(--spacing-md);
+}
+
+.chapter-nav .btn {
+  min-height: 48px; /* Added for better touch targets */
+  font-size: 1rem;
+}
+
+/* Install tabs in book */
+.install-tabs { margin: var(--spacing-xl) 0; }
+.install-tab-btns { 
+  display: flex; 
+  gap: var(--spacing-md); /* Increased from sm */ 
+  margin-bottom: var(--spacing-lg); /* Increased from md */ 
+  flex-wrap: wrap; 
+}
+.itab { 
+  background: var(--bg-tertiary); 
+  border: 1px solid var(--border-primary); 
+  color: var(--text-secondary); 
+  padding: var(--spacing-md) var(--spacing-lg); /* Increased from sm/md */
+  border-radius: var(--radius-md); 
+  cursor: pointer; 
+  font-family: var(--font-family); 
+  font-size: 1rem; /* Added explicit size */
+  min-height: 44px; /* Added for touch targets */
+  transition: all var(--transition-fast); 
+}
+.itab.active, .itab:hover { 
+  background: rgba(245,158,11,0.15); 
+  border-color: var(--brand-primary); 
+  color: var(--brand-primary); 
+}
+.install-tab-content { display: none; }
+.install-tab-content.active { display: block; }
+
+/* Chapters grid */
+.chapters-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-xl); /* Increased from lg */
+  margin: var(--spacing-3xl) 0;
+}
+
+.chapter-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl); /* Increased from xl */
+  text-decoration: none;
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+}
+
+.chapter-card:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.cc-num {
+  font-size: 2.5rem; /* Increased from 2rem */
+  font-weight: 700;
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--spacing-md); /* Increased from sm */
+}
+
+.chapter-card h3 { 
+  color: var(--text-primary); 
+  font-size: 1.2rem; /* Increased from 1rem */
+  margin-bottom: var(--spacing-md); /* Increased from sm */
+  line-height: 1.4;
+}
+
+.chapter-card p { 
+  color: var(--text-secondary); 
+  font-size: 1rem; /* Increased from 0.9rem */
+  margin: 0; 
+  flex: 1; 
+  line-height: 1.7; /* Increased from 1.6 */
+}
+
+.cc-read { 
+  color: var(--brand-primary); 
+  font-size: 0.95rem; /* Increased from 0.85rem */
+  font-weight: 500; 
+  margin-top: var(--spacing-lg); /* Increased from md */
+}
+
+/* Download CTA */
+.book-download-cta {
+  text-align: center;
+  padding: var(--spacing-3xl);
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  margin-top: var(--spacing-3xl);
+}
+
+.book-download-icon { 
+  font-size: 4.5rem; /* Increased from 4rem */ 
+  margin-bottom: var(--spacing-xl); /* Increased from lg */ 
+}
+
+.book-download-cta h2 { 
+  color: var(--text-primary); 
+  margin-bottom: var(--spacing-lg); /* Increased from md */
+  font-size: 2.2rem; /* Added explicit size */
+}
+
+.book-download-cta p { 
+  color: var(--text-secondary); 
+  margin-bottom: var(--spacing-xl); 
+  font-size: 1.2rem; /* Added explicit size */
+  line-height: 1.7;
+}
+
+.book-download-actions { 
+  display: flex; 
+  justify-content: center; 
+  gap: var(--spacing-lg); /* Increased from md */ 
+  flex-wrap: wrap; 
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .book-layout { display: block; }
+  .book-sidebar { transform: translateX(-100%); }
+  .book-sidebar.open { transform: translateX(0); }
+  .book-content { 
+    margin-left: 0; 
+    width: 100%;
+    padding: 2rem 1.5rem;
+  }
+  .chapters-grid { grid-template-columns: repeat(2, 1fr); }
+  
+  .book-hero h1 { font-size: 2.8rem; }
+  .chapter-title { font-size: 2.2rem; }
+  .chapter-body h3 { font-size: 1.4rem; }
+}
+
+@media (max-width: 768px) {
+  body.book-page { font-size: 17px; } /* Slightly smaller but still readable */
+  
+  .book-nav { height: 60px; }
+  .book-layout { padding-top: 60px; }
+  .book-sidebar { top: 60px; height: calc(100vh - 60px); }
+  
+  .book-hero h1 { font-size: 2.2rem; }
+  .book-hero-sub { font-size: 1.1rem; }
+  .chapters-grid { grid-template-columns: 1fr; }
+  .chapter-nav { flex-direction: column; gap: var(--spacing-md); }
+  .chapter-nav .btn { width: 100%; justify-content: center; }
+  .book-download-actions { flex-direction: column; align-items: stretch; }
+  .book-download-actions .btn { width: 100%; }
+  
+  .chapter-title { font-size: 1.9rem; }
+  .chapter-body h3 { font-size: 1.3rem; }
+  .chapter-body p { font-size: 1.05rem; }
+  .chapter-body ul, .chapter-body ol { font-size: 1rem; }
+}
+
+@media (max-width: 480px) {
+  body.book-page { font-size: 16px; } /* Minimum readable size */
+  
+  .book-content { padding: var(--spacing-xl) var(--spacing-md); }
+  .book-hero { padding: var(--spacing-2xl) 0; }
+  .book-hero h1 { font-size: 1.9rem; }
+  .book-hero-sub { font-size: 1rem; }
+  
+  .chapter-title { font-size: 1.7rem; }
+  .chapter-body h3 { font-size: 1.2rem; }
+  .chapter-body p { font-size: 1rem; line-height: 1.8; }
+  .chapter-body ul, .chapter-body ol { font-size: 0.95rem; padding-left: var(--spacing-lg); }
+  
+  .sidebar-link { font-size: 0.95rem; padding: var(--spacing-sm) var(--spacing-md); }
+  .book-nav-title { font-size: 1rem; }
+  .book-nav-home { font-size: 0.9rem; }
+}

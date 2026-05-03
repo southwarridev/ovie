@@ -1,0 +1,104 @@
+/// Performance Optimization Tests
+use ./performance::{new_interner, intern, resolve_interned, new_hash_state, update_hash, finalize_hash, compute_seeded_hash, compute_deps_hash_fast, new_cache_index, hot_check, update_hot_index, invalidate_hot, build_graph_fast};
+use ./dependency_graph::{new_graph, add_dependency, topological_sort};
+
+fn test_interner_deduplication() {
+    mut interner = new_interner();
+    mut id1 = intern(&mut interner, "std/math/mod.ov");
+    mut id2 = intern(&mut interner, "std/math/mod.ov");
+    assert(id1 == id2, "Same string must produce same interned ID");
+    mut id3 = intern(&mut interner, "std/io/mod.ov");
+    assert(id1 != id3, "Different strings must produce different IDs");
+    seeAm("PASS: test_interner_deduplication");
+}
+
+fn test_hash_incremental_equals_full() {
+    mut s1 = new_hash_state();
+    update_hash(&mut s1, "std/math");
+    update_hash(&mut s1, "/mod.ov");
+    mut h1 = finalize_hash(&s1);
+    mut s2 = new_hash_state();
+    update_hash(&mut s2, "std/math/mod.ov");
+    mut h2 = finalize_hash(&s2);
+    assert(h1 == h2, "Incremental hash must equal full hash of concatenation");
+    seeAm("PASS: test_hash_incremental_equals_full");
+}
+
+fn test_seeded_hash_path_differentiation() {
+    mut content = "export fn add(a: Number, b: Number) -> Number { return a + b }";
+    mut h1 = compute_seeded_hash("std/math/mod.ov", content);
+    mut h2 = compute_seeded_hash("src/utils/mod.ov", content);
+    assert(h1 != h2, "Same content at different paths must produce different hashes");
+    seeAm("PASS: test_seeded_hash_path_differentiation");
+}
+
+fn test_deps_hash_order_independence() {
+    mut deps1 = [("std/math/mod.ov", "abc123"), ("std/io/mod.ov", "def456")];
+    mut deps2 = [("std/io/mod.ov", "def456"), ("std/math/mod.ov", "abc123")];
+    mut h1 = compute_deps_hash_fast(deps1);
+    mut h2 = compute_deps_hash_fast(deps2);
+    assert(h1 == h2, "Dependency hash must be order-independent");
+    seeAm("PASS: test_deps_hash_order_independence");
+}
+
+fn test_hot_index_miss_then_hit() {
+    mut index = new_cache_index(64);
+    mut r1 = hot_check(&index, "std/math/mod.ov", "abc", "def");
+    assert(r1 == "miss", "Before insertion must be miss");
+    update_hot_index(&mut index, "std/math/mod.ov", "abc", "def", true);
+    mut r2 = hot_check(&index, "std/math/mod.ov", "abc", "def");
+    assert(r2 == "valid", "After valid insertion must be valid");
+    seeAm("PASS: test_hot_index_miss_then_hit");
+}
+
+fn test_hot_index_stale_on_hash_change() {
+    mut index = new_cache_index(64);
+    update_hot_index(&mut index, "src/main.ov", "old_hash", "deps", true);
+    mut r = hot_check(&index, "src/main.ov", "new_hash", "deps");
+    assert(r == "invalid", "Changed hash must produce invalid result");
+    seeAm("PASS: test_hot_index_stale_on_hash_change");
+}
+
+fn test_hot_index_lru_eviction() {
+    mut index = new_cache_index(3);
+    update_hot_index(&mut index, "a.ov", "h1", "d1", true);
+    update_hot_index(&mut index, "b.ov", "h2", "d2", true);
+    update_hot_index(&mut index, "c.ov", "h3", "d3", true);
+    update_hot_index(&mut index, "d.ov", "h4", "d4", true);
+    mut evicted = hot_check(&index, "a.ov", "h1", "d1");
+    assert(evicted == "miss", "LRU entry must be evicted when at capacity");
+    seeAm("PASS: test_hot_index_lru_eviction");
+}
+
+fn test_build_graph_fast_matches_incremental() {
+    mut pairs = [
+        ("src/main.ov", ["std/math/mod.ov", "std/io/mod.ov"]),
+        ("std/math/mod.ov", []),
+        ("std/io/mod.ov", []),
+    ];
+    mut fast_graph = build_graph_fast(pairs);
+    mut fast_order = topological_sort(&fast_graph);
+
+    mut inc_graph = new_graph();
+    add_dependency(&mut inc_graph, "src/main.ov", "std/math/mod.ov");
+    add_dependency(&mut inc_graph, "src/main.ov", "std/io/mod.ov");
+    mut inc_order = topological_sort(&inc_graph);
+
+    assert(fast_order.len() == inc_order.len(), "Fast and incremental graphs must have same node count");
+    seeAm("PASS: test_build_graph_fast_matches_incremental");
+}
+
+fn run_all_performance_tests() {
+    seeAm("=== Performance Optimization Tests ===");
+    test_interner_deduplication();
+    test_hash_incremental_equals_full();
+    test_seeded_hash_path_differentiation();
+    test_deps_hash_order_independence();
+    test_hot_index_miss_then_hit();
+    test_hot_index_stale_on_hash_change();
+    test_hot_index_lru_eviction();
+    test_build_graph_fast_matches_incremental();
+    seeAm("=== All performance tests passed ===");
+}
+
+run_all_performance_tests();

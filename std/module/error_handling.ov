@@ -1,0 +1,324 @@
+/// Module System Error Handling
+///
+/// Comprehensive error reporting for all module system operations.
+/// Provides structured errors with context, suggestions, and fix hints
+/// for module-not-found, symbol resolution, circular dependencies,
+/// type errors, version conflicts, and documentation errors.
+///
+/// # Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6
+
+/// All possible module error kinds
+enum ModuleErrorKind {
+    ModuleNotFound,
+    SymbolNotFound,
+    CircularDependency,
+    SyntaxError,
+    VersionConflict,
+    DocumentationError,
+    TypeMismatch,
+    NameCollision,
+    CacheError,
+    ManifestError,
+}
+
+/// A structured module system error with full context
+struct ModuleError {
+    kind: String,              // ModuleErrorKind as string
+    module_path: String,       // Module path that caused the error
+    symbol_name: String,       // Symbol involved (if applicable)
+    message: String,           // Human-readable error message
+    searched_paths: Array,     // Paths searched (for not-found errors)
+    available_exports: Array,  // Available exports (for symbol errors)
+    cycle_path: Array,         // Cycle path (for circular deps)
+    suggestions: Array,        // Fix suggestions
+    file_path: String,
+    line_number: Number,
+}
+
+/// Create a module-not-found error with all searched paths
+///
+/// # Parameters
+/// - module_path: The module path that could not be found
+/// - searched_paths: All directories that were searched
+///
+/// # Returns
+/// ModuleError with suggestions
+export fn error_module_not_found(module_path: String, searched_paths: Array) -> ModuleError {
+    mut suggestions = [];
+    suggestions = array_push(suggestions, "Check that the module path is spelled correctly");
+    suggestions = array_push(suggestions, "Verify the module exists in one of the searched directories");
+    suggestions = array_push(suggestions, "For std:: modules, ensure the standard library is installed");
+    suggestions = array_push(suggestions, "For local modules, use a relative path: import \"./module.ov\"");
+
+    mut searched_list = "";
+    mut i = 0;
+    while i < array_length(searched_paths) {
+        searched_list = searched_list + "\n  - " + array_get(searched_paths, i);
+        i = i + 1;
+    }
+
+    return ModuleError {
+        kind: "ModuleNotFound",
+        module_path: module_path,
+        symbol_name: "",
+        message: "Module not found: '" + module_path + "'\nSearched in:" + searched_list,
+        searched_paths: searched_paths,
+        available_exports: [],
+        cycle_path: [],
+        suggestions: suggestions,
+        file_path: "",
+        line_number: 0,
+    };
+}
+
+/// Create a symbol-not-found error with available exports listed
+///
+/// # Parameters
+/// - symbol_name: The symbol that could not be found
+/// - module_path: The module that was searched
+/// - available_exports: All exports available in the module
+///
+/// # Returns
+/// ModuleError with suggestions
+export fn error_symbol_not_found(symbol_name: String, module_path: String, available_exports: Array) -> ModuleError {
+    mut suggestions = [];
+    suggestions = array_push(suggestions, "Check the symbol name for typos");
+    suggestions = array_push(suggestions, "Verify the symbol is exported from the module (uses 'export fn' or 'export struct')");
+
+    // Find similar names
+    mut similar = find_similar_names(symbol_name, available_exports);
+    if array_length(similar) > 0 {
+        mut sim_str = "Did you mean: ";
+        mut i = 0;
+        while i < array_length(similar) {
+            if i > 0 { sim_str = sim_str + ", "; }
+            sim_str = sim_str + "'" + array_get(similar, i) + "'";
+            i = i + 1;
+        }
+        suggestions = array_push(suggestions, sim_str);
+    }
+
+    mut exports_list = "";
+    mut i = 0;
+    while i < array_length(available_exports) {
+        exports_list = exports_list + "\n  - " + array_get(available_exports, i);
+        i = i + 1;
+    }
+
+    mut msg = "Symbol '" + symbol_name + "' not found in module '" + module_path + "'";
+    if string_length(exports_list) > 0 {
+        msg = msg + "\nAvailable exports:" + exports_list;
+    } else {
+        msg = msg + "\nThe module has no exports.";
+    }
+
+    return ModuleError {
+        kind: "SymbolNotFound",
+        module_path: module_path,
+        symbol_name: symbol_name,
+        message: msg,
+        searched_paths: [],
+        available_exports: available_exports,
+        cycle_path: [],
+        suggestions: suggestions,
+        file_path: "",
+        line_number: 0,
+    };
+}
+
+/// Create a circular dependency error with the full cycle path
+///
+/// # Parameters
+/// - cycle_path: Array of module names forming the cycle
+///
+/// # Returns
+/// ModuleError with suggestions for breaking the cycle
+export fn error_circular_dependency(cycle_path: Array) -> ModuleError {
+    mut suggestions = [];
+    suggestions = array_push(suggestions, "Extract shared code into a new module that both modules can import");
+    suggestions = array_push(suggestions, "Use dependency injection to break the cycle");
+    suggestions = array_push(suggestions, "Restructure so one module only depends on interfaces, not implementations");
+
+    mut cycle_str = "";
+    mut i = 0;
+    while i < array_length(cycle_path) {
+        if i > 0 { cycle_str = cycle_str + " → "; }
+        cycle_str = cycle_str + array_get(cycle_path, i);
+        i = i + 1;
+    }
+    // Close the cycle
+    if array_length(cycle_path) > 0 {
+        cycle_str = cycle_str + " → " + array_get(cycle_path, 0);
+    }
+
+    return ModuleError {
+        kind: "CircularDependency",
+        module_path: array_get(cycle_path, 0),
+        symbol_name: "",
+        message: "Circular dependency detected:\n  " + cycle_str,
+        searched_paths: [],
+        available_exports: [],
+        cycle_path: cycle_path,
+        suggestions: suggestions,
+        file_path: "",
+        line_number: 0,
+    };
+}
+
+/// Create a syntax error in a module file
+///
+/// # Parameters
+/// - file_path: Path to the file with the error
+/// - line_number: Line number of the error
+/// - message: Syntax error description
+///
+/// # Returns
+/// ModuleError with context
+export fn error_syntax(file_path: String, line_number: Number, message: String) -> ModuleError {
+    mut suggestions = [];
+    suggestions = array_push(suggestions, "Check for missing semicolons, brackets, or parentheses");
+    suggestions = array_push(suggestions, "Verify all blocks are properly closed with '}'");
+    suggestions = array_push(suggestions, "Run 'oviec check " + file_path + "' for detailed syntax analysis");
+
+    return ModuleError {
+        kind: "SyntaxError",
+        module_path: file_path,
+        symbol_name: "",
+        message: file_path + ":" + number_to_string(line_number) + ": " + message,
+        searched_paths: [],
+        available_exports: [],
+        cycle_path: [],
+        suggestions: suggestions,
+        file_path: file_path,
+        line_number: line_number,
+    };
+}
+
+/// Create a version conflict error
+///
+/// # Parameters
+/// - package_name: Package with conflicting versions
+/// - required_version: Version required by the manifest
+/// - found_version: Version actually found
+///
+/// # Returns
+/// ModuleError with suggestions
+export fn error_version_conflict(package_name: String, required_version: String, found_version: String) -> ModuleError {
+    mut suggestions = [];
+    suggestions = array_push(suggestions, "Update ovie.toml to accept version " + found_version + ": " + package_name + " = \">=" + found_version + "\"");
+    suggestions = array_push(suggestions, "Install the required version: ovie add " + package_name + "@" + required_version);
+    suggestions = array_push(suggestions, "Run 'ovie install' to resolve all dependencies");
+
+    return ModuleError {
+        kind: "VersionConflict",
+        module_path: package_name,
+        symbol_name: "",
+        message: "Version conflict for '" + package_name + "': requires " + required_version + " but found " + found_version,
+        searched_paths: [],
+        available_exports: [],
+        cycle_path: [],
+        suggestions: suggestions,
+        file_path: "",
+        line_number: 0,
+    };
+}
+
+/// Create a documentation error for a missing or incomplete doc comment
+///
+/// # Parameters
+/// - symbol_name: The symbol missing documentation
+/// - file_path: File containing the symbol
+/// - line_number: Line of the symbol
+/// - missing_sections: Which sections are missing
+///
+/// # Returns
+/// ModuleError with doc comment template suggestion
+export fn error_documentation(symbol_name: String, file_path: String, line_number: Number, missing_sections: Array) -> ModuleError {
+    mut suggestions = [];
+
+    mut sections_str = "";
+    mut i = 0;
+    while i < array_length(missing_sections) {
+        sections_str = sections_str + "\n  - " + array_get(missing_sections, i);
+        i = i + 1;
+    }
+
+    suggestions = array_push(suggestions, "Add a doc comment above the function with these sections:" + sections_str);
+    suggestions = array_push(suggestions, "Example:\n/// Brief summary\n///\n/// # Parameters\n/// - param: Description\n///\n/// # Returns\n/// Return value description\n///\n/// # Examples\n/// ```ovie\n/// result = " + symbol_name + "(arg)\n/// ```");
+
+    return ModuleError {
+        kind: "DocumentationError",
+        module_path: file_path,
+        symbol_name: symbol_name,
+        message: "'" + symbol_name + "' is missing required documentation sections:" + sections_str,
+        searched_paths: [],
+        available_exports: [],
+        cycle_path: [],
+        suggestions: suggestions,
+        file_path: file_path,
+        line_number: line_number,
+    };
+}
+
+/// Format a ModuleError as a human-readable string
+///
+/// # Parameters
+/// - err: ModuleError to format
+///
+/// # Returns
+/// Formatted error string with suggestions
+export fn format_module_error(err: ModuleError) -> String {
+    mut output = "error[" + err.kind + "]: " + err.message + "\n";
+
+    if array_length(err.suggestions) > 0 {
+        output = output + "\nSuggestions:\n";
+        mut i = 0;
+        while i < array_length(err.suggestions) {
+            output = output + "  → " + array_get(err.suggestions, i) + "\n";
+            i = i + 1;
+        }
+    }
+
+    return output;
+}
+
+/// Format multiple errors as a combined report
+///
+/// # Parameters
+/// - errors: Array of ModuleError
+///
+/// # Returns
+/// Combined error report string
+export fn format_error_report(errors: Array) -> String {
+    if array_length(errors) == 0 {
+        return "No errors found.";
+    }
+
+    mut output = number_to_string(array_length(errors)) + " error(s) found:\n\n";
+    mut i = 0;
+    while i < array_length(errors) {
+        mut err = array_get(errors, i);
+        output = output + format_module_error(err) + "\n";
+        i = i + 1;
+    }
+    return output;
+}
+
+/// Find symbol names similar to the target (for typo suggestions)
+fn find_similar_names(target: String, candidates: Array) -> Array {
+    mut similar = [];
+    mut i = 0;
+    while i < array_length(candidates) {
+        mut candidate = array_get(candidates, i);
+        // Simple similarity: shares first 3 chars or differs by 1-2 chars
+        if string_length(target) >= 3 && string_length(candidate) >= 3 {
+            mut t_prefix = string_substring(target, 0, 3);
+            mut c_prefix = string_substring(candidate, 0, 3);
+            if t_prefix == c_prefix {
+                similar = array_push(similar, candidate);
+            }
+        }
+        i = i + 1;
+    }
+    return similar;
+}

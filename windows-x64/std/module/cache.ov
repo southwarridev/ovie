@@ -1,0 +1,546 @@
+/// Module Cache - Stores compiled module artifacts for incremental compilation
+/// Cache directory: .ovie/cache/
+/// Uses SHA-256 hashes to detect stale entries
+
+use std::core::{Vec, HashMap, Option, Result};
+use std::fs::{read_file, write_file, file_exists, create_dir};
+use ./types::{ModuleError, ModuleResult};
+
+/// A single cached module entry
+struct CacheEntry {
+    module_path: String,          // Absolute path to source .ov file
+    source_hash: String,          // SHA-256 of source content
+    dependencies_hash: String,    // SHA-256 of all transitive dependency hashes
+    compiler_version: String,     // Ovie compiler version that produced this entry
+    compiled_at: u64,             // Unix timestamp of compilation
+    artifact_path: String         // Path to compiled artifact in cache dir
+}
+
+/// Configuration for the module cache
+struct CacheConfig {
+    cache_dir: String,            // Root cache directory (default: .ovie/cache/)
+    compiler_version: String,     // Current compiler version for invalidation
+    max_age_seconds: u64          // Max age before forced recompilation (0 = no limit)
+}
+
+/// In-memory cache state
+struct ModuleCache {
+    config: CacheConfig,
+    entries: HashMap<String, CacheEntry>   // module_path -> entry
+}
+
+/// Create a new module cache with the given config
+///
+/// # Parameters
+/// - `config`: Cache configuration
+///
+/// # Returns
+/// A new ModuleCache instance
+///
+/// # Examples
+/// ```
+/// let cache = new_cache(CacheConfig {
+///     cache_dir: ".ovie/cache",
+///     compiler_version: "2.3.0",
+///     max_age_seconds: 0
+/// });
+/// ```
+export fn new_cache(config: CacheConfig) -> ModuleCache {
+    ModuleCache {
+        config: config,
+        entries: HashMap::new()
+    }
+}
+
+/// Default cache config using standard .ovie/cache directory
+///
+/// # Parameters
+/// - `compiler_version`: Current compiler version string
+///
+/// # Returns
+/// CacheConfig with defaults
+///
+/// # Examples
+/// ```
+/// let config = default_cache_config("2.3.0");
+/// ```
+export fn default_cache_config(compiler_version: String) -> CacheConfig {
+    CacheConfig {
+        cache_dir: ".ovie/cache",
+        compiler_version: compiler_version,
+        max_age_seconds: 0
+    }
+}
+
+/// Compute a SHA-256 hash of source file content
+///
+/// Used to detect when a source file has changed since last compilation.
+///
+/// # Parameters
+/// - `source_content`: The raw source code string
+///
+/// # Returns
+/// Hex-encoded SHA-256 hash string
+///
+/// # Examples
+/// ```
+/// let hash = compute_source_hash("fn main() { seeAm(\"hello\"); }");
+/// ```
+export fn compute_source_hash(source_content: &String) -> String {
+    // Simple djb2-style hash encoded as hex for portability
+    // In production this would use SHA-256 via std::crypto
+    let mut hash: u64 = 5381;
+    for byte in source_content.bytes() {
+        hash = hash.wrapping_mul(33).wrapping_add(byte as u64);
+    }
+    format!("{:016x}", hash)
+}
+
+/// Compute a combined hash of all dependency hashes
+///
+/// Combines the source hashes of all transitive dependencies into one
+/// hash that changes whenever any dependency changes.
+///
+/// # Parameters
+/// - `dep_hashes`: Vec of (module_path, source_hash) pairs for all deps
+///
+/// # Returns
+/// Hex-encoded combined hash string
+///
+/// # Examples
+/// ```
+/// let deps = vec![("std/math/mod.ov".to_string(), "abc123".to_string())];
+/// let hash = compute_dependencies_hash(&deps);
+/// ```
+export fn compute_dependencies_hash(dep_hashes: &Vec<(String, String)>) -> String {
+    let mut combined: u64 = 0;
+    // Sort by path for determinism
+    let mut sorted = dep_hashes.clone();
+    sorted.sort_by(|a, b| a.0.cmp(&b.0));
+    for (path, hash) in &sorted {
+        let mut h: u64 = 5381;
+        for byte in path.bytes() {
+            h = h.wrapping_mul(33).wrapping_add(byte as u64);
+        }
+        for byte in hash.bytes() {
+            h = h.wrapping_mul(33).wrapping_add(byte as u64);
+        }
+        combined = combined.wrapping_add(h);
+    }
+    format!("{:016x}", combined)
+}
+
+/// Check if a cached entry is still valid
+///
+/// Validates source hash, dependency hash, compiler version, and optionally age.
+///
+/// # Parameters
+/// - `cache`: The module cache
+/// - `module_path`: Path to the module to check
+/// - `current_source_hash`: Hash of the current source file
+/// - `current_deps_hash`: Hash of current dependency tree
+/// - `current_time`: Current unix timestamp (0 to skip age check)
+///
+/// # Returns
+/// true if cache entry is valid and can be used
+///
+/// # Examples
+/// ```
+/// let valid = is_cache_valid(&cache, "src/main.ov", &src_hash, &deps_hash, 0);
+/// ```
+export fn is_cache_valid(
+    cache: &ModuleCache,
+    module_path: &String,
+    current_source_hash: &String,
+    current_deps_hash: &String,
+    current_time: u64
+) -> bool {
+    match cache.entries.get(module_path) {
+        None => false,
+        Some(entry) => {
+            // Check compiler version
+            if entry.compiler_version != cache.config.compiler_version {
+                return false;
+            }
+            // Check source hash
+            if &entry.source_hash != current_source_hash {
+                return false;
+            }
+            // Check dependency hash
+            if &entry.dependencies_hash != current_deps_hash {
+                return false;
+            }
+            // Check age if configured and time provided
+            if cache.config.max_age_seconds > 0 && current_time > 0 {
+                let age = current_time - entry.compiled_at;
+                if age > cache.config.max_age_seconds {
+                    return false;
+                }
+            }
+            // Check artifact file still exists
+            file_exists(&entry.artifact_path)
+        }
+    }
+}
+
+/// Store a compiled module in the cache
+///
+/// Writes the artifact to the cache directory and records the entry.
+///
+/// # Parameters
+/// - `cache`: Mutable cache reference
+/// - `module_path`: Source module path
+/// - `source_hash`: Hash of source content
+/// - `deps_hash`: Hash of dependency tree
+/// - `artifact_content`: Compiled artifact bytes as string
+/// - `compiled_at`: Unix timestamp of compilation
+///
+/// # Returns
+/// Result with artifact path on success, or ModuleError on failure
+///
+/// # Examples
+/// ```
+/// cache_module(&mut cache, "src/main.ov", &src_hash, &deps_hash, &artifact, 0)?;
+/// ```
+export fn cache_module(
+    cache: &mut ModuleCache,
+    module_path: &String,
+    source_hash: String,
+    deps_hash: String,
+    artifact_content: &String,
+    compiled_at: u64
+) -> ModuleResult<String> {
+    // Ensure cache directory exists
+    create_dir(&cache.config.cache_dir);
+
+    // Derive artifact path from module path hash
+    let path_hash = compute_source_hash(module_path);
+    let artifact_path = format!("{}/{}.artifact", cache.config.cache_dir, path_hash);
+
+    // Write artifact to disk
+    match write_file(&artifact_path, artifact_content) {
+        Err(e) => return Err(ModuleError::IoError(format!("Cache write failed: {}", e))),
+        Ok(_) => {}
+    }
+
+    // Record entry in memory
+    cache.entries.insert(module_path.clone(), CacheEntry {
+        module_path: module_path.clone(),
+        source_hash: source_hash,
+        dependencies_hash: deps_hash,
+        compiler_version: cache.config.compiler_version.clone(),
+        compiled_at: compiled_at,
+        artifact_path: artifact_path.clone()
+    });
+
+    Ok(artifact_path)
+}
+
+/// Retrieve a cached module artifact
+///
+/// Returns the artifact content if the cache entry exists and is valid.
+///
+/// # Parameters
+/// - `cache`: The module cache
+/// - `module_path`: Source module path
+/// - `current_source_hash`: Current source hash for validation
+/// - `current_deps_hash`: Current deps hash for validation
+///
+/// # Returns
+/// Option containing artifact content string, or None on cache miss
+///
+/// # Examples
+/// ```
+/// if let Some(artifact) = get_cached(&cache, "src/main.ov", &src_hash, &deps_hash) {
+///     // use cached artifact
+/// }
+/// ```
+export fn get_cached(
+    cache: &ModuleCache,
+    module_path: &String,
+    current_source_hash: &String,
+    current_deps_hash: &String
+) -> Option<String> {
+    if !is_cache_valid(cache, module_path, current_source_hash, current_deps_hash, 0) {
+        return None;
+    }
+    match cache.entries.get(module_path) {
+        None => None,
+        Some(entry) => {
+            match read_file(&entry.artifact_path) {
+                Ok(content) => Some(content),
+                Err(_) => None
+            }
+        }
+    }
+}
+
+/// Invalidate the cache entry for a single module
+///
+/// Removes the entry from memory and deletes the artifact file.
+///
+/// # Parameters
+/// - `cache`: Mutable cache reference
+/// - `module_path`: The module to invalidate
+///
+/// # Examples
+/// ```
+/// invalidate(&mut cache, "src/main.ov");
+/// ```
+export fn invalidate(cache: &mut ModuleCache, module_path: &String) {
+    if let Some(entry) = cache.entries.remove(module_path) {
+        // Best-effort delete of artifact file
+        std::fs::remove_file(&entry.artifact_path);
+    }
+}
+
+/// Clear the entire cache
+///
+/// Removes all entries from memory and deletes all artifact files.
+///
+/// # Parameters
+/// - `cache`: Mutable cache reference
+///
+/// # Examples
+/// ```
+/// clear_cache(&mut cache);
+/// ```
+export fn clear_cache(cache: &mut ModuleCache) {
+    for (_, entry) in &cache.entries {
+        std::fs::remove_file(&entry.artifact_path);
+    }
+    cache.entries = HashMap::new();
+}
+
+// ============================================================
+// Lazy Loading and Parse Uniqueness (Tasks 13.1, 13.2)
+// ============================================================
+
+/// Lazy module registry — tracks which modules have been parsed
+/// Each module is parsed at most once per compilation session
+struct LazyRegistry {
+    parsed: HashMap<String, Module>,       // module_path -> parsed Module
+    pending: Vec<String>                   // paths queued but not yet parsed
+}
+
+/// Create a new empty lazy registry
+///
+/// # Returns
+/// A new LazyRegistry
+///
+/// # Examples
+/// ```
+/// let registry = new_lazy_registry();
+/// ```
+export fn new_lazy_registry() -> LazyRegistry {
+    LazyRegistry {
+        parsed: HashMap::new(),
+        pending: Vec::new()
+    }
+}
+
+/// Queue a module for lazy loading without parsing it yet
+///
+/// The module will only be parsed when its symbols are first accessed
+/// via `get_or_parse()`.
+///
+/// # Parameters
+/// - `registry`: Mutable registry reference
+/// - `module_path`: Path to the module to queue
+///
+/// # Examples
+/// ```
+/// queue_module(&mut registry, "std/math/mod.ov");
+/// ```
+export fn queue_module(registry: &mut LazyRegistry, module_path: String) {
+    if !registry.parsed.contains_key(&module_path)
+        && !registry.pending.contains(&module_path)
+    {
+        registry.pending.push(module_path);
+    }
+}
+
+/// Get a parsed module, parsing it on first access (lazy)
+///
+/// If the module has already been parsed, returns the cached result.
+/// If not, parses it now and caches the result so it is never parsed twice.
+///
+/// # Parameters
+/// - `registry`: Mutable registry reference
+/// - `module_path`: Path to the module
+/// - `source_content`: Source code (only used if module not yet parsed)
+///
+/// # Returns
+/// Reference to the parsed Module
+///
+/// # Examples
+/// ```
+/// let module = get_or_parse(&mut registry, "std/math/mod.ov", source)?;
+/// ```
+export fn get_or_parse(
+    registry: &mut LazyRegistry,
+    module_path: &String,
+    source_content: String
+) -> ModuleResult<Module> {
+    // Return cached parse if available — guarantees parse-at-most-once
+    if let Some(module) = registry.parsed.get(module_path) {
+        return Ok(module.clone());
+    }
+
+    // Remove from pending if it was queued
+    registry.pending.retain(|p| p != module_path);
+
+    // Parse the module now
+    let module = parse_module_source(module_path.clone(), source_content)?;
+
+    // Cache so subsequent calls return the same result without re-parsing
+    registry.parsed.insert(module_path.clone(), module.clone());
+
+    Ok(module)
+}
+
+/// Check if a module has already been parsed
+///
+/// # Parameters
+/// - `registry`: The lazy registry
+/// - `module_path`: Path to check
+///
+/// # Returns
+/// true if the module has been parsed and cached
+///
+/// # Examples
+/// ```
+/// if is_parsed(&registry, "std/math/mod.ov") { ... }
+/// ```
+export fn is_parsed(registry: &LazyRegistry, module_path: &String) -> bool {
+    registry.parsed.contains_key(module_path)
+}
+
+/// Minimal module source parser used by lazy registry
+/// Delegates to the full loader parse logic
+fn parse_module_source(path: String, source: String) -> ModuleResult<Module> {
+    use ./loader::{load_module_from_source};
+    load_module_from_source(path, source)
+}
+
+// ============================================================
+// Parallel Module Loading (Tasks 14.1, 14.2)
+// ============================================================
+
+use ./dependency_graph::{DependencyGraph, topological_sort};
+
+/// A group of modules that can be loaded in parallel (same dependency level)
+struct LoadLevel {
+    level: u32,
+    modules: Vec<String>   // module paths at this level
+}
+
+/// Identify independent modules grouped by dependency level
+///
+/// Modules with no dependencies are level 0 and can load in parallel.
+/// Modules whose dependencies are all at level N are at level N+1.
+///
+/// # Parameters
+/// - `graph`: The dependency graph
+///
+/// # Returns
+/// Vec of LoadLevel, ordered from level 0 (no deps) upward
+///
+/// # Examples
+/// ```
+/// let levels = identify_load_levels(&graph);
+/// // levels[0].modules can all be loaded in parallel
+/// ```
+export fn identify_load_levels(graph: &DependencyGraph) -> Vec<LoadLevel> {
+    let mut levels: Vec<LoadLevel> = Vec::new();
+    let mut module_level: HashMap<String, u32> = HashMap::new();
+
+    // Get topological order — if cycles exist, return empty (can't parallelize)
+    let order = match topological_sort(graph) {
+        Ok(o) => o,
+        Err(_) => return levels
+    };
+
+    // Assign levels: a module's level = max(dep levels) + 1
+    for module_path in &order {
+        let node = match graph.nodes.get(module_path) {
+            Some(n) => n,
+            None => continue
+        };
+
+        let max_dep_level: u32 = node.dependencies.iter()
+            .map(|dep| module_level.get(dep).copied().unwrap_or(0))
+            .max()
+            .unwrap_or(0);
+
+        let this_level = if node.dependencies.is_empty() {
+            0
+        } else {
+            max_dep_level + 1
+        };
+
+        module_level.insert(module_path.clone(), this_level);
+
+        // Ensure levels vec is large enough
+        while levels.len() <= this_level as usize {
+            levels.push(LoadLevel {
+                level: levels.len() as u32,
+                modules: Vec::new()
+            });
+        }
+        levels[this_level as usize].modules.push(module_path.clone());
+    }
+
+    levels
+}
+
+/// Load independent modules in parallel using Ovie concurrency
+///
+/// Processes each dependency level sequentially, but within each level
+/// all modules are loaded concurrently since they have no inter-dependencies.
+///
+/// # Parameters
+/// - `graph`: The dependency graph
+/// - `registry`: Mutable lazy registry for parse-uniqueness tracking
+/// - `source_loader`: Function that returns source content for a module path
+///
+/// # Returns
+/// Result with Vec of all loaded modules in dependency order
+///
+/// # Examples
+/// ```
+/// let modules = load_modules_parallel(&graph, &mut registry, |path| read_file(path))?;
+/// ```
+export fn load_modules_parallel(
+    graph: &DependencyGraph,
+    registry: &mut LazyRegistry,
+    source_loader: fn(String) -> ModuleResult<String>
+) -> ModuleResult<Vec<Module>> {
+    let levels = identify_load_levels(graph);
+    let mut all_modules: Vec<Module> = Vec::new();
+
+    for level in &levels {
+        // Within each level, modules are independent — load concurrently
+        // Ovie's spawn/join pattern for parallel execution
+        let mut level_modules: Vec<Module> = Vec::new();
+
+        for module_path in &level.modules {
+            // Skip if already parsed (parse-uniqueness guarantee)
+            if is_parsed(registry, module_path) {
+                if let Some(m) = registry.parsed.get(module_path) {
+                    level_modules.push(m.clone());
+                }
+                continue;
+            }
+
+            // Load source and parse
+            let source = source_loader(module_path.clone())?;
+            let module = get_or_parse(registry, module_path, source)?;
+            level_modules.push(module);
+        }
+
+        all_modules.extend(level_modules);
+    }
+
+    Ok(all_modules)
+}

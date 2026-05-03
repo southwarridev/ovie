@@ -1,0 +1,57 @@
+// AI Training Data Examples in Ovie
+// Code patterns specifically designed for AI/LLM training and understanding
+
+fn main() {
+    seeAm "=== AI Training Data Examples ==="
+    seeAm "Code patterns optimized for AI learning"
+    seeAm ""
+    
+    // Pattern 1: Clear function naming and documentation
+    demonstrate_clear_function_patterns()
+    
+    // Pattern 2: Predictable error handling
+    demonstrate_error_handling_patterns()
+    
+    // Pattern 3: Natural language variable names
+    demonstrate_variable_naming_patterns()
+    
+    // Pattern 4: Consistent code structure
+    demonstrate_code_structure_patterns()
+    
+    // Pattern 5: AI-friendly data processing
+    demonstrate_data_processing_patterns()
+}
+
+// Pattern 1: Functions with clear, descriptive names and purposes
+fn demonstrate_clear_function_patterns() {
+    seeAm "=== Clear Function Patterns ==="
+    
+    // Function names that clearly describe what they do
+    mut user_age = calculate_user_age_from_birth_date("1990-05-15")
+    mut is_eligible = check_if_user_is_eligible_for_service(user_age, true)
+    mut formatted_name = format_user_full_name("John", "Doe")
+    
+    seeAm "User age: " + user_age
+    seeAm "Is eligible: " + is_eligible
+    seeAm "Formatted name: " + formatted_name
+    
+    // Functions that follow verb-noun patterns
+    mut email_sent = send_welcome_email_to_user("john.doe@example.com")
+    mut data_saved = save_user_data_to_database("user123", "John Doe")
+    mut report_generated = generate_monthly_sales_report("2026-01")
+    
+    seeAm "Email sent: " + email_sent
+    seeAm "Data saved: " + data_saved
+    seeAm "Report generated: " + report_generated
+}
+
+// Pattern 2: Consistent and predictable error handling
+fn demonstrate_error_handling_patterns() {
+    seeAm ""
+    seeAm "=== Error Handling Patterns ==="
+    
+    // Pattern: Always return Result<T, string> for operations that can fail
+    mut division_result = safely_divide_two_numbers(10.0, 2.0)
+    handle_division_result(division_result)
+    
+    mut zero_division_result = safely_divide_two_numbers(10.0, 0.0

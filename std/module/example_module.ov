@@ -1,0 +1,52 @@
+/// Example module demonstrating module system features
+/// This module shows how exports and imports work
+
+use std::core::{Vec, HashMap};
+
+/// Add two numbers together
+/// 
+/// # Parameters
+/// - `a`: First number
+/// - `b`: Second number
+/// 
+/// # Returns
+/// The sum of a and b
+/// 
+/// # Examples
+/// ```
+/// let result = add(5, 3);
+/// assert(result == 8);
+/// ```
+export fn add(a: i32, b: i32) -> i32 {
+    return a + b;
+}
+
+/// Multiply two numbers
+export fn multiply(x: i32, y: i32) -> i32 {
+    return x * y;
+}
+
+/// A simple point structure
+export struct Point {
+    x: f64,
+    y: f64
+}
+
+/// Color enumeration
+export enum Color {
+    Red,
+    Green,
+    Blue,
+    Custom
+}
+
+/// Maximum value constant
+export const MAX_VALUE: i32 = 100;
+
+/// Minimum value constant
+export const MIN_VALUE: i32 = 0;
+
+// Private function (not exported)
+fn internal_helper() {
+    // This function is not visible outside the module
+}

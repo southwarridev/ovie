@@ -50,7 +50,7 @@ impl StyleAnalyzer {
                 findings.extend(self.check_function_naming(name, line));
                 
                 for param in parameters {
-                    findings.extend(self.check_parameter_naming(param, line));
+                    findings.extend(self.check_parameter_naming(&param.name, line));
                 }
                 
                 for (i, stmt) in body.iter().enumerate() {

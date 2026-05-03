@@ -104,7 +104,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "aproko"
-version = "2.1.0"
+version = "2.3.0"
 dependencies = [
  "oviec",
  "serde",
@@ -848,25 +848,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
-name = "ovie"
-version = "2.1.0"
-dependencies = [
- "aproko",
- "clap",
- "miette",
- "oviec",
- "proptest",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
- "toml",
-]
-
-[[package]]
 name = "oviec"
-version = "2.1.0"
+version = "2.3.0"
 dependencies = [
  "chrono",
  "clap",

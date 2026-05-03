@@ -4,6 +4,15 @@
 
 use core::{Result, Option, Vec, ok, err, some, none};
 
+// ===== EXPORTS =====
+export File, FileMode, Metadata, Permissions, DirEntry, FileHandle;
+export open, open_with_mode, create;
+export read_to_string, read_to_bytes, write_string, write_bytes, append_string;
+export create_dir, create_dir_all, remove_dir, remove_dir_all, read_dir;
+export exists, is_file, is_dir, metadata, copy, rename, remove_file;
+export join, parent, filename, extension;
+export is_network_path, normalize_path;
+
 // ===== FILE SYSTEM TYPES =====
 
 // File handle for reading and writing

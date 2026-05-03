@@ -1,16 +1,23 @@
 @echo off
-echo 🎉 Ovie Stage 2 - Self-Hosted Programming Language v2.1.0
-echo ✨ Platform: Windows x64
-echo 🏆 Self-hosted compiler achieved!
-echo.
-echo Usage: ovie [command] [options]
-echo.
-echo Commands:
-echo   new ^<name^>     Create a new Ovie project
-echo   run            Run the current project
-echo   build          Build the current project
-echo   test           Run tests
-echo   --version      Show version information
-echo   --help         Show this help message
-echo.
-echo Visit https://ovie-lang.org for documentation
+setlocal
+
+REM Get the directory where this batch file is located
+set "OVIE_DIR=%~dp0"
+
+REM Show branding information
+echo Ovie Programming Language v2.2 - Complete Language Consolidation
+echo Development Mode - Source Installation
+
+REM Check if we're running from the correct directory
+if not exist "%OVIE_DIR%ovie.exe" (
+    echo Error: ovie.exe not found in %OVIE_DIR%
+    echo Please ensure Ovie is properly installed.
+    exit /b 1
+)
+
+REM Set up environment
+set "OVIE_STD_PATH=%OVIE_DIR%std"
+set "PATH=%OVIE_DIR%;%PATH%"
+
+REM Run the actual Ovie executable with all arguments
+"%OVIE_DIR%ovie.exe" %*

@@ -5,13 +5,13 @@
 //! compiler is functional.
 
 use oviec::self_hosting::bootstrap_verification::{
-    BootstrapConfig, BootstrapVerifier, BootstrapVerificationResult,
+    RealBootstrapConfig, RealBootstrapVerifier, RealBootstrapResult,
 };
 
 #[test]
 fn test_bootstrap_verifier_creation() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     // Verifier should be created successfully
     assert!(verifier.ovie_lexer_ir.is_none()); // Not loaded yet
@@ -20,7 +20,7 @@ fn test_bootstrap_verifier_creation() {
 
 #[test]
 fn test_bootstrap_config_defaults() {
-    let config = BootstrapConfig::default();
+    let config = RealBootstrapConfig::default();
     
     // Verify default configuration
     assert!(config.hash_verification);
@@ -34,8 +34,8 @@ fn test_bootstrap_config_defaults() {
 
 #[test]
 fn test_bootstrap_verifier_with_simple_source() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     // Test with simple source code
     let source = "seeAm \"hello\";";
@@ -43,7 +43,7 @@ fn test_bootstrap_verifier_with_simple_source() {
     
     // Should pass with Rust lexer on both sides (placeholder mode)
     assert!(result.passed, "Verification should pass");
-    assert!(result.hash_match, "Hashes should match");
+
     assert!(result.tokens_match, "Tokens should match");
     assert!(result.performance_acceptable, "Performance should be acceptable");
     assert!(result.reproducible, "Should be reproducible");
@@ -59,8 +59,8 @@ fn test_bootstrap_verifier_with_simple_source() {
 
 #[test]
 fn test_bootstrap_verifier_with_multiple_sources() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let test_cases = vec![
         "seeAm 42;",
@@ -81,8 +81,8 @@ fn test_bootstrap_verifier_with_multiple_sources() {
 
 #[test]
 fn test_bootstrap_reproducibility() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let test_cases = vec!["seeAm 42;", "mut x = 10;"];
     let reproducible = verifier.verify_bootstrap_reproducibility(&test_cases).unwrap();
@@ -92,8 +92,8 @@ fn test_bootstrap_reproducibility() {
 
 #[test]
 fn test_bootstrap_report_generation() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let source = "seeAm \"test\";";
     let result = verifier.verify_lexer(source).unwrap();
@@ -114,8 +114,8 @@ fn test_bootstrap_report_generation() {
 
 #[test]
 fn test_bootstrap_report_with_multiple_results() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let test_cases = vec![
         "seeAm 1;",
@@ -134,8 +134,8 @@ fn test_bootstrap_report_with_multiple_results() {
 
 #[test]
 fn test_rollback_state_save() {
-    let config = BootstrapConfig::default();
-    let mut verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let mut verifier = RealBootstrapVerifier::new(config);
     
     // Save rollback state
     verifier.save_rollback_state().unwrap();
@@ -150,8 +150,8 @@ fn test_rollback_state_save() {
 
 #[test]
 fn test_rollback_state_save_and_restore() {
-    let config = BootstrapConfig::default();
-    let mut verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let mut verifier = RealBootstrapVerifier::new(config);
     
     // Save state
     verifier.save_rollback_state().unwrap();
@@ -170,8 +170,8 @@ fn test_rollback_state_save_and_restore() {
 
 #[test]
 fn test_automated_equivalence_testing() {
-    let config = BootstrapConfig::default();
-    let mut verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let mut verifier = RealBootstrapVerifier::new(config);
     
     // Initialize equivalence testing with 10 test cases
     verifier.initialize_equivalence_testing(10, 1);
@@ -190,8 +190,8 @@ fn test_automated_equivalence_testing() {
 
 #[test]
 fn test_token_hash_determinism() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let source = "seeAm \"hello\";";
     
@@ -209,8 +209,8 @@ fn test_token_hash_determinism() {
 
 #[test]
 fn test_performance_measurement() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let source = "seeAm \"performance test\";";
     let result = verifier.verify_lexer(source).unwrap();
@@ -224,8 +224,8 @@ fn test_performance_measurement() {
 
 #[test]
 fn test_reproducibility_hashes() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let source = "seeAm \"reproducibility\";";
     let result = verifier.verify_lexer(source).unwrap();
@@ -243,8 +243,8 @@ fn test_reproducibility_hashes() {
 
 #[test]
 fn test_environment_hash_generation() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let source = "seeAm \"env test\";";
     let result = verifier.verify_lexer(source).unwrap();
@@ -259,8 +259,8 @@ fn test_environment_hash_generation() {
 
 #[test]
 fn test_verification_result_serialization() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     let source = "seeAm \"serialization test\";";
     let result = verifier.verify_lexer(source).unwrap();
@@ -270,11 +270,11 @@ fn test_verification_result_serialization() {
     assert!(!json.is_empty());
     
     // Deserialize back
-    let deserialized: BootstrapVerificationResult = serde_json::from_str(&json).unwrap();
+    let deserialized: RealBootstrapResult = serde_json::from_str(&json).unwrap();
     
     // Verify key fields match
     assert_eq!(result.passed, deserialized.passed);
-    assert_eq!(result.hash_match, deserialized.hash_match);
+
     assert_eq!(result.tokens_match, deserialized.tokens_match);
     assert_eq!(result.source_hash, deserialized.source_hash);
 }
@@ -284,11 +284,11 @@ fn test_comprehensive_verification_workflow() {
     // This test simulates the complete bootstrap verification workflow
     
     // Step 1: Create verifier with custom config
-    let mut config = BootstrapConfig::default();
+    let mut config = RealBootstrapConfig::default();
     config.verbose_logging = false; // Disable for test
     config.reproducibility_iterations = 2; // Reduce for speed
     
-    let mut verifier = BootstrapVerifier::new(config);
+    let mut verifier = RealBootstrapVerifier::new(config);
     
     // Step 2: Save rollback state
     verifier.save_rollback_state().unwrap();
@@ -323,8 +323,8 @@ fn test_comprehensive_verification_workflow() {
 
 #[test]
 fn test_bootstrap_with_complex_source() {
-    let config = BootstrapConfig::default();
-    let verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let verifier = RealBootstrapVerifier::new(config);
     
     // Test with more complex source code
     let source = r#"
@@ -349,8 +349,8 @@ fn test_bootstrap_with_complex_source() {
 fn test_bootstrap_infrastructure_ready() {
     // This test verifies that all bootstrap infrastructure is ready
     
-    let config = BootstrapConfig::default();
-    let mut verifier = BootstrapVerifier::new(config);
+    let config = RealBootstrapConfig::default();
+    let mut verifier = RealBootstrapVerifier::new(config);
     
     // Test 1: Verifier creation
     assert!(verifier.ovie_lexer_ir.is_none()); // Not loaded yet (expected)
