@@ -1,12 +1,12 @@
 @echo off
 REM Ovie Programming Language - Windows Command Prompt Installer
-REM Stage 2: Self-Hosted Compiler Installation Script
+REM v2.3 Self-Hosted Compiler Installation Script
 REM This batch file installs Ovie on Windows systems via Command Prompt
 
 setlocal enabledelayedexpansion
 
 REM Configuration
-set "OVIE_VERSION=2.2.0"
+set "OVIE_VERSION=2.3.0"
 set "INSTALL_DIR=%USERPROFILE%\.local\bin"
 set "TEMP_DIR=%TEMP%\ovie-install"
 set "GITHUB_REPO=https://github.com/southwarridev/ovie"
@@ -14,7 +14,7 @@ set "GITHUB_REPO=https://github.com/southwarridev/ovie"
 echo.
 echo ╔══════════════════════════════════════════════════════════════╗
 echo ║                    Ovie Programming Language                 ║
-echo ║                        Stage 2 - Self-Hosted                ║
+echo ║                        v2.3 - Self-Hosted                ║
 echo ║                           Version %OVIE_VERSION%                     ║
 echo ╚══════════════════════════════════════════════════════════════╝
 echo.
@@ -154,7 +154,7 @@ REM Verify installation
 echo [INFO] Verifying installation...
 if exist "%INSTALL_DIR%\ovie.exe" (
     if exist "%INSTALL_DIR%\oviec.exe" (
-        echo [SUCCESS] Ovie Stage 2 installed successfully!
+        echo [SUCCESS] Ovie v2.3.0 installed successfully!
         echo.
         echo [INFO] Installation location: %INSTALL_DIR%
         echo [INFO] Binaries installed:
@@ -198,7 +198,7 @@ echo ╔════════════════════════
 echo ║                    Installation Complete!                   ║
 echo ╚══════════════════════════════════════════════════════════════╝
 echo.
-echo 🎯 Stage 2 Features Available:
+echo 🎯 v2.3 Features Available:
 echo   • Natural language programming syntax
 echo   • Self-hosted compilation with oviec
 echo   • LLVM backend optimization

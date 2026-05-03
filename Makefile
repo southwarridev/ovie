@@ -1,6 +1,6 @@
-# Ovie Programming Language - Self-Hosted Build System
-# This Makefile provides a unified interface for building, testing, and releasing Ovie
-# All operations use the self-hosted Ovie compiler (oviec) - no Rust dependencies required
+# Ovie Programming Language v2.3.0 - Build System
+# Complete Module System + Aproko Knowledge Base
+# Self-hosted compiler — no external dependencies required
 
 .PHONY: all build test clean install release help dev-setup offline-dev bootstrap
 
@@ -62,15 +62,15 @@ install-windows: build
 	@copy target\\release\\oviec.exe %USERPROFILE%\\.local\\bin\\ 2>nul || copy target\\release\\oviec.exe %PROGRAMFILES%\\Ovie\\
 	@echo "✅ Ovie installed! Run 'ovie --help' to get started."
 
-# Create v2.1.0 self-hosted release
+# Create v2.3.0 self-hosted release
 release-v2: 
-	@echo "🚀 Creating Ovie v2.1.0 self-hosted release..."
+	@echo "🚀 Creating Ovie v2.3.0 self-hosted release..."
 	@chmod +x release-v2.sh
 	@./release-v2.sh
 
-# Create v2.1.0 self-hosted release (Windows)
+# Create v2.3.0 self-hosted release (Windows)
 release-v2-windows:
-	@echo "🚀 Creating Ovie v2.1.0 self-hosted release (Windows)..."
+	@echo "🚀 Creating Ovie v2.3.0 self-hosted release (Windows)..."
 	@powershell -ExecutionPolicy Bypass -File release-v2.ps1
 
 # Create cross-platform releases using self-hosted compiler
@@ -109,10 +109,10 @@ demo: build
 # Package for distribution
 package: release
 	@echo "📦 Packaging for distribution..."
-	@tar -czf releases/ovie-v2.1.0-linux-x64.tar.gz -C releases ovie-linux-x64
-	@tar -czf releases/ovie-v2.1.0-macos-x64.tar.gz -C releases ovie-macos-x64
-	@tar -czf releases/ovie-v2.1.0-macos-arm64.tar.gz -C releases ovie-macos-arm64
-	@zip -j releases/ovie-v2.1.0-windows-x64.zip releases/ovie-windows-x64.exe
+	@tar -czf releases/ovie-v2.3.0-linux-x64.tar.gz -C releases ovie-linux-x64
+	@tar -czf releases/ovie-v2.3.0-macos-x64.tar.gz -C releases ovie-macos-x64
+	@tar -czf releases/ovie-v2.3.0-macos-arm64.tar.gz -C releases ovie-macos-arm64
+	@zip -j releases/ovie-v2.3.0-windows-x64.zip releases/ovie-windows-x64.exe
 	@echo "✅ Distribution packages ready in releases/"
 
 # Verify installation works
@@ -130,7 +130,7 @@ deploy-website:
 
 # Help target
 help:
-	@echo "Ovie Programming Language - Self-Hosted Build System v2.1.0"
+	@echo "Ovie Programming Language - Self-Hosted Build System v2.3.0"
 	@echo ""
 	@echo "🏆 SELF-HOSTED: Ovie compiles itself using its own compiler!"
 	@echo ""
@@ -153,8 +153,8 @@ help:
 	@echo "  help         - Show this help message"
 	@echo ""
 	@echo "🚀 Release Targets:"
-	@echo "  release-v2   - Create v2.1.0 self-hosted release"
-	@echo "  release-v2-windows - Create v2.1.0 release (Windows)"
+	@echo "  release-v2   - Create v2.3.0 self-hosted release"
+	@echo "  release-v2-windows - Create v2.3.0 release (Windows)"
 	@echo "  release      - Create cross-platform releases"
 	@echo "  package      - Package for distribution"
 	@echo ""
@@ -165,6 +165,6 @@ help:
 	@echo "  make demo               # Create demo project"
 	@echo ""
 	@echo "🏆 Production Release:"
-	@echo "  make release-v2         # Create v2.1.0 self-hosted release"
+	@echo "  make release-v2         # Create v2.3.0 self-hosted release"
 	@echo ""
 	@echo "✅ Ovie is fully self-hosted - no external dependencies required!"

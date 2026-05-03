@@ -1,10 +1,10 @@
 # Ovie Programming Language - Windows Installer Script
-# Stage 2: Self-Hosted Compiler with Advanced Features
+# v2.3 Self-Hosted Compiler with Advanced Features
 # This script installs Ovie on Windows systems
 
 param(
     [string]$InstallDir = "$env:USERPROFILE\.local\bin",
-    [string]$Version = "2.2.0",
+    [string]$Version = "2.3.0",
     [switch]$AddToPath = $true,
     [switch]$Force = $false,
     [switch]$IncludeExtension = $true
@@ -45,7 +45,7 @@ function Test-Command {
 
 function Install-Ovie {
     Write-Host ""
-    Write-Host "🎯 Ovie Programming Language - Stage 2" -ForegroundColor Magenta
+    Write-Host "🎯 Ovie Programming Language v2.3.0" -ForegroundColor Magenta
     Write-Host "=======================================" -ForegroundColor Magenta
     Write-Host "Self-Hosted Compiler with Advanced Features" -ForegroundColor Cyan
     Write-Host "Version: $Version" -ForegroundColor Yellow
@@ -150,7 +150,7 @@ function Install-Ovie {
     # Verify installation
     Test-Installation
     
-    Write-Success "🎉 Ovie Programming Language Stage 2 installed successfully!"
+    Write-Success "🎉 Ovie Programming Language v2.3.0 installed successfully!"
     Write-Status "🎯 Features available:"
     Write-Host "  • Self-hosted compiler (oviec)" -ForegroundColor Green
     Write-Host "  • Natural language syntax" -ForegroundColor Green
@@ -224,7 +224,7 @@ function Test-Installation {
     $OviecPath = Join-Path $InstallDir "oviec.exe"
     
     if ((Test-Path $OviePath) -and (Test-Path $OviecPath)) {
-        Write-Success "Ovie Stage 2 installed successfully!"
+        Write-Success "Ovie v2.3.0 installed successfully!"
         Write-Status "Version information:"
         
         try {
@@ -240,7 +240,7 @@ function Test-Installation {
         }
         
         Write-Status ""
-        Write-Status "🎯 Stage 2 Features Available:"
+        Write-Status "🎯 v2.3 Features Available:"
         Write-Host "  • Natural language programming syntax" -ForegroundColor Green
         Write-Host "  • Self-hosted compilation with oviec" -ForegroundColor Green  
         Write-Host "  • LLVM backend optimization" -ForegroundColor Green
@@ -266,12 +266,12 @@ function Test-Installation {
 
 function Show-Help {
     Write-Host @"
-Ovie Programming Language - Windows Installer (Stage 2)
+Ovie Programming Language - Windows Installer (v2.3)
 
 DESCRIPTION:
-    Installs Ovie Stage 2 with self-hosted compiler and advanced features.
+    Installs Ovie v2.3 with self-hosted compiler and advanced features.
     
-    Stage 2 Features:
+    v2.3 Features:
     • Self-hosted compiler (oviec)
     • Natural language programming syntax
     • LLVM backend optimization
@@ -286,7 +286,7 @@ USAGE:
 
 OPTIONS:
     -InstallDir <path>       Installation directory (default: $env:USERPROFILE\.local\bin)
-    -Version <version>       Version to install (default: 2.2.0)
+    -Version <version>       Version to install (default: 2.3.0)
     -AddToPath              Add install directory to user PATH (default: true)
     -IncludeExtension       Install VS Code extension (default: true)
     -Force                  Force installation even if already installed
@@ -307,7 +307,7 @@ REQUIREMENTS:
     
     Note: Ovie is now fully self-hosted! No Rust installation required.
 
-STAGE 2 CAPABILITIES:
+v2.3 CAPABILITIES:
     - Compile Ovie code with natural language syntax
     - Self-hosted compilation for bootstrap independence
     - Generate optimized native code via LLVM

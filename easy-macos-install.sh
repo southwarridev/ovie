@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-OVIE_VERSION="2.2.0"
+OVIE_VERSION="2.3.0"
 INSTALL_DIR="$HOME/.local"
 BIN_DIR="$HOME/.local/bin"
 TEMP_DIR="/tmp/ovie-install-$$"
@@ -252,7 +252,7 @@ for config in "${SHELL_CONFIGS[@]}"; do
     if [ -f "$config" ] || [[ "$config" == *".zshrc" ]]; then
         if ! grep -q "$BIN_DIR" "$config" 2>/dev/null; then
             echo "" >> "$config"
-            echo "# Ovie Programming Language - Stage 2 Self-Hosted" >> "$config"
+            echo "# Ovie Programming Language - v2.3 Complete Module System" >> "$config"
             echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$config"
             echo -e "${GREEN}✅ Added to PATH in $(basename "$config")${NC}"
         fi
@@ -262,12 +262,12 @@ done
 # Create macOS-optimized ovie command wrapper
 cat > "$BIN_DIR/ovie" << 'EOF'
 #!/bin/bash
-# Ovie CLI Tool - Stage 2 Self-Hosted (macOS Optimized)
+# Ovie CLI Tool - v2.3 Complete Module System (macOS Optimized)
 OVIE_HOME="$HOME/.local"
 
 case "$1" in
     --version)
-        echo "ovie 2.2.0 - Self-Hosted Programming Language (macOS)"
+        echo "ovie 2.3.0 - Self-Hosted Programming Language (macOS)"
         echo "Copyright (c) 2026 Ovie Language Team"
         echo "Architecture: $(uname -m)"
         echo "Visit: https://ovie-lang.org"
@@ -303,7 +303,7 @@ case "$1" in
         echo "Creating new Ovie project: $2"
         mkdir -p "$2"
         cat > "$2/main.ov" << 'OVIE_CODE'
-// Hello World in Ovie - Stage 2 Self-Hosted!
+// Hello World in Ovie - v2.3 Complete Module System!
 // Running on macOS with native compilation
 
 seeAm "Hello, World from Ovie on macOS!"
@@ -387,7 +387,7 @@ TOML_CONFIG
         "$OVIE_HOME/bin/oviec" "${@:2}"
         ;;
     *)
-        echo "Ovie Programming Language v2.2.0 - v2.2 Self-Hosted (macOS)"
+        echo "Ovie Programming Language v2.3.0 - v2.3 Self-Hosted (macOS)"
         echo "Use 'ovie --help' for available commands."
         echo ""
         echo "Quick start:"
@@ -413,7 +413,7 @@ if command -v osascript >/dev/null 2>&1; then
 #!/bin/bash
 cd "$HOME"
 export PATH="$HOME/.local/bin:$PATH"
-echo "Ovie Programming Language - Stage 2 Self-Hosted"
+echo "Ovie Programming Language - v2.3 Complete Module System"
 echo "Type 'ovie --help' for available commands"
 echo ""
 exec bash
@@ -433,7 +433,7 @@ if [ -x "$BIN_DIR/ovie" ] && [ -x "$BIN_DIR/oviec" ]; then
     echo -e "${GREEN}                    🍎 MACOS INSTALLATION COMPLETE! 🎉${NC}"
     echo -e "${BLUE}============================================================================${NC}"
     echo ""
-    echo -e "${GREEN}✅ Ovie v$OVIE_VERSION - Stage 2 Self-Hosted installed successfully!${NC}"
+    echo -e "${GREEN}✅ Ovie v$OVIE_VERSION - v2.3 Complete Module System installed successfully!${NC}"
     echo ""
     echo -e "${YELLOW}📍 Installation Details:${NC}"
     echo -e "  • Location: $INSTALL_DIR"
