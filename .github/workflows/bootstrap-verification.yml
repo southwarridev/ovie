@@ -1,30 +1,29 @@
+---
 name: Bootstrap Verification
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
     paths:
       - 'oviec/src/**'
       - 'std/lexer/**'
       - 'scripts/bootstrap_verify.*'
       - '.github/workflows/bootstrap-verification.yml'
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch:
 
 env:
-  RUST_BACKTRACE: 1
+  RUST_BACKTRACE: "1"
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────────
-  # CI integration tests — verify scripts exist and run unit tests
-  # Uses the existing tests already written in the repo
-  # ─────────────────────────────────────────────────────────────────────────
+  # ── CI integration tests ─────────────────────────────────────────────────
+  # Verifies scripts exist and runs unit tests that don't need a full
+  # Ovie-in-Ovie compiler.
   ci-integration-tests:
     name: CI Integration Tests
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -44,20 +43,19 @@ jobs:
           key: ubuntu-cargo-bootstrap-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ubuntu-cargo-bootstrap-
 
-      - name: Verify bootstrap scripts exist
+      - name: Verify bootstrap scripts exist and are executable
         run: |
-          echo "Checking bootstrap scripts..."
-          [ -f "scripts/bootstrap_verify.sh" ] && echo "✅ bootstrap_verify.sh" || echo "⚠️  bootstrap_verify.sh missing"
-          [ -f "scripts/bootstrap_verify.ps1" ] && echo "✅ bootstrap_verify.ps1" || echo "⚠️  bootstrap_verify.ps1 missing"
-          chmod +x scripts/bootstrap_verify.sh 2>/dev/null || true
+          chmod +x scripts/bootstrap_verify.sh
+          [ -f "scripts/bootstrap_verify.sh" ] && echo "OK bootstrap_verify.sh" || (echo "MISSING bootstrap_verify.sh" && exit 1)
+          [ -f "scripts/bootstrap_verify.ps1" ] && echo "OK bootstrap_verify.ps1" || (echo "MISSING bootstrap_verify.ps1" && exit 1)
 
       - name: Build workspace
         run: cargo build --release --workspace
 
       - name: Run script structure tests
-        # These tests check that bootstrap_verify.sh and .ps1 have the right content
-        # They live in oviec/tests/bootstrap/script_integration_tests.rs
-        working-directory: oviec
+        # Tests live in oviec/tests/bootstrap/script_integration_tests.rs
+        # They check that the .sh and .ps1 scripts have the right content.
+        # Run from workspace root so relative paths (scripts/) resolve correctly.
         run: |
           cargo test \
             test_bootstrap_verify_sh_exists \
@@ -81,9 +79,8 @@ jobs:
             -- --test-threads=1
 
       - name: Run bootstrap verification unit tests
-        # These tests live in oviec/tests/bootstrap_verification_tests.rs
-        # Only run tests that don't require a full Ovie-in-Ovie compiler
-        working-directory: oviec
+        # Tests live in oviec/tests/bootstrap_verification_tests.rs
+        # Only tests that don't require a full Ovie-in-Ovie compiler.
         run: |
           cargo test --test bootstrap_verification_tests \
             test_bootstrap_verifier_creation \
@@ -94,10 +91,8 @@ jobs:
             test_verification_report_generation \
             -- --test-threads=1
 
-  # ─────────────────────────────────────────────────────────────────────────
-  # Bootstrap verification — multi-platform build check
-  # Verifies the workspace compiles on all platforms
-  # ─────────────────────────────────────────────────────────────────────────
+  # ── Bootstrap build verification ─────────────────────────────────────────
+  # Confirms the workspace compiles on all 3 platforms.
   bootstrap-verification:
     name: Bootstrap Verification (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -105,7 +100,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-
     steps:
       - uses: actions/checkout@v4
 
@@ -128,16 +122,17 @@ jobs:
       - name: Build workspace (verify compilation)
         run: cargo build --release --workspace
 
-      - name: Verify oviec binary works
+      - name: Verify oviec binary
         shell: bash
         run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            ./target/x86_64-pc-windows-msvc/release/oviec.exe --version 2>/dev/null || \
-            find target -name "oviec.exe" -exec {} --version \; 2>/dev/null || \
-            echo "Binary check complete"
+          BIN=$(find target -name "oviec" -o -name "oviec.exe" \
+                | grep -v "/deps/" | grep -v "/build/" | head -1)
+          if [ -n "$BIN" ]; then
+            echo "Found: $BIN"
+            "$BIN" --version
           else
-            find target -name "oviec" -not -path "*/deps/*" -exec {} --version \; 2>/dev/null || \
-            echo "Binary check complete"
+            echo "Binary not found in expected location — checking target tree"
+            find target -name "oviec*" -not -path "*/deps/*" | head -5
           fi
 
       - name: Upload build artifact
@@ -146,21 +141,17 @@ jobs:
         with:
           name: bootstrap-build-${{ matrix.os }}
           path: |
-            target/**/release/oviec*
-            !target/**/release/deps/
-            !target/**/release/build/
+            target/**/release/oviec
+            target/**/release/oviec.exe
           retention-days: 7
           if-no-files-found: ignore
 
-  # ─────────────────────────────────────────────────────────────────────────
-  # Performance monitoring — lightweight, no build needed
-  # ─────────────────────────────────────────────────────────────────────────
+  # ── Performance monitoring ────────────────────────────────────────────────
   performance-monitoring:
     name: Performance Monitoring
     runs-on: ubuntu-latest
     needs: bootstrap-verification
     if: always()
-
     steps:
       - uses: actions/checkout@v4
 
@@ -173,56 +164,48 @@ jobs:
 
       - name: Report build status
         run: |
-          echo "Bootstrap build status: ${{ needs.bootstrap-verification.result }}"
-          echo "Artifacts downloaded:"
-          find build-artifacts/ -type f 2>/dev/null | head -20 || echo "No artifacts found"
+          echo "Bootstrap build result: ${{ needs.bootstrap-verification.result }}"
+          find build-artifacts/ -type f 2>/dev/null | head -10 || echo "No artifacts"
           echo "Performance monitoring complete"
 
-  # ─────────────────────────────────────────────────────────────────────────
-  # Summary — always runs, never fails the workflow on bootstrap issues
-  # ─────────────────────────────────────────────────────────────────────────
+  # ── Summary ───────────────────────────────────────────────────────────────
   summary:
     name: Bootstrap Verification Summary
     runs-on: ubuntu-latest
     needs: [bootstrap-verification, performance-monitoring, ci-integration-tests]
     if: always()
-
     steps:
-      - name: Generate summary
+      - name: Write job summary
         run: |
-          echo "# Bootstrap Verification Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status**: Infrastructure Ready ✅" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Bootstrap Verification (build): ${{ needs.bootstrap-verification.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Performance Monitoring: ${{ needs.performance-monitoring.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- CI Integration Tests: ${{ needs.ci-integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Tests Used" >> $GITHUB_STEP_SUMMARY
-          echo "- \`oviec/tests/bootstrap/script_integration_tests.rs\` — script structure tests" >> $GITHUB_STEP_SUMMARY
-          echo "- \`oviec/tests/bootstrap_verification_tests.rs\` — unit tests" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Notes" >> $GITHUB_STEP_SUMMARY
-          echo "Full Ovie-in-Ovie self-hosting verification will be enabled once the" >> $GITHUB_STEP_SUMMARY
-          echo "Ovie lexer written in Ovie is functional. Tests marked \`#[ignore]\`" >> $GITHUB_STEP_SUMMARY
-          echo "will be activated at that point." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "# Bootstrap Verification Summary"
+            echo ""
+            echo "**Status**: Infrastructure Ready"
+            echo ""
+            echo "## Results"
+            echo "- Bootstrap Build: ${{ needs.bootstrap-verification.result }}"
+            echo "- Performance Monitoring: ${{ needs.performance-monitoring.result }}"
+            echo "- CI Integration Tests: ${{ needs.ci-integration-tests.result }}"
+            echo ""
+            echo "## Test files used"
+            echo "- \`oviec/tests/bootstrap/script_integration_tests.rs\`"
+            echo "- \`oviec/tests/bootstrap_verification_tests.rs\`"
+            echo ""
+            echo "Full Ovie-in-Ovie self-hosting tests are marked \`#[ignore]\`"
+            echo "and will be activated once the Ovie lexer is functional."
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Check CI integration tests (required to pass)
+      - name: Evaluate required checks
         run: |
-          CI_RESULT="${{ needs.ci-integration-tests.result }}"
-          BUILD_RESULT="${{ needs.bootstrap-verification.result }}"
-
-          echo "CI Integration Tests: $CI_RESULT"
-          echo "Bootstrap Build: $BUILD_RESULT"
-
-          if [ "$CI_RESULT" = "failure" ]; then
-            echo "::error::CI integration tests failed — fix test failures before merging"
+          CI="${{ needs.ci-integration-tests.result }}"
+          BUILD="${{ needs.bootstrap-verification.result }}"
+          echo "CI Integration Tests : $CI"
+          echo "Bootstrap Build      : $BUILD"
+          if [ "$CI" = "failure" ]; then
+            echo "::error::CI integration tests failed"
             exit 1
           fi
-
-          if [ "$BUILD_RESULT" = "failure" ]; then
+          if [ "$BUILD" = "failure" ]; then
             echo "::warning::Bootstrap build failed on one or more platforms"
           fi
-
-          echo "✅ Bootstrap verification summary complete"
+          echo "Bootstrap verification summary complete"
