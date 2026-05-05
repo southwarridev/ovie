@@ -7,7 +7,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-description = "Aproko - The Ovie programming language assistant engine"
+description = "Aproko — Static analysis and reasoning engine for the Ovie programming language. Provides syntax, logic, performance, security, correctness, and style analysis."
 keywords = ["assistant", "code-analysis", "ovie"]
 categories = ["development-tools", "compilers"]
 

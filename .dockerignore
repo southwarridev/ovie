@@ -1,0 +1,27 @@
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+target/
+releases/
+
+# Dev-only
+shedydev/
+oba/
+.kiro/
+.ovie/
+.vscode/
+
+# Temp files
+tmp_*
+*.tmp
+
+# Node
+node_modules/
+extensions/ovie-vscode/node_modules/
+extensions/ovie-vscode/out/
+
+# OS
+.DS_Store
+Thumbs.db

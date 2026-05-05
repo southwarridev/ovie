@@ -7,7 +7,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
-description = "Ovie v2.2.0 compiler - Low-level self-hosted programming language compiler with formal invariants, AST→HIR→MIR pipeline, and bootstrap verification"
+description = "Ovie v2.3.0 compiler — Self-hosted systems programming language with complete module system, AST→HIR→MIR pipeline, and Aproko reasoning engine"
 keywords = ["compiler", "programming-language", "ovie", "low-level", "self-hosted", "formal-verification"]
 categories = ["compilers", "development-tools"]
 

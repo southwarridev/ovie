@@ -1,0 +1,142 @@
+---
+name: Publish Package to GHCR
+
+# Publishes the Ovie compiler as a Docker image to GitHub Container Registry.
+# Image will appear at: https://github.com/southwarridev/ovie/packages
+#
+# Pull with:
+#   docker pull ghcr.io/southwarridev/ovie:latest
+#   docker pull ghcr.io/southwarridev/ovie:2.3.0
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. 2.3.0)'
+        required: true
+        default: '2.3.0'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "tag=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Strip 'v' prefix from tag
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.title=Ovie Programming Language
+            org.opencontainers.image.description=Ovie v${{ steps.version.outputs.version }} — Complete Module System. Self-hosted systems programming language.
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.authors=Ovie Language Team <ovielang@gmail.com>
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.url=https://southwarridev.github.io/ovie/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Print package URL
+        run: |
+          echo "Package published to:"
+          echo "  https://github.com/southwarridev/ovie/packages"
+          echo ""
+          echo "Pull with:"
+          echo "  docker pull ghcr.io/southwarridev/ovie:latest"
+          echo "  docker pull ghcr.io/southwarridev/ovie:${{ steps.version.outputs.version }}"
+          echo ""
+          echo "Run with:"
+          echo "  docker run --rm ghcr.io/southwarridev/ovie:latest --version"
+          echo "  docker run --rm -v \$(pwd):/workspace ghcr.io/southwarridev/ovie:latest run /workspace/main.ov"
+
+  # Also publish the Rust crates to crates.io (optional - requires CARGO_REGISTRY_TOKEN secret)
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: startsWith(github.ref, 'refs/tags/v')
+    continue-on-error: true  # Don't fail the whole workflow if crates.io publish fails
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ubuntu-cargo-publish-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build workspace
+        run: cargo build --release --workspace
+
+      - name: Publish oviec to crates.io
+        if: env.CARGO_REGISTRY_TOKEN != ''
+        run: cargo publish --package oviec --no-verify
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Publish aproko to crates.io
+        if: env.CARGO_REGISTRY_TOKEN != ''
+        run: cargo publish --package aproko --no-verify
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
