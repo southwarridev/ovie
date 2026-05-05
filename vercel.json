@@ -8,80 +8,36 @@
     }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/website/$1"
-    },
-    {
-      "src": "/",
-      "dest": "/website/index.html"
-    }
+    { "src": "/", "dest": "/website/index.html" },
+    { "src": "/docs/(.*)", "dest": "/website/docs/$1" },
+    { "src": "/examples/(.*)", "dest": "/website/examples/$1" },
+    { "src": "/assets/(.*)", "dest": "/website/assets/$1" },
+    { "src": "/(.*)", "dest": "/website/$1" }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection",
-          "value": "1; mode=block"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=()"
-        }
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
     },
     {
-      "source": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot))",
+      "source": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2))",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     }
   ],
   "redirects": [
-    {
-      "source": "/docs",
-      "destination": "/docs/getting-started.html",
-      "permanent": false
-    },
-    {
-      "source": "/download",
-      "destination": "/#download",
-      "permanent": false
-    },
-    {
-      "source": "/github",
-      "destination": "https://github.com/southwarridev/ovie",
-      "permanent": false
-    },
-    {
-      "source": "/gitlab",
-      "destination": "https://gitlab.com/ovie1/ovie",
-      "permanent": false
-    }
+    { "source": "/docs", "destination": "/docs/getting-started.html", "permanent": false },
+    { "source": "/book", "destination": "/docs/book/index.html", "permanent": false },
+    { "source": "/install", "destination": "/#download", "permanent": false },
+    { "source": "/github", "destination": "https://github.com/southwarridev/ovie", "permanent": false },
+    { "source": "/gitlab", "destination": "https://gitlab.com/ovie1/ovie", "permanent": false }
   ],
-  "functions": {
-    "website/assets/script.js": {
-      "maxDuration": 10
-    }
-  },
-  "regions": ["iad1", "sfo1", "lhr1", "hnd1"],
-  "public": false,
   "github": {
     "enabled": true,
     "autoAlias": true

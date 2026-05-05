@@ -1,111 +1,85 @@
-# Security Policy
+# Security Policy — Ovie Programming Language
 
 ## Supported Versions
 
-The Ovie programming language is currently in active development. Security updates will be provided for the following versions:
+Security updates are provided for the following versions:
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.1.x   | :white_check_mark: |
-| 2.0.x   | :white_check_mark: |
-| 1.x.x   | :x:                |
-| 0.x.x   | :x:                |
+| Version | Supported |
+|---------|-----------|
+| 2.3.x   | ✅ Current |
+| 2.2.x   | ✅ |
+| 2.1.x   | ⚠️ Critical fixes only |
+| 2.0.x   | ❌ |
+| 1.x.x   | ❌ |
+| 0.x.x   | ❌ |
 
 ## Reporting a Vulnerability
 
-The Ovie team takes security seriously. If you discover a security vulnerability in the Ovie programming language, compiler, or toolchain, please report it responsibly.
+The Ovie team takes security seriously. If you discover a vulnerability in the Ovie compiler, toolchain, or standard library, please report it responsibly.
 
 ### How to Report
 
-1. **Email**: Send details to security@ovie-lang.org, ovielang@gmail.cm
-2. **Subject**: Include "SECURITY" in the subject line
-3. **Details**: Provide as much information as possible:
+1. **GitHub Security Advisories** (preferred): [github.com/southwarridev/ovie/security/advisories/new](https://github.com/southwarridev/ovie/security/advisories/new)
+2. **Email**: ovielang@gmail.com — include "SECURITY" in the subject line
+3. **Details to include**:
    - Description of the vulnerability
    - Steps to reproduce
+   - Affected versions
    - Potential impact
    - Suggested fix (if any)
 
-### What to Expect
+### Response Timeline
 
-- **Acknowledgment**: We will acknowledge receipt within 48 hours
-- **Assessment**: Initial assessment within 5 business days
-- **Updates**: Regular updates on our progress
-- **Resolution**: We aim to resolve critical issues within 30 days
+| Stage | Time |
+|-------|------|
+| Acknowledgment | Within 48 hours |
+| Initial assessment | Within 5 business days |
+| Fix for critical issues | Within 30 days |
+| Public disclosure | After fix is released |
 
-### Security Principles
+## Security Principles
 
-The Ovie language is designed with security as a core principle:
+Ovie is designed with security as a core principle:
 
-1. **Deterministic Builds**: All builds are reproducible and verifiable
-2. **Offline-First**: No network access during compilation by default
-3. **Supply Chain Security**: All dependencies are cryptographically verified
-4. **Memory Safety**: Ownership system prevents common memory vulnerabilities
-5. **No Telemetry**: Zero data collection or tracking
-6. **Transparent Operations**: All compiler operations are logged and auditable
+1. **Deterministic Builds** — identical inputs always produce identical outputs
+2. **Offline-First** — no network access during compilation by default
+3. **Supply Chain Security** — all dependencies cryptographically verified
+4. **Memory Safety** — ownership system prevents common memory vulnerabilities
+5. **No Telemetry** — zero data collection or tracking
+6. **Transparent Operations** — all compiler operations are logged and auditable
+7. **Module Security** — v2.3 module system validates imports and exports
 
-### Scope
+## Scope
 
-This security policy covers:
+This policy covers:
 
-- Ovie compiler (oviec)
-- Ovie toolchain (ovie CLI)
-- Aproko assistant engine
-- Standard library
+- Ovie compiler (`oviec`)
+- Ovie CLI (`ovie`)
+- Aproko reasoning engine
+- Standard library (all 11 modules including v2.3 `std::module` and `std::aproko`)
 - Package management system
 - Build system and dependency resolution
 
 ### Out of Scope
 
-- Third-party packages and dependencies
-- User-written Ovie code
-- Infrastructure and hosting platforms
+- Third-party packages and user-written Ovie code
+- Infrastructure and hosting platforms (GitHub, Netlify, Vercel)
 
-### Responsible Disclosure
+## Responsible Disclosure
 
-We request that security researchers:
+We ask that security researchers:
 
 - Give us reasonable time to address the issue before public disclosure
 - Avoid accessing or modifying data that doesn't belong to you
-- Don't perform actions that could harm the availability of our services
-- Don't use social engineering against our team members
+- Don't perform actions that could harm service availability
 
-### Recognition
+## Recognition
 
-We maintain a security hall of fame for researchers who responsibly disclose vulnerabilities. With your permission, we'll acknowledge your contribution in our security advisories and release notes.
-
-## Security Features
-
-### Compiler Security
-
-- **Safe by Default**: Memory safety without garbage collection
-- **Explicit Unsafe**: All unsafe operations must be explicitly marked
-- **Effect System**: Track and control side effects
-- **Ownership Checking**: Prevent use-after-free and data races
-
-### Build Security
-
-- **Reproducible Builds**: Identical inputs produce identical outputs
-- **Dependency Verification**: Cryptographic hashes for all dependencies
-- **Offline Builds**: No network access during compilation
-- **Supply Chain Isolation**: Local dependency storage and verification
-
-### Runtime Security
-
-- **No Hidden Network**: Explicit permission required for network access
-- **Sandboxed Execution**: Controlled execution environment
-- **Resource Limits**: Configurable resource usage limits
-- **Audit Logging**: Comprehensive operation logging
+Researchers who responsibly disclose vulnerabilities will be acknowledged in our security advisories and release notes (with permission).
 
 ## Contact
 
-For security-related questions or concerns:
-
-- Email: security@ovie-lang.org
-- GPG Key: [Available on our website]
-- Response Time: 48 hours for acknowledgment
-
-For general questions about Ovie:
-
-- Website: https://ovie-lang.org
-- Documentation: https://docs.ovie-lang.org
-- Community: https://community.ovie-lang.org
+- **GitHub Advisories**: [github.com/southwarridev/ovie/security](https://github.com/southwarridev/ovie/security)
+- **Email**: ovielang@gmail.com
+- **GitHub**: [github.com/southwarridev/ovie](https://github.com/southwarridev/ovie)
+- **GitLab**: [gitlab.com/ovie1/ovie](https://gitlab.com/ovie1/ovie)

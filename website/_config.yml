@@ -1,0 +1,22 @@
+# GitHub Pages configuration for Ovie Programming Language
+title: "Ovie — Systems Programming Made Accessible"
+description: "Ovie v2.3.0 — self-hosted systems programming language with module system, natural syntax, complete standard library, and Aproko reasoning engine."
+url: "https://southwarridev.github.io"
+baseurl: "/ovie"
+lang: en
+
+# SEO
+author: "Ovie Language Team"
+twitter:
+  username: ovielang
+  card: summary
+
+# Google Search Console verification (add your token here when you have it)
+# google_site_verification: "YOUR_TOKEN_HERE"
+
+# Exclude from processing
+exclude:
+  - assets/styles.css
+  - assets/script.js
+  - assets/book.js
+  - assets/book.css
