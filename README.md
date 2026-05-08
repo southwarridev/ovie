@@ -14,7 +14,7 @@
   [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](RELEASE_NOTES_v2.3.md)
   [![Website](https://img.shields.io/badge/website-southwarridev.github.io%2Fovie-gold)](https://southwarridev.github.io/ovie/)
 
-  [Website](https://southwarridev.github.io/ovie/) ·
+  [Website](https://ovie.nashedy.io)·
   [Book](https://southwarridev.github.io/ovie/docs/book/index.html) ·
   [Install](#installation) ·
   [Docs](#documentation) ·
@@ -267,7 +267,7 @@ Areas: core language, standard library, Aproko rules, documentation, examples, I
 - **GitLab**: [gitlab.com/ovie1/ovie](https://gitlab.com/ovie1/ovie)
 - **Issues**: [github.com/southwarridev/ovie/issues](https://github.com/southwarridev/ovie/issues)
 - **Discussions**: [github.com/southwarridev/ovie/discussions](https://github.com/southwarridev/ovie/discussions)
-- **Website**: [southwarridev.github.io/ovie](https://southwarridev.github.io/ovie/)
+- **Website**: [https://ovie.nashedy.io](https://ovie.nashedy.io)
 
 ---
 
