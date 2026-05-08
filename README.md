@@ -12,7 +12,7 @@
   [![GitLab](https://img.shields.io/badge/GitLab-ovie1%2Fovie-orange?logo=gitlab)](https://gitlab.com/ovie1/ovie)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](RELEASE_NOTES_v2.3.md)
-  [![Website](https://img.shields.io/badge/website-southwarridev.github.io%2Fovie-gold)](https://southwarridev.github.io/ovie/)
+  [![Website](https://img.shields.io/badge/website-southwarridev.github.io%2Fovie-gold)](https://ovie.nashedy.io)
 
   [Website](https://ovie.nashedy.io)·
   [Book](https://southwarridev.github.io/ovie/docs/book/index.html) ·
