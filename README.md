@@ -266,7 +266,7 @@ Areas: core language, standard library, Aproko rules, documentation, examples, I
 - **GitHub**: [github.com/southwarridev/ovie](https://github.com/southwarridev/ovie)
 - **GitLab**: [gitlab.com/ovie1/ovie](https://gitlab.com/ovie1/ovie)
 - **Issues**: [github.com/southwarridev/ovie/issues](https://github.com/southwarridev/ovie/issues)
-- **Discussions**: [github.com/southwarridev/ovie/discussions](https://github.com/southwarridev/ovie/discussions)
+- **https://discord.gg/AuF4ubMyE](https://discord.gg/AuF4ubMyE)
 - **Website**: [https://ovie.nashedy.io](https://ovie.nashedy.io)
 
 ---
