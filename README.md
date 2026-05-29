@@ -1,7 +1,7 @@
 <div align="center">
   <img src="ovie.png" alt="Ovie Programming Language" width="180">
 
-  # Ovie — Systems Programming Made Accessible
+  # Ovie Systems Programming Made Accessible
 
   **v2.3.0 · Complete Module System · Self-Hosted · MIT License**
 
