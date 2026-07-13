@@ -1,5 +1,5 @@
 # ============================================================================
-# Ovie Real Bootstrap Verification Script - v2.2.0 (Windows PowerShell)
+# Ovie Real Bootstrap Verification Script - v2.3.0 (Windows PowerShell)
 # Runs the real bootstrap verification CLI command
 # ============================================================================
 
@@ -19,7 +19,7 @@ Set-Location $ProjectRoot
 
 Write-Host "============================================================================" -ForegroundColor Blue
 Write-Host "                    OVIE REAL BOOTSTRAP VERIFICATION" -ForegroundColor Blue
-Write-Host "                         v2.2.0 - Rust vs Ovie Lexer" -ForegroundColor Blue
+Write-Host "                         v2.3.0 - Rust vs Ovie Lexer" -ForegroundColor Blue
 Write-Host "============================================================================" -ForegroundColor Blue
 Write-Host ""
 

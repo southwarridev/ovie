@@ -1,15 +1,17 @@
-name: Unified Ovie v2.2 Release
+name: Unified Ovie v2.3 Release
 
 on:
   push:
     tags:
-      - 'v2.2.*'
+      - 'v2.3.*'
+      - 'v2.4.*'
+      - 'v3.*'
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., v2.2.0)'
+        description: 'Release version (e.g., v2.3.0)'
         required: true
-        default: 'v2.2.0'
+        default: 'v2.3.0'
       prerelease:
         description: 'Mark as pre-release'
         type: boolean
@@ -128,11 +130,15 @@ jobs:
 
     - name: Build Ovie compiler (oviec)
       run: |
-        cargo build --release --target ${{ matrix.target }} --package oviec --bin oviec
+        cargo build --release --target ${{ matrix.target }} --bin oviec
+        cargo build --release --target ${{ matrix.target }} --bin oviec-analyze
         
-    - name: Build Ovie runtime (ovie)
+    - name: Copy ovie CLI from oviec binary
+      shell: bash
       run: |
-        cargo build --release --target ${{ matrix.target }} --package ovie --bin ovie
+        SRC="target/${{ matrix.target }}/release/oviec${{ matrix.ext }}"
+        DST="target/${{ matrix.target }}/release/ovie${{ matrix.ext }}"
+        cp "$SRC" "$DST"
 
     - name: Run self-check tests
       if: matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'x86_64-pc-windows-msvc' || matrix.target == 'x86_64-apple-darwin'
@@ -148,7 +154,8 @@ jobs:
       run: |
         # Copy main binaries
         cp target/${{ matrix.target }}/release/oviec${{ matrix.ext }} release/${{ matrix.name }}/
-        cp target/${{ matrix.target }}/release/ovie${{ matrix.ext }} release/${{ matrix.name }}/
+        cp target/${{ matrix.target }}/release/ovie${{ matrix.ext }}  release/${{ matrix.name }}/
+        cp target/${{ matrix.target }}/release/oviec-analyze${{ matrix.ext }} release/${{ matrix.name }}/ 2>/dev/null || true
         
         # Copy standard library
         cp -r std/ release/${{ matrix.name }}/
@@ -335,7 +342,7 @@ jobs:
         cat > RELEASE_NOTES.md << 'EOF'
         # 🚀 Ovie v${{ env.OVIE_VERSION }} - Low-Level Self-Hosted Programming Language
         
-        ## 🎯 Stage 2.2 - Formal Compiler Invariants & Bootstrap Verification
+        ## 🎯 Stage 2.3 - Complete Module System & Aproko KB
         
         Ovie v${{ env.OVIE_VERSION }} represents a major milestone in compiler correctness and self-hosting capabilities. This release introduces formal mathematical verification of compiler invariants and comprehensive bootstrap verification.
         
@@ -459,7 +466,7 @@ jobs:
         
         ---
         
-        **Full Changelog**: https://github.com/southwarridev/ovie/compare/v2.2.0...v${{ env.OVIE_VERSION }}
+        **Full Changelog**: https://github.com/southwarridev/ovie/compare/v2.3.0...v${{ env.OVIE_VERSION }}
         
         **Website**: https://ovie-lang.org  
         **Documentation**: https://ovie-lang.org/docs  
@@ -467,10 +474,10 @@ jobs:
         EOF
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ env.OVIE_VERSION }}
-        name: "Ovie ${{ env.OVIE_VERSION }} - Low-Level Self-Hosted Programming Language"
+        name: "Ovie ${{ env.OVIE_VERSION }} - Complete Module System"
         body_path: RELEASE_NOTES.md
         draft: false
         prerelease: ${{ github.event.inputs.prerelease || false }}
@@ -483,40 +490,27 @@ jobs:
     name: Deploy Website
     needs: [create-release]
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Deploy to Vercel
-      uses: amondnet/vercel-action@v25
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
       with:
-        vercel-token: ${{ secrets.VERCEL_TOKEN }}
-        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-        working-directory: ./website
-        vercel-args: '--prod'
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./website
+        commit_message: "Deploy Ovie v${{ env.OVIE_VERSION }} website"
+      continue-on-error: true
 
-    - name: Deploy to Netlify
-      uses: nwtgck/actions-netlify@v3.0
-      with:
-        publish-dir: './website'
-        production-branch: main
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        deploy-message: "Deploy Ovie v${{ env.OVIE_VERSION }}"
-        enable-pull-request-comment: false
-        enable-commit-comment: true
-      env:
-        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-
-  # Publish VS Code extension
+  # Publish VS Code extension to marketplace
   publish-vscode-extension:
     name: Publish VS Code Extension
     needs: [create-release]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -527,49 +521,37 @@ jobs:
         node-version: '20'
 
     - name: Install dependencies
+      working-directory: extensions/ovie-vscode
       run: |
-        cd extensions/ovie-vscode
-        rm -f package-lock.json
         npm install
         npm install -g @vscode/vsce
 
-    - name: Update extension version
-      run: |
-        cd extensions/ovie-vscode
-        npm version ${{ env.OVIE_VERSION }} --no-git-tag-version
-
     - name: Package and publish extension
+      working-directory: extensions/ovie-vscode
       run: |
-        cd extensions/ovie-vscode
-        vsce package
-        vsce publish -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+        npx @vscode/vsce package --no-dependencies
+        npx @vscode/vsce publish -p ${{ secrets.VSCODE_MARKETPLACE_TOKEN }} --no-dependencies
       env:
         VSCE_PAT: ${{ secrets.VSCODE_MARKETPLACE_TOKEN }}
+      continue-on-error: true  # Don't block release if marketplace token not set
 
-  # Notification
+  # Summary
   notify-completion:
-    name: Notify Release Completion
+    name: Release Summary
     needs: [create-release, deploy-website, publish-vscode-extension]
     runs-on: ubuntu-latest
     if: always()
-    
+
     steps:
     - name: Release Summary
       run: |
-        echo "🎉 Ovie v${{ env.OVIE_VERSION }} Release Complete!"
-        echo ""
-        echo "✅ GitHub Release: https://github.com/southwarridev/ovie/releases/tag/${{ env.OVIE_VERSION }}"
-        echo "✅ Website: https://ovie-lang.org"
-        echo "✅ VS Code Extension: Published to marketplace"
-        echo ""
-        echo "📦 Platform Builds:"
-        echo "  - Windows (x64, x86, ARM64)"
-        echo "  - Linux (x64, ARM64, musl)"
-        echo "  - macOS (x64, ARM64)"
-        echo ""
-        echo "🔧 Installation:"
-        echo "  Windows: curl -o install.bat https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.bat && install.bat"
-        echo "  Linux:   curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash"
-        echo "  macOS:   curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash"
-        echo ""
-        echo "🧪 Verification: oviec --self-check"
+        echo "🎉 Ovie v${{ env.OVIE_VERSION }} Release Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Release | ${{ needs.create-release.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Website | ${{ needs.deploy-website.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| VS Code Extension | ${{ needs.publish-vscode-extension.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📦 Platforms: Windows (x64/x86/ARM64) · Linux (x64/ARM64/musl) · macOS (x64/ARM64)" >> $GITHUB_STEP_SUMMARY
+        echo "🔗 https://github.com/southwarridev/ovie/releases/latest" >> $GITHUB_STEP_SUMMARY

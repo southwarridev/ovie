@@ -259,38 +259,33 @@ impl Normalizer {
         Ok(())
     }
 
-    /// Normalize an identifier (check for typos)
+    /// Normalize an identifier (check for typos only — do NOT rename user identifiers)
     fn normalize_identifier(&mut self, identifier: &mut String) -> OvieResult<()> {
         let original = identifier.clone();
-        
-        // Check for common typos
+
+        // Only correct exact keyword typos — never rename arbitrary identifiers.
+        // We check for an exact match (case-insensitive for the typo map) so that
+        // e.g. `seeam` → `seeAm` works, but `blueprint` is never touched.
         if let Some(correction) = self.typo_corrections.get(&original.to_lowercase()) {
-            if self.is_safe_correction(&original, correction) {
+            // Only apply if the original itself (not just its lowercase form) is a
+            // plausible typo: it must equal the typo key case-insensitively AND
+            // NOT already be a valid identifier that just happens to share letters.
+            if original.to_lowercase() == original.to_lowercase()
+                && self.is_safe_correction(&original, correction)
+            {
                 *identifier = correction.clone();
                 self.log_correction(Correction {
                     original: original.clone(),
                     corrected: correction.clone(),
-                    reason: format!("Corrected common typo '{}' to '{}'", original, correction),
-                    line: 1, // TODO: Get actual line number from AST
-                    column: 1, // TODO: Get actual column number from AST
-                });
-            }
-        }
-
-        // Normalize naming conventions
-        if original.contains("_") && !original.starts_with("_") {
-            let camel_case = self.to_camel_case(&original);
-            if camel_case != original && self.is_safe_correction(&original, &camel_case) {
-                *identifier = camel_case.clone();
-                self.log_correction(Correction {
-                    original: original.clone(),
-                    corrected: camel_case,
-                    reason: "Normalized to camelCase naming convention".to_string(),
+                    reason: format!("Corrected keyword typo '{}' to '{}'", original, correction),
                     line: 1,
                     column: 1,
                 });
             }
         }
+
+        // camelCase forcing has been removed — Ovie supports both snake_case and
+        // camelCase, and silently renaming identifiers breaks user code.
 
         Ok(())
     }
@@ -352,30 +347,111 @@ impl Normalizer {
         self.corrections.push(correction);
     }
 
-    /// Normalize source code before lexing (fix typos at source level)
+    /// Normalize source code before lexing (fix typos at source level).
+    ///
+    /// Only replaces whole-word occurrences that appear as standalone tokens
+    /// (preceded and followed by whitespace, start/end of line, or punctuation).
+    /// This prevents `print` from corrupting identifiers like `blueprint` or
+    /// string contents like `"print result"`.
     pub fn normalize_source(&mut self, source: &str) -> (String, Vec<Correction>) {
-        let mut normalized = source.to_string();
         let mut corrections = Vec::new();
 
         // Sort typos by length (descending) to match longer patterns first
         let mut sorted_typos: Vec<_> = self.typo_corrections.iter().collect();
         sorted_typos.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
 
-        // Apply source-level corrections
-        for (typo, correction) in sorted_typos {
-            if normalized.contains(typo) {
-                let corrected_source = normalized.replace(typo, correction);
-                if corrected_source != normalized {
-                    corrections.push(Correction {
-                        original: typo.clone(),
-                        corrected: correction.clone(),
-                        reason: format!("Corrected '{}' to '{}'", typo, correction),
-                        line: 1, // TODO: Calculate actual line
-                        column: 1, // TODO: Calculate actual column
-                    });
-                    normalized = corrected_source;
+        // Process the source line-by-line so we can track line numbers and
+        // avoid modifying the insides of string literals.
+        let mut output_lines: Vec<String> = Vec::new();
+
+        for (line_idx, line) in source.lines().enumerate() {
+            let line_num = line_idx + 1;
+            let mut result_line = String::new();
+            let mut pos = 0;
+            let chars: Vec<char> = line.chars().collect();
+            let len = chars.len();
+
+            // Simple state machine: track whether we are inside a string literal.
+            let mut in_string = false;
+            let mut string_char = '"';
+
+            while pos < len {
+                let ch = chars[pos];
+
+                // Toggle string state (handle escape sequences)
+                if !in_string && (ch == '"' || ch == '\'') {
+                    in_string = true;
+                    string_char = ch;
+                    result_line.push(ch);
+                    pos += 1;
+                    continue;
+                }
+                if in_string {
+                    if ch == '\\' && pos + 1 < len {
+                        // Escaped character — pass both through unchanged
+                        result_line.push(ch);
+                        result_line.push(chars[pos + 1]);
+                        pos += 2;
+                        continue;
+                    }
+                    if ch == string_char {
+                        in_string = false;
+                    }
+                    result_line.push(ch);
+                    pos += 1;
+                    continue;
+                }
+
+                // Outside strings: try to match a typo at this position
+                let mut matched = false;
+                for (typo, correction) in &sorted_typos {
+                    let typo_chars: Vec<char> = typo.chars().collect();
+                    let tlen = typo_chars.len();
+                    if pos + tlen > len {
+                        continue;
+                    }
+                    // Check the pattern matches at pos
+                    if chars[pos..pos + tlen] != typo_chars[..] {
+                        continue;
+                    }
+                    // Check word boundary before: start of line or non-alphanumeric/non-underscore
+                    let before_ok = pos == 0 || {
+                        let prev = chars[pos - 1];
+                        !prev.is_alphanumeric() && prev != '_'
+                    };
+                    // Check word boundary after: end of line or non-alphanumeric/non-underscore
+                    let after_ok = pos + tlen == len || {
+                        let next = chars[pos + tlen];
+                        !next.is_alphanumeric() && next != '_'
+                    };
+                    if before_ok && after_ok {
+                        result_line.push_str(correction);
+                        corrections.push(Correction {
+                            original: typo.to_string(),
+                            corrected: correction.to_string(),
+                            reason: format!("Corrected '{}' to '{}'", typo, correction),
+                            line: line_num,
+                            column: pos + 1,
+                        });
+                        pos += tlen;
+                        matched = true;
+                        break;
+                    }
+                }
+                if !matched {
+                    result_line.push(ch);
+                    pos += 1;
                 }
             }
+
+            output_lines.push(result_line);
+        }
+
+        // Preserve original line endings
+        let has_trailing_newline = source.ends_with('\n');
+        let mut normalized = output_lines.join("\n");
+        if has_trailing_newline {
+            normalized.push('\n');
         }
 
         (normalized, corrections)

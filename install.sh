@@ -260,7 +260,7 @@ OVIE_HOME="$HOME/.local"
 
 case "$1" in
     --version)
-        echo "ovie 2.2.0 - Self-Hosted Programming Language"
+        echo "ovie 2.3.0 - Self-Hosted Programming Language"
         echo "Copyright (c) 2026 Ovie Language Team"
         echo "Visit: https://ovie-lang.org"
         ;;
@@ -357,7 +357,7 @@ TOML_CONFIG
         "$OVIE_HOME/bin/oviec" "${@:2}"
         ;;
     *)
-        echo "Ovie Programming Language v2.2.0 - Stage 2 Self-Hosted"
+        echo "Ovie Programming Language v2.3.0 - Stage 2.3 Complete Module System"
         echo "Use 'ovie --help' for available commands."
         echo ""
         echo "Quick start:"

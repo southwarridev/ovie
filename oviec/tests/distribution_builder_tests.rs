@@ -14,10 +14,10 @@ fn test_package_structure_for_all_platforms() {
     ];
     
     for platform in platforms {
-        let structure = PackageStructure::new("2.2.0", &platform);
+        let structure = PackageStructure::new("2.3.0", &platform);
         
         // Verify root directory name
-        assert_eq!(structure.root_dir, format!("ovie-2.2.0-{}", platform.name()));
+        assert_eq!(structure.root_dir, format!("ovie-2.3.0-{}", platform.name()));
         
         // Verify binaries have correct extensions
         for binary in &structure.binaries {
@@ -45,7 +45,7 @@ fn test_distribution_builder_creation() {
     let output_dir = workspace_root.join("target").join("test-dist");
     
     let _builder = DistributionBuilder::new(
-        "2.2.0".to_string(),
+        "2.3.0".to_string(),
         Platform::LinuxX64,
         workspace_root.clone(),
         output_dir.clone(),

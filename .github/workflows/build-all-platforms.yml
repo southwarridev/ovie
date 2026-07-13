@@ -72,6 +72,9 @@ jobs:
     - name: Build oviec (release)
       run: cargo build --release --bin oviec --target ${{ matrix.target }}
 
+    - name: Build oviec-analyze (release)
+      run: cargo build --release --bin oviec-analyze --target ${{ matrix.target }}
+
     - name: Verify binary
       shell: bash
       run: |
@@ -90,6 +93,8 @@ jobs:
         cp "target/${{ matrix.target }}/release/oviec${{ matrix.ext }}" "$PKG/bin/"
         # ovie CLI = same binary for now
         cp "target/${{ matrix.target }}/release/oviec${{ matrix.ext }}" "$PKG/bin/ovie${{ matrix.ext }}"
+        # Aproko analysis companion
+        cp "target/${{ matrix.target }}/release/oviec-analyze${{ matrix.ext }}" "$PKG/bin/" 2>/dev/null || true
 
         # Standard library (all modules including v2.3 module + aproko)
         cp -r std "$PKG/"
@@ -162,8 +167,7 @@ jobs:
           target
         key: test-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Build (check compilation)
-      run: cargo build --release --workspace
-    - name: Test aproko library
+      run: cargo build --release --workspace    - name: Test aproko library
       run: cargo test --package aproko --lib 2>&1 || true
     - name: Verify oviec binary
       run: |

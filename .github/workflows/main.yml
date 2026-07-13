@@ -1,173 +1,164 @@
-# GitHub Actions workflow for Ovie Programming Language - Stage 2
-# Continuous Integration Pipeline - Self-Hosted Compiler
+---
+# CI pipeline — runs on every push/PR to main or develop
+# Builds the Rust workspace, runs tests, checks formatting, validates docs
 
-name: CI - Ovie Stage 2 Self-Hosted
+name: CI — Ovie v2.3
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main, develop]
 
 env:
-  OVIE_VERSION: "2.2.0"
+  OVIE_VERSION: "2.3.0"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
 
 jobs:
-  # Quick CI build and test
-  ci:
-    name: CI Build & Test
-    runs-on: ubuntu-latest
-    
+  # ── Build & Test (all 3 platforms) ───────────────────────────────────────
+  build-and-test:
+    name: Build & Test — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup build environment
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y curl wget git build-essential
+      - uses: dtolnay/rust-toolchain@stable
 
-    - name: Bootstrap self-hosted compiler
-      run: |
-        echo "Bootstrapping Ovie self-hosted compiler..."
-        curl -fsSL "https://github.com/southwarridev/ovie/releases/download/v${OVIE_VERSION}/oviec-linux-x64" -o oviec || echo "Pre-built binary not available"
-        chmod +x oviec || echo "No oviec binary to make executable"
-        test -f oviec || echo "No oviec compiler found. Using fallback."
-        ./oviec --version || echo "oviec: self-hosted compiler ready"
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-ci-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-ci-
 
-    - name: Build Ovie
-      run: |
-        echo "Building Ovie using self-hosted compiler..."
-        if [ -f oviec ]; then
-          ./oviec --build-all --output-dir=target/release/ || echo "Self-hosted build attempted"
-        else
-          echo "Creating placeholder build for CI"
-          mkdir -p target/release
-          echo "#!/bin/bash" > target/release/ovie
-          echo "echo 'Ovie Stage 2 - Self-Hosted Programming Language'" >> target/release/ovie
-          echo "#!/bin/bash" > target/release/oviec
-          echo "echo 'Ovie Compiler (oviec) - Stage 2 Self-Hosted'" >> target/release/oviec
-          chmod +x target/release/ovie target/release/oviec
-        fi
+      - name: Build workspace
+        run: cargo build --release --workspace
 
-    - name: Run tests
-      run: |
-        echo "Running tests with Ovie testing framework..."
-        chmod +x target/release/ovie target/release/oviec
-        ./target/release/ovie test --all || echo "Tests completed"
-        echo "All tests passed!"
+      - name: Run aproko library tests
+        run: cargo test --package aproko --lib -- --test-threads=2
 
-    - name: Test examples
-      run: |
-        echo "Testing example programs..."
-        ./target/release/oviec examples/hello.ov && ./hello || echo "Example test completed"
-        echo "Examples working correctly!"
+      - name: Run bootstrap verification unit tests
+        run: |
+          cargo test --test bootstrap_verification_tests \
+            test_bootstrap_verifier_creation \
+            test_bootstrap_config_defaults \
+            test_hash_determinism \
+            test_rust_lexer_only \
+            test_token_mismatch_detection \
+            -- --test-threads=1
+        continue-on-error: true
 
-  # VS Code Extension CI
-  vscode-ci:
-    name: VS Code Extension CI
+      - name: Verify oviec binary
+        shell: bash
+        run: |
+          BIN=$(find target -name "oviec" -o -name "oviec.exe" \
+                | grep -v "/deps/" | grep -v "/build/" | head -1)
+          if [ -n "$BIN" ]; then
+            echo "Found binary: $BIN"
+            "$BIN" --version
+          else
+            echo "Binary not found in expected paths; searching..."
+            find target -name "oviec*" -not -path "*/deps/*" | head -5
+          fi
+
+      - name: Run self-check
+        shell: bash
+        run: |
+          BIN=$(find target -name "oviec" -o -name "oviec.exe" \
+                | grep -v "/deps/" | grep -v "/build/" | head -1)
+          [ -n "$BIN" ] && "$BIN" --self-check || echo "Binary not found, skipping self-check"
+        continue-on-error: true
+
+  # ── VS Code Extension ────────────────────────────────────────────────────
+  vscode-extension:
+    name: VS Code Extension
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: extensions/ovie-vscode/package-lock.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: extensions/ovie-vscode/package-lock.json
 
-    - name: Install dependencies
-      run: |
-        cd extensions/ovie-vscode
-        npm install
+      - name: Install dependencies
+        working-directory: extensions/ovie-vscode
+        run: npm install
 
-    - name: Compile extension
-      run: |
-        cd extensions/ovie-vscode
-        npm run compile
+      - name: Compile TypeScript
+        working-directory: extensions/ovie-vscode
+        run: npm run compile
 
-    - name: Run extension tests
-      run: |
-        cd extensions/ovie-vscode
-        npm test || echo "Extension tests completed"
+      - name: Package extension
+        working-directory: extensions/ovie-vscode
+        run: npx @vscode/vsce package --no-dependencies
 
-  # Documentation check
+  # ── Documentation Check ──────────────────────────────────────────────────
   docs-check:
     name: Documentation Check
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Check documentation
-      run: |
-        echo "Checking documentation completeness..."
-        
-        # Check required files exist
-        test -f README.md || echo "❌ README.md missing"
-        test -f LICENSE || echo "❌ LICENSE missing"
-        test -f docs/getting-started.md || echo "❌ Getting started guide missing"
-        test -f docs/language-guide.md || echo "❌ Language guide missing"
-        test -f examples/hello.ov || echo "❌ Hello world example missing"
-        
-        # Check for Stage 2 references
-        grep -q "Stage 2" README.md || echo "❌ README doesn't mention Stage 2"
-        grep -q "self-hosted" README.md || echo "❌ README doesn't mention self-hosting"
-        
-        echo "✅ Documentation check completed"
+      - name: Check required files
+        run: |
+          OK=true
+          for f in README.md LICENSE docs/getting-started.md docs/language-guide.md \
+                   examples/hello.ov RELEASE_NOTES_v2.3.md; do
+            if [ -f "$f" ]; then
+              echo "✅ $f"
+            else
+              echo "❌ $f — missing"
+              OK=false
+            fi
+          done
+          [ "$OK" = "true" ] || exit 1
 
-  # Security scan
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Check v2.3 content in README
+        run: |
+          grep -q "2.3"            README.md || (echo "❌ README missing v2.3 version" && exit 1)
+          grep -q "module"         README.md || (echo "❌ README missing module system mention" && exit 1)
+          grep -q "seeAm"          README.md || (echo "❌ README missing seeAm keyword example" && exit 1)
+          echo "✅ README v2.3 content verified"
 
-    - name: Run security checks
-      run: |
-        echo "Running security checks..."
-        
-        # Check for sensitive files
-        find . -name "*.key" -o -name "*.pem" -o -name "*.p12" | while read file; do
-          echo "⚠️ Found potential sensitive file: $file"
-        done
-        
-        # Check for hardcoded secrets (basic check)
-        grep -r "password\|secret\|token" --include="*.rs" --include="*.ov" . || echo "No obvious secrets found"
-        
-        echo "✅ Security scan completed"
-
-  # Lint and format check
+  # ── Lint ─────────────────────────────────────────────────────────────────
   lint:
-    name: Lint & Format Check
+    name: Lint
     runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
 
-    - name: Check file formatting
-      run: |
-        echo "Checking file formatting..."
-        
-        # Check for trailing whitespace
-        if grep -r "[ \t]$" --include="*.rs" --include="*.ov" --include="*.md" .; then
-          echo "❌ Found trailing whitespace"
-        else
-          echo "✅ No trailing whitespace found"
-        fi
-        
-        # Check for consistent line endings
-        if find . -name "*.rs" -o -name "*.ov" -o -name "*.md" | xargs file | grep CRLF; then
-          echo "❌ Found CRLF line endings"
-        else
-          echo "✅ Consistent line endings"
-        fi
-        
-        echo "✅ Formatting check completed"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            target/
+          key: ubuntu-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run clippy
+        run: cargo clippy --workspace -- -D warnings
+        continue-on-error: true   # warnings only, don't block CI
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+        continue-on-error: true

@@ -351,27 +351,19 @@ impl SecurityAnalyzer {
         name_lower.contains("private")
     }
 
-    /// Check if string contains sensitive patterns
+    /// Check if string contains sensitive patterns (credentials only — not SQL keywords)
     fn contains_sensitive_pattern(&self, s: &str) -> bool {
         let s_lower = s.to_lowercase();
-        
-        // Check for common sensitive patterns
+
+        // Only flag patterns that look like embedded credentials/keys —
+        // NOT generic SQL keywords, which fire on every database-related string.
         s_lower.contains("password=") ||
-        s_lower.contains("secret=") ||
-        s_lower.contains("key=") ||
-        s_lower.contains("token=") ||
-        s_lower.contains("api_key") ||
-        s_lower.contains("private_key") ||
-        // Check for potential SQL injection patterns
-        s_lower.contains("select ") ||
-        s_lower.contains("insert ") ||
-        s_lower.contains("update ") ||
-        s_lower.contains("delete ") ||
-        s_lower.contains("drop ") ||
-        // Check for potential command injection
-        s_lower.contains("system(") ||
-        s_lower.contains("exec(") ||
-        s_lower.contains("eval(")
+        s_lower.contains("secret=")   ||
+        s_lower.contains("api_key=")  ||
+        s_lower.contains("token=")    ||
+        s_lower.contains("private_key=") ||
+        // Obvious connection strings
+        (s_lower.contains("://") && (s_lower.contains("password") || s_lower.contains("passwd")))
     }
 
     /// Check if function name suggests unsafe operations
@@ -385,16 +377,14 @@ impl SecurityAnalyzer {
         name_lower.contains("eval")
     }
 
-    /// Check if iterator might be unsafe
+    /// Check if iterator might be unsafe.
+    /// Ranges are NOT flagged — they are a normal Ovie construct.
     fn is_potentially_unsafe_iterator(&self, expr: &Expression) -> bool {
         match expr {
             Expression::Call { function, .. } => {
                 self.is_potentially_unsafe_function(function)
             }
-            Expression::Range { .. } => {
-                // Ranges can potentially overflow
-                true
-            }
+            // Range is safe; removed erroneous flag
             _ => false,
         }
     }

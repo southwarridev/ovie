@@ -267,6 +267,10 @@ impl CorrectnessAnalyzer {
 
         match expression {
             Expression::Identifier(name) => {
+                // Only flag variables that the tracker *knows* are in a bad state
+                // (Moved or Uninitialized).  If the variable is simply absent from
+                // the tracker it was likely declared in a scope we haven't modelled
+                // (function parameters, for-loop variables, built-ins) — do not flag.
                 if !tracker.is_usable(name) {
                     if let Some(state) = tracker.get_state(name) {
                         match state {
@@ -294,17 +298,8 @@ impl CorrectnessAnalyzer {
                             }
                             _ => {}
                         }
-                    } else {
-                        findings.push(Finding {
-                            category: AnalysisCategory::Correctness,
-                            severity: Severity::Error,
-                            message: format!("Use of undeclared variable '{}'", name),
-                            suggestion: Some("Declare the variable before using it".to_string()),
-                            location: (line, 1),
-                            span_length: name.len(),
-                            rule_id: "use_undeclared".to_string(),
-                        });
                     }
+                    // If state is unknown (not in tracker) — skip, not a confirmed error
                 }
             }
             Expression::Binary { left, right, .. } => {
@@ -412,11 +407,19 @@ impl CorrectnessAnalyzer {
         findings
     }
 
-    /// Check if an expression represents a move operation
+    /// Check if an expression represents a move operation.
+    ///
+    /// In Ovie's interpreted model only an explicit reassignment to a *different*
+    /// variable is treated as a move.  A bare identifier reference is a borrow/
+    /// copy — flagging it as a move caused massive false-positive noise.
     fn is_move_expression(&self, expression: &Expression) -> bool {
+        // Only flag as a move when we have strong evidence:
+        // a call whose name suggests ownership transfer.
         match expression {
-            Expression::Identifier(_) => true, // Simple identifier access is a move
-            Expression::Call { .. } => true,   // Function calls can move arguments
+            Expression::Call { function, .. } => {
+                let f = function.to_lowercase();
+                f.starts_with("move_") || f.ends_with("_into") || f == "into"
+            }
             _ => false,
         }
     }

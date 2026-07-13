@@ -1455,12 +1455,16 @@ impl Interpreter {
         }
     }
 
-    /// Check if a value matches a pattern
-    fn match_pattern(&self, pattern: &crate::ast::MatchPattern, value: &Value) -> OvieResult<bool> {
+    /// Check if a value matches a pattern, and if so bind any identifiers into the environment
+    fn match_pattern(&mut self, pattern: &crate::ast::MatchPattern, value: &Value) -> OvieResult<bool> {
         use crate::ast::MatchPattern;
         match pattern {
             MatchPattern::Wildcard => Ok(true),
-            MatchPattern::Identifier(_) => Ok(true), // binding always matches
+            MatchPattern::Identifier(name) => {
+                // Binding pattern: always matches, binds the value to `name` in scope
+                self.environment.define_variable(name.clone(), value.clone());
+                Ok(true)
+            }
             MatchPattern::Literal(lit) => {
                 let lit_val = match lit {
                     crate::ast::Literal::String(s) => Value::String(s.clone()),
@@ -1469,16 +1473,26 @@ impl Interpreter {
                 };
                 Ok(&lit_val == value)
             }
-            MatchPattern::EnumVariant { variant_name, .. } => {
-                if let Value::Enum { variant, .. } = value {
-                    Ok(variant == variant_name)
+            MatchPattern::EnumVariant { variant_name, binding, .. } => {
+                if let Value::Enum { variant, data } = value {
+                    let matched = variant == variant_name;
+                    if matched {
+                        // Bind inner data to the pattern variable if present
+                        if let Some(bind_name) = binding {
+                            let inner = data.as_ref()
+                                .map(|d| *d.clone())
+                                .unwrap_or(Value::Null);
+                            self.environment.define_variable(bind_name.clone(), inner);
+                        }
+                    }
+                    Ok(matched)
                 } else {
                     Ok(false)
                 }
             }
             MatchPattern::Struct { name, .. } => {
                 if let Value::Struct(_) = value {
-                    Ok(true) // simplified: match any struct with same name
+                    Ok(true) // simplified: match any struct; field binding TODO
                 } else {
                     Ok(false)
                 }

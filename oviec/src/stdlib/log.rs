@@ -378,45 +378,45 @@ impl LogDestination {
     }
 }
 
-/// Global logger state
-static mut GLOBAL_LOGGER: Option<Logger> = None;
-static mut LOGGER_INITIALIZED: bool = false;
+/// Global logger state — wrapped in a Mutex+OnceLock to be safe across threads
+/// and to avoid the `static_mut_refs` undefined-behaviour lint.
+use std::sync::OnceLock;
+
+static GLOBAL_LOGGER: OnceLock<Mutex<Option<Logger>>> = OnceLock::new();
+
+fn logger_cell() -> &'static Mutex<Option<Logger>> {
+    GLOBAL_LOGGER.get_or_init(|| Mutex::new(None))
+}
 
 /// Initialize the global logger
 pub fn init_logger(config: LogConfig, destination: LogDestination) -> OvieResult<(), String> {
-    unsafe {
-        if LOGGER_INITIALIZED {
-            return err("Logger already initialized".to_string());
-        }
-        
-        GLOBAL_LOGGER = Some(Logger::new(config, destination));
-        LOGGER_INITIALIZED = true;
-        ok(())
+    let mut guard = logger_cell().lock().unwrap_or_else(|e| e.into_inner());
+    if guard.is_some() {
+        return err("Logger already initialized".to_string());
     }
+    *guard = Some(Logger::new(config, destination));
+    ok(())
 }
 
-/// Get the global logger
-fn get_global_logger() -> OvieOption<&'static Logger> {
-    unsafe {
-        if LOGGER_INITIALIZED {
-            GLOBAL_LOGGER.as_ref().map(|logger| some(logger)).unwrap_or(none())
-        } else {
-            none()
-        }
+/// Get a copy of the global logger (cheap clone for single-threaded use)
+fn get_global_logger() -> OvieOption<Logger> {
+    let guard = logger_cell().lock().unwrap_or_else(|e| e.into_inner());
+    match &*guard {
+        Some(logger) => some(logger.clone()),
+        None => none(),
     }
 }
 
 /// Ensure the global logger is initialized with default settings
 fn ensure_logger_initialized() {
-    unsafe {
-        if !LOGGER_INITIALIZED {
-            let _ = init_logger(LogConfig::new(), LogDestination::Stderr);
-        }
+    let mut guard = logger_cell().lock().unwrap_or_else(|e| e.into_inner());
+    if guard.is_none() {
+        *guard = Some(Logger::new(LogConfig::new(), LogDestination::Stderr));
     }
 }
 
 /// Logger implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Logger {
     config: LogConfig,
     destination: LogDestination,
@@ -2240,15 +2240,12 @@ pub fn is_enabled(level: LogLevel) -> bool {
 
 /// Set the global log level
 pub fn set_level(level: LogLevel) -> OvieResult<(), String> {
-    // This is a simplified implementation
-    // In a real implementation, we would update the global logger's configuration
-    unsafe {
-        if let Some(logger) = &mut GLOBAL_LOGGER {
-            logger.config.min_level = level;
-            ok(())
-        } else {
-            err("Logger not initialized".to_string())
-        }
+    let mut guard = logger_cell().lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(ref mut logger) = *guard {
+        logger.config.min_level = level;
+        ok(())
+    } else {
+        err("Logger not initialized".to_string())
     }
 }
 

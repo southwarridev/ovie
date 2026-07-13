@@ -4,7 +4,7 @@
 [project]
 name = "my-ovie-project"
 version = "1.0.0"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Shedrack Erhabor <shedrackerhabor12@gmail.com>"]
 description = "A brief description of your Ovie project"
 license = "MIT"
 repository = "https://github.com/username/my-ovie-project"

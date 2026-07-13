@@ -1,4 +1,4 @@
-// Documentation Tests for Ovie v2.2
+// Documentation Tests for Ovie v2.3
 // These tests verify that documentation examples work correctly
 
 #[cfg(test)]
@@ -11,9 +11,9 @@ mod documentation_tests {
         // Verify README.md contains correct version
         let readme = fs::read_to_string("README.md").expect("README.md not found");
         
-        assert!(readme.contains("v2.2"), "README should reference v2.2");
-        assert!(readme.contains("Complete Language Consolidation"), "README should mention consolidation");
-        assert!(readme.contains("February 2026"), "README should have correct date");
+        assert!(readme.contains("v2.3"), "README should reference v2.3");
+        assert!(readme.contains("Module System"), "README should mention Module System");
+        assert!(readme.contains("2026"), "README should have correct year");
     }
 
     #[test]
@@ -29,8 +29,8 @@ mod documentation_tests {
             "docs/aproko.md",
             "docs/internals.md",
             "docs/compiler_invariants.md",
-            "RELEASE_NOTES_v2.2.md",
-            "MIGRATION_GUIDE_v2.1_to_v2.2.md",
+            "RELEASE_NOTES_v2.3.md",
+            "docs/migration-v2.2-to-v2.3-modules.md",
         ];
 
         for doc in required_docs {
@@ -58,10 +58,10 @@ mod documentation_tests {
                 "{} contains outdated status", doc_path
             );
             
-            // Should reference v2.2 or 2.2.0
+            // Should reference v2.3 or 2.3.0
             assert!(
-                content.contains("v2.2") || content.contains("2.2.0") || content.contains("February 2026"),
-                "{} should reference v2.2", doc_path
+                content.contains("v2.3") || content.contains("2.3.0") || content.contains("2026"),
+                "{} should reference v2.3", doc_path
             );
         }
     }
@@ -99,7 +99,7 @@ mod documentation_tests {
 
     #[test]
     fn test_new_v22_commands_documented() {
-        // Verify new v2.2 commands are documented
+        // Verify new v2.3 commands are documented
         let readme = fs::read_to_string("README.md").expect("README.md not found");
         
         assert!(readme.contains("oviec --env"), "Should document oviec --env");
@@ -155,11 +155,11 @@ mod documentation_tests {
     #[test]
     fn test_migration_guide_complete() {
         // Verify migration guide exists and is complete
-        let migration_guide = fs::read_to_string("MIGRATION_GUIDE_v2.1_to_v2.2.md")
+        let migration_guide = fs::read_to_string("docs/migration-v2.2-to-v2.3-modules.md")
             .expect("Migration guide not found");
         
         assert!(migration_guide.contains("v2.1"), "Should reference v2.1");
-        assert!(migration_guide.contains("v2.2"), "Should reference v2.2");
+        assert!(migration_guide.contains("v2.3"), "Should reference v2.3");
         assert!(migration_guide.contains("Breaking Changes"), "Should list breaking changes");
         assert!(migration_guide.contains("Migration Steps"), "Should provide migration steps");
         assert!(migration_guide.contains("ORE"), "Should explain ORE changes");
@@ -168,11 +168,11 @@ mod documentation_tests {
     #[test]
     fn test_release_notes_complete() {
         // Verify release notes exist and are complete
-        let release_notes = fs::read_to_string("RELEASE_NOTES_v2.2.md")
+        let release_notes = fs::read_to_string("RELEASE_NOTES_v2.3.md")
             .expect("Release notes not found");
         
-        assert!(release_notes.contains("v2.2.0"), "Should have version number");
-        assert!(release_notes.contains("February 2026"), "Should have release date");
+        assert!(release_notes.contains("v2.3.0"), "Should have version number");
+        assert!(release_notes.contains("2026"), "Should have release year");
         assert!(release_notes.contains("Major Features"), "Should list major features");
         assert!(release_notes.contains("Breaking Changes"), "Should list breaking changes");
         assert!(release_notes.contains("Bug Fixes"), "Should list bug fixes");
@@ -282,7 +282,7 @@ mod documentation_tests {
 
     #[test]
     fn test_roadmap_updated() {
-        // Verify roadmap reflects v2.2 completion
+        // Verify roadmap reflects v2.3 completion
         let readme = fs::read_to_string("README.md").expect("README.md not found");
         
         assert!(readme.contains("Stage 2") && readme.contains("Complete"),

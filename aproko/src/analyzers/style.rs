@@ -92,25 +92,14 @@ impl StyleAnalyzer {
         findings
     }
 
-    /// Check variable naming conventions
+    /// Check variable naming conventions.
+    /// Ovie accepts both camelCase and snake_case — only flag names that are
+    /// neither (e.g. MixedCase_with_underscore or ALL_CAPS user variables).
     fn check_variable_naming(&self, name: &str, line: usize) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Check for camelCase convention
-        if !self.is_camel_case(name) && !self.is_snake_case(name) {
-            findings.push(Finding {
-                category: AnalysisCategory::Style,
-                severity: Severity::Warning,
-                message: format!("Variable '{}' should use camelCase or snake_case", name),
-                suggestion: Some("Use camelCase (myVariable) or snake_case (my_variable)".to_string()),
-                location: (line, 1),
-                span_length: name.len(),
-                rule_id: "variable_naming_convention".to_string(),
-            });
-        }
-
-        // Check for meaningful names
-        if name.len() < 2 && !matches!(name, "i" | "j" | "k" | "x" | "y" | "z") {
+        // Check for meaningful names (single-letter is fine for loop vars)
+        if name.len() < 2 && !matches!(name, "i" | "j" | "k" | "x" | "y" | "z" | "n" | "v") {
             findings.push(Finding {
                 category: AnalysisCategory::Style,
                 severity: Severity::Info,
@@ -123,39 +112,28 @@ impl StyleAnalyzer {
         }
 
         // Check for overly long names
-        if name.len() > 30 {
+        if name.len() > 40 {
             findings.push(Finding {
                 category: AnalysisCategory::Style,
                 severity: Severity::Info,
                 message: format!("Variable '{}' has a very long name", name),
-                suggestion: Some("Consider using a shorter, more concise name".to_string()),
+                suggestion: Some("Consider a shorter, more concise name".to_string()),
                 location: (line, 1),
                 span_length: name.len(),
                 rule_id: "long_variable_name".to_string(),
             });
         }
 
-        // Check for Hungarian notation (discouraged)
-        if self.uses_hungarian_notation(name) {
-            findings.push(Finding {
-                category: AnalysisCategory::Style,
-                severity: Severity::Warning,
-                message: format!("Variable '{}' appears to use Hungarian notation", name),
-                suggestion: Some("Avoid Hungarian notation; use descriptive names instead".to_string()),
-                location: (line, 1),
-                span_length: name.len(),
-                rule_id: "hungarian_notation".to_string(),
-            });
-        }
-
         findings
     }
 
-    /// Check function naming conventions
+    /// Check function naming conventions.
+    /// Functions should use camelCase or snake_case.  We do NOT require a verb
+    /// prefix because Ovie programs commonly use noun-style names like `main`,
+    /// `fibonacci`, `factorial` etc.
     fn check_function_naming(&self, name: &str, line: usize) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // Functions should use camelCase or snake_case
         if !self.is_camel_case(name) && !self.is_snake_case(name) {
             findings.push(Finding {
                 category: AnalysisCategory::Style,
@@ -165,19 +143,6 @@ impl StyleAnalyzer {
                 location: (line, 1),
                 span_length: name.len(),
                 rule_id: "function_naming_convention".to_string(),
-            });
-        }
-
-        // Check for verb-based function names
-        if !self.is_verb_based_name(name) {
-            findings.push(Finding {
-                category: AnalysisCategory::Style,
-                severity: Severity::Info,
-                message: format!("Function '{}' should start with a verb", name),
-                suggestion: Some("Function names should describe what they do (e.g., calculateSum, getUserData)".to_string()),
-                location: (line, 1),
-                span_length: name.len(),
-                rule_id: "function_verb_naming".to_string(),
             });
         }
 

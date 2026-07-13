@@ -30,6 +30,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Inject version into website
+        run: |
+          # Update version badge / text in website if the file references it
+          find website/ -name "*.html" -o -name "*.js" -o -name "*.css" | xargs grep -l "OVIE_VERSION" 2>/dev/null | while read f; do
+            sed -i "s/OVIE_VERSION/2.3.0/g" "$f"
+          done
+          echo "Version injection complete"
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

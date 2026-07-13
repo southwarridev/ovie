@@ -7,7 +7,7 @@
   
   > A self-hosted programming language that combines low-level control with high-level productivity. Direct memory management meets natural syntax, complete standard library, and enforced compiler correctness.
   
-  **🎉 Version: 2.2.0 (February 2026)**
+  **🎉 Version: 2.3.0 (2026)**
 </div>
 
 [![GitHub](https://img.shields.io/badge/GitHub-southwarridev%2Fovie-blue?logo=github)](https://github.com/southwarridev/ovie)
@@ -42,7 +42,7 @@ Ovie combines the control and performance of systems programming with the produc
 - **🔍 Self-Diagnosing**: Aproko reasoning engine explains compiler decisions
 - **🤖 Deterministic Builds**: Reproducible compilation with offline-first development
 
-> **🎉 MILESTONE: Ovie v2.2 - Complete language consolidation achieved (February 2026)**
+> **🎉 MILESTONE: Ovie v2.3 - Complete Module System achieved (2026)**
 
 ## Quick Start
 
@@ -145,7 +145,7 @@ make install
 ### Verify Installation
 
 ```bash
-ovie --version          # Check version (2.2.0)
+ovie --version          # Check version (2.3.0)
 oviec --version         # Check compiler version
 oviec --env             # Show runtime environment status
 oviec --self-check      # Validate installation completeness
@@ -341,7 +341,7 @@ make dev        # Clean + build + test cycle
 - Bootstrap verification
 - Multi-stage IR pipeline (AST → HIR → MIR)
 
-**v2.2.0 - Complete Language Consolidation (February 2026)**
+**v2.3.0 - Complete Module System (2026)**
 - Enforced compiler invariants
 - Complete Runtime Environment (ORE)
 - Complete standard library (9 modules, 160KB+)

@@ -1,407 +1,232 @@
-# Simple Manual Release Creation for Ovie Stage 2
+---
+# Manual one-click release creator for Ovie v2.3+
+# Builds real binaries via cargo, assembles packages, publishes a GitHub release.
+
 name: Create Ovie Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., 2.1.0)'
+        description: 'Release version (e.g., 2.3.0)'
         required: true
-        default: '2.1.0'
+        default: '2.3.0'
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   packages: write
-  actions: read
 
 env:
   OVIE_VERSION: ${{ github.event.inputs.version }}
+  CARGO_TERM_COLOR: always
 
 jobs:
-  create-release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    
+  # ── Build all 4 platforms ─────────────────────────────────────────────────
+  build:
+    name: Build — ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            ext: .exe
+            archive: zip
+
+          - platform: linux-x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            ext: ''
+            archive: tar.gz
+
+          - platform: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            ext: ''
+            archive: tar.gz
+
+          - platform: macos-x64
+            os: macos-13
+            target: x86_64-apple-darwin
+            ext: ''
+            archive: tar.gz
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Create release files
-      run: |
-        echo "🚀 Creating Ovie v${{ env.OVIE_VERSION }} release files..."
-        
-        # Create releases directory
-        mkdir -p releases
-        
-        # Create Linux package
-        mkdir -p linux-x64
-        cat > linux-x64/ovie << 'EOF'
-        #!/bin/bash
-        echo "🎉 Ovie Stage 2 - Self-Hosted Programming Language v${{ env.OVIE_VERSION }}"
-        echo "✨ Platform: Linux x64"
-        echo "🏆 Self-hosted compiler achieved!"
-        echo ""
-        echo "Usage: ovie [command] [options]"
-        echo ""
-        echo "Commands:"
-        echo "  new <name>     Create a new Ovie project"
-        echo "  run            Run the current project"
-        echo "  build          Build the current project"
-        echo "  test           Run tests"
-        echo "  --version      Show version information"
-        echo "  --help         Show this help message"
-        echo ""
-        echo "Visit https://ovie-lang.org for documentation"
-        EOF
-        
-        cat > linux-x64/oviec << 'EOF'
-        #!/bin/bash
-        echo "🔧 Ovie Compiler (oviec) - Stage 2 Self-Hosted v${{ env.OVIE_VERSION }}"
-        echo "🎯 Target: Linux x64"
-        echo ""
-        echo "Usage: oviec [file.ov] [options]"
-        echo ""
-        echo "Options:"
-        echo "  --target <target>    Compilation target (native, wasm, ir)"
-        echo "  --output <file>      Output file name"
-        echo "  --optimize          Enable optimizations"
-        echo "  --version           Show version information"
-        echo "  --help              Show this help message"
-        echo ""
-        echo "Visit https://ovie-lang.org for documentation"
-        EOF
-        
-        cat > linux-x64/install.sh << 'EOF'
-        #!/bin/bash
-        echo ""
-        echo "╔══════════════════════════════════════════════════════════════╗"
-        echo "║                    Ovie Programming Language                 ║"
-        echo "║                        Stage 2 - Self-Hosted                ║"
-        echo "║                           Version ${{ env.OVIE_VERSION }}                     ║"
-        echo "╚══════════════════════════════════════════════════════════════╝"
-        echo ""
-        echo "Installing Ovie Programming Language for Linux x64..."
-        mkdir -p ~/.local/bin
-        cp ovie ~/.local/bin/
-        cp oviec ~/.local/bin/
-        chmod +x ~/.local/bin/ovie ~/.local/bin/oviec
-        echo "✅ Ovie installed successfully!"
-        echo ""
-        echo "Make sure ~/.local/bin is in your PATH"
-        echo "Add this to your ~/.bashrc or ~/.zshrc:"
-        echo "export PATH=\"\$HOME/.local/bin:\$PATH\""
-        echo ""
-        echo "Run 'ovie --help' to get started."
-        echo "Visit: https://ovie-lang.org for documentation"
-        EOF
-        
-        chmod +x linux-x64/ovie linux-x64/oviec linux-x64/install.sh
-        
-        # Copy documentation
-        cp README.md LICENSE linux-x64/
-        cp ovie.png linux-x64/ 2>/dev/null || echo "ovie.png not found"
-        cp -r docs examples std linux-x64/ 2>/dev/null || echo "directories not found"
-        
-        # Create Linux archive
-        tar -czf releases/ovie-v${{ env.OVIE_VERSION }}-linux-x64.tar.gz linux-x64
-        
-        # Create Windows package
-        mkdir -p windows-x64
-        cat > windows-x64/ovie.bat << 'EOF'
-        @echo off
-        echo 🎉 Ovie Stage 2 - Self-Hosted Programming Language v${{ env.OVIE_VERSION }}
-        echo ✨ Platform: Windows x64
-        echo 🏆 Self-hosted compiler achieved!
-        echo.
-        echo Usage: ovie [command] [options]
-        echo.
-        echo Commands:
-        echo   new ^<name^>     Create a new Ovie project
-        echo   run            Run the current project
-        echo   build          Build the current project
-        echo   test           Run tests
-        echo   --version      Show version information
-        echo   --help         Show this help message
-        echo.
-        echo Visit https://ovie-lang.org for documentation
-        EOF
-        
-        cat > windows-x64/oviec.bat << 'EOF'
-        @echo off
-        echo 🔧 Ovie Compiler (oviec) - Stage 2 Self-Hosted v${{ env.OVIE_VERSION }}
-        echo 🎯 Target: Windows x64
-        echo.
-        echo Usage: oviec [file.ov] [options]
-        echo.
-        echo Options:
-        echo   --target ^<target^>    Compilation target (native, wasm, ir)
-        echo   --output ^<file^>      Output file name
-        echo   --optimize          Enable optimizations
-        echo   --version           Show version information
-        echo   --help              Show this help message
-        echo.
-        echo Visit https://ovie-lang.org for documentation
-        EOF
-        
-        cat > windows-x64/install.bat << 'EOF'
-        @echo off
-        echo.
-        echo ╔══════════════════════════════════════════════════════════════╗
-        echo ║                    Ovie Programming Language                 ║
-        echo ║                        Stage 2 - Self-Hosted                ║
-        echo ║                           Version ${{ env.OVIE_VERSION }}                     ║
-        echo ╚══════════════════════════════════════════════════════════════╝
-        echo.
-        echo Installing Ovie Programming Language for Windows...
-        if not exist "%USERPROFILE%\.local\bin" mkdir "%USERPROFILE%\.local\bin"
-        copy ovie.bat "%USERPROFILE%\.local\bin\ovie.bat" >nul 2>&1
-        copy oviec.bat "%USERPROFILE%\.local\bin\oviec.bat" >nul 2>&1
-        echo ✓ Ovie installed successfully!
-        echo.
-        echo Add %USERPROFILE%\.local\bin to your PATH if not already added.
-        echo Run 'ovie --help' to get started.
-        echo.
-        echo Visit: https://ovie-lang.org for documentation
-        pause
-        EOF
-        
-        cp README.md LICENSE windows-x64/
-        cp ovie.png windows-x64/ 2>/dev/null || echo "ovie.png not found"
-        cp -r docs examples std windows-x64/ 2>/dev/null || echo "directories not found"
-        
-        # Create Windows archive
-        cd windows-x64 && zip -r ../releases/ovie-v${{ env.OVIE_VERSION }}-windows-x64.zip . && cd ..
-        
-        # Create macOS Intel package
-        mkdir -p macos-x64
-        cat > macos-x64/ovie << 'EOF'
-        #!/bin/bash
-        echo "🎉 Ovie Stage 2 - Self-Hosted Programming Language v${{ env.OVIE_VERSION }}"
-        echo "✨ Platform: macOS Intel x64"
-        echo "🏆 Self-hosted compiler achieved!"
-        echo ""
-        echo "Usage: ovie [command] [options]"
-        echo ""
-        echo "Commands:"
-        echo "  new <name>     Create a new Ovie project"
-        echo "  run            Run the current project"
-        echo "  build          Build the current project"
-        echo "  test           Run tests"
-        echo "  --version      Show version information"
-        echo "  --help         Show this help message"
-        echo ""
-        echo "Visit https://ovie-lang.org for documentation"
-        EOF
-        
-        cat > macos-x64/oviec << 'EOF'
-        #!/bin/bash
-        echo "🔧 Ovie Compiler (oviec) - Stage 2 Self-Hosted v${{ env.OVIE_VERSION }}"
-        echo "🎯 Target: macOS Intel x64"
-        echo ""
-        echo "Usage: oviec [file.ov] [options]"
-        echo ""
-        echo "Options:"
-        echo "  --target <target>    Compilation target (native, wasm, ir)"
-        echo "  --output <file>      Output file name"
-        echo "  --optimize          Enable optimizations"
-        echo "  --version           Show version information"
-        echo "  --help              Show this help message"
-        echo ""
-        echo "Visit https://ovie-lang.org for documentation"
-        EOF
-        
-        chmod +x macos-x64/ovie macos-x64/oviec
-        cp README.md LICENSE macos-x64/
-        cp ovie.png macos-x64/ 2>/dev/null || echo "ovie.png not found"
-        cp -r docs examples std macos-x64/ 2>/dev/null || echo "directories not found"
-        tar -czf releases/ovie-v${{ env.OVIE_VERSION }}-macos-x64.tar.gz macos-x64
-        
-        # Create macOS Apple Silicon package
-        mkdir -p macos-arm64
-        cat > macos-arm64/ovie << 'EOF'
-        #!/bin/bash
-        echo "🎉 Ovie Stage 2 - Self-Hosted Programming Language v${{ env.OVIE_VERSION }}"
-        echo "✨ Platform: macOS Apple Silicon ARM64"
-        echo "🏆 Self-hosted compiler achieved!"
-        echo ""
-        echo "Usage: ovie [command] [options]"
-        echo ""
-        echo "Commands:"
-        echo "  new <name>     Create a new Ovie project"
-        echo "  run            Run the current project"
-        echo "  build          Build the current project"
-        echo "  test           Run tests"
-        echo "  --version      Show version information"
-        echo "  --help         Show this help message"
-        echo ""
-        echo "Visit https://ovie-lang.org for documentation"
-        EOF
-        
-        cat > macos-arm64/oviec << 'EOF'
-        #!/bin/bash
-        echo "🔧 Ovie Compiler (oviec) - Stage 2 Self-Hosted v${{ env.OVIE_VERSION }}"
-        echo "🎯 Target: macOS Apple Silicon ARM64"
-        echo ""
-        echo "Usage: oviec [file.ov] [options]"
-        echo ""
-        echo "Options:"
-        echo "  --target <target>    Compilation target (native, wasm, ir)"
-        echo "  --output <file>      Output file name"
-        echo "  --optimize          Enable optimizations"
-        echo "  --version           Show version information"
-        echo "  --help              Show this help message"
-        echo ""
-        echo "Visit https://ovie-lang.org for documentation"
-        EOF
-        
-        chmod +x macos-arm64/ovie macos-arm64/oviec
-        cp README.md LICENSE macos-arm64/
-        cp ovie.png macos-arm64/ 2>/dev/null || echo "ovie.png not found"
-        cp -r docs examples std macos-arm64/ 2>/dev/null || echo "directories not found"
-        tar -czf releases/ovie-v${{ env.OVIE_VERSION }}-macos-arm64.tar.gz macos-arm64
-        
-        # Copy VS Code extension
-        cp extensions/ovie-vscode/ovie-lang-1.0.0.vsix releases/ 2>/dev/null || echo "VS Code Extension v1.0.0 - Demo Package" > releases/ovie-lang-1.0.0.vsix
-        
-        # Generate checksums
-        cd releases
-        sha256sum * > checksums.txt
-        echo "📋 Generated checksums:"
-        cat checksums.txt
-        
-        echo ""
-        echo "📦 Release assets created:"
-        ls -la
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-    - name: Create tag first
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        
-        # Check if tag already exists
-        if git rev-parse "v${{ env.OVIE_VERSION }}" >/dev/null 2>&1; then
-          echo "Tag v${{ env.OVIE_VERSION }} already exists"
-        else
-          git tag -a "v${{ env.OVIE_VERSION }}" -m "Ovie v${{ env.OVIE_VERSION }} - Stage 2 Self-Hosted Release"
-          git push origin "v${{ env.OVIE_VERSION }}"
-          echo "Created and pushed tag v${{ env.OVIE_VERSION }}"
-        fi
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.platform }}-cargo-cr-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.platform }}-cargo-cr-
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: "v${{ env.OVIE_VERSION }}"
-        name: "🎉 Ovie v${{ env.OVIE_VERSION }} - Stage 2 Self-Hosted!"
-        body: |
-          # 🚀 Ovie Programming Language - Stage 2 Self-Hosted Multi-Platform Release!
-          
-          ## 🎯 Historic Milestone: Complete Self-Hosting Achieved!
-          
-          Ovie has achieved **Stage 2 - Self-Hosting** across all major platforms! The Ovie compiler now compiles itself using its own compiler (oviec) on Windows, macOS, and Linux.
-          
-          ## 🌐 Platform Support
-          
-          - ✅ **Linux x64** - Full self-hosted compilation
-          - ✅ **Windows x64** - Native Windows support  
-          - ✅ **macOS Intel (x64)** - Intel Mac support
-          - ✅ **macOS Apple Silicon (ARM64)** - Native Apple Silicon support
-          
-          ## ✨ What's New in Stage 2
-          
-          - 🔄 **Self-Hosted Compilation**: Ovie compiles itself - no external dependencies!
-          - 🌐 **Multi-Platform**: Native support for all major operating systems
-          - 🎯 **Production Ready**: Complete toolchain with robust error handling
-          - 🔧 **Enhanced CLI**: Improved `ovie` command-line interface
-          - 📦 **Package Management**: Built-in package system
-          - 🧠 **Aproko Assistant**: AI-powered code analysis and suggestions
-          - 🎨 **VS Code Extension**: Full IDE support with syntax highlighting
-          
-          ## 📥 Quick Install
-          
-          **Linux/macOS:**
-          ```bash
-          curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/install.sh | bash
-          ```
-          
-          **Windows (PowerShell):**
-          ```powershell
-          iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/install.ps1 | iex
-          ```
-          
-          ## 💾 Manual Downloads
-          
-          | Platform | Download | Architecture |
-          |----------|----------|--------------|
-          | **Linux** | `ovie-v${{ env.OVIE_VERSION }}-linux-x64.tar.gz` | x86_64 |
-          | **Windows** | `ovie-v${{ env.OVIE_VERSION }}-windows-x64.zip` | x86_64 |
-          | **macOS Intel** | `ovie-v${{ env.OVIE_VERSION }}-macos-x64.tar.gz` | x86_64 |
-          | **macOS Apple Silicon** | `ovie-v${{ env.OVIE_VERSION }}-macos-arm64.tar.gz` | ARM64 |
-          | **VS Code Extension** | `ovie-lang-1.0.0.vsix` | All Platforms |
-          
-          ## 🚀 Quick Start
-          
-          ```bash
-          # Create a new Ovie project
-          ovie new my-project
-          cd my-project
-          
-          # Run your project
-          ovie run
-          
-          # Compile to different targets
-          oviec src/main.ov --target native
-          oviec src/main.ov --target wasm
-          ```
-          
-          ## 🔐 Verification
-          
-          Verify your download integrity using SHA256 checksums in `checksums.txt`.
-          
-          ## 🌟 Features
-          
-          ✅ **Self-Hosted Compiler** - Ovie compiles itself on all platforms!  
-          ✅ **Multi-Platform Native** - Windows, macOS, Linux support  
-          ✅ **Zero Dependencies** - No external runtime requirements  
-          ✅ **Package Management** - Built-in dependency management  
-          ✅ **AI Assistant** - Aproko engine for code analysis  
-          ✅ **Memory Safety** - Built-in safety guarantees  
-          ✅ **Modern Toolchain** - Complete development environment  
-          ✅ **VS Code Integration** - Full IDE support included  
-          
-          ## 🎯 What's Next?
-          
-          - 🔄 Stage 3: Advanced optimizations and JIT compilation
-          - 🌐 Web playground and online IDE
-          - 📱 Mobile development support
-          - 🔌 Plugin ecosystem
-          - 🚀 Performance improvements
-          
-          ---
-          
-          **🎉 Thank you for being part of the Ovie journey!**
-          
-          This multi-platform self-hosted release represents a major milestone in Ovie's development. We're excited to see what you'll build with Ovie across all platforms!
-          
-          Visit: https://ovie-lang.org for complete documentation and examples.
-        files: |
-          releases/*
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build binaries
+        run: |
+          cargo build --release --bin oviec         --target ${{ matrix.target }}
+          cargo build --release --bin oviec-analyze --target ${{ matrix.target }}
 
-    - name: Summary
-      run: |
-        echo ""
-        echo "🎉 Ovie v${{ env.OVIE_VERSION }} Release Created Successfully!"
-        echo "=========================================================="
-        echo "✅ Multi-platform demo binaries created"
-        echo "✅ VS Code extension included"
-        echo "✅ Installation scripts generated"
-        echo "✅ SHA256 checksums created"
-        echo "✅ GitHub release published"
-        echo ""
-        echo "🚀 Ovie Stage 2 - Self-Hosted Multi-Platform Programming Language!"
-        echo "Visit: https://github.com/southwarridev/ovie/releases/latest"
-        echo "Website: https://ovie-lang.org"
+      - name: Verify
+        shell: bash
+        run: |
+          BIN="target/${{ matrix.target }}/release/oviec${{ matrix.ext }}"
+          "$BIN" --version
+
+      - name: Assemble package
+        shell: bash
+        run: |
+          PKG="ovie-v${{ env.OVIE_VERSION }}-${{ matrix.platform }}"
+          mkdir -p "$PKG/bin"
+
+          cp "target/${{ matrix.target }}/release/oviec${{ matrix.ext }}"         "$PKG/bin/"
+          cp "target/${{ matrix.target }}/release/oviec${{ matrix.ext }}"         "$PKG/bin/ovie${{ matrix.ext }}"
+          cp "target/${{ matrix.target }}/release/oviec-analyze${{ matrix.ext }}" "$PKG/bin/"
+
+          cp -r std      "$PKG/"
+          cp -r examples "$PKG/"
+          cp -r docs     "$PKG/"
+
+          for f in README.md LICENSE RELEASE_NOTES_v2.3.md CONTRIBUTING.md ovie.toml.template; do
+            [ -f "$f" ] && cp "$f" "$PKG/"
+          done
+          [ -f "ovie.png" ] && cp "ovie.png" "$PKG/"
+
+          if [ "${{ matrix.platform }}" = "windows-x64" ]; then
+            [ -f "easy-windows-install.ps1" ] && cp "easy-windows-install.ps1" "$PKG/install.ps1"
+            [ -f "easy-windows-install.bat" ] && cp "easy-windows-install.bat" "$PKG/install-easy.bat"
+          else
+            [ -f "easy-linux-install.sh"  ] && cp "easy-linux-install.sh"  "$PKG/install-easy.sh" && chmod +x "$PKG/install-easy.sh"
+            [ -f "easy-macos-install.sh"  ] && cp "easy-macos-install.sh"  "$PKG/install-macos.sh" && chmod +x "$PKG/install-macos.sh"
+          fi
+
+          cat > "$PKG/VERSION.txt" << EOF
+          Ovie v${{ env.OVIE_VERSION }} — Complete Module System
+          Platform : ${{ matrix.platform }}
+          Built    : $(date -u +"%Y-%m-%d %H:%M UTC")
+          Commit   : ${{ github.sha }}
+          EOF
+
+      - name: Create archive (zip)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $pkg = "ovie-v${{ env.OVIE_VERSION }}-${{ matrix.platform }}"
+          Compress-Archive -Path "$pkg\*" -DestinationPath "$pkg.zip" -Force
+
+      - name: Create archive (tar.gz)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          PKG="ovie-v${{ env.OVIE_VERSION }}-${{ matrix.platform }}"
+          tar -czf "$PKG.tar.gz" "$PKG"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ovie-${{ matrix.platform }}
+          path: ovie-v${{ env.OVIE_VERSION }}-${{ matrix.platform }}.*
+          retention-days: 7
+
+  # ── VS Code Extension ─────────────────────────────────────────────────────
+  vscode:
+    name: Build VS Code Extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build and package
+        working-directory: extensions/ovie-vscode
+        run: |
+          npm install
+          npm run compile
+          npx @vscode/vsce package --no-dependencies
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ovie-vscode-extension
+          path: extensions/ovie-vscode/*.vsix
+          retention-days: 7
+
+  # ── Publish GitHub Release ────────────────────────────────────────────────
+  release:
+    name: Publish GitHub Release v${{ github.event.inputs.version }}
+    needs: [build, vscode]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create tag
+        run: |
+          git config user.email "action@github.com"
+          git config user.name  "GitHub Action"
+          if git rev-parse "v${{ env.OVIE_VERSION }}" >/dev/null 2>&1; then
+            echo "Tag v${{ env.OVIE_VERSION }} already exists"
+          else
+            git tag -a "v${{ env.OVIE_VERSION }}" -m "Ovie v${{ env.OVIE_VERSION }}"
+            git push origin "v${{ env.OVIE_VERSION }}"
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Collect release assets + checksums
+        run: |
+          mkdir -p releases
+          find artifacts/ \( -name "*.zip" -o -name "*.tar.gz" -o -name "*.vsix" \) \
+            | while read f; do cp "$f" releases/; done
+          cd releases && sha256sum * > checksums.txt
+          echo "=== Release assets ===" && ls -lh
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ env.OVIE_VERSION }}"
+          name: "🎉 Ovie v${{ env.OVIE_VERSION }} — Complete Module System"
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          body: |
+            # 🚀 Ovie v${{ env.OVIE_VERSION }} — Complete Module System
+
+            ## What's New in v2.3
+            - **Module System** — `use`/`import`/`export`, dependency graph, SHA-256 caching
+            - **Aproko Knowledge Base** — AI/LLM-accessible type info and reasoning rules
+            - **Package Manager** — `oviec init`, `oviec add`, `oviec install`, `ovie.lock`
+            - **oviec-analyze** — standalone analysis binary for `oviec analyze`/`explain`
+            - **11 Standard Library Modules** — including `std::module` and `std::aproko`
+
+            ## Quick Install
+            **Windows:** `iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex`
+            **Linux:** `curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash`
+            **macOS:** `curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash`
+
+            ## Downloads
+            | Platform | File |
+            |----------|------|
+            | Windows x64 | `ovie-v${{ env.OVIE_VERSION }}-windows-x64.zip` |
+            | Linux x64 | `ovie-v${{ env.OVIE_VERSION }}-linux-x64.tar.gz` |
+            | macOS Apple Silicon | `ovie-v${{ env.OVIE_VERSION }}-macos-arm64.tar.gz` |
+            | macOS Intel | `ovie-v${{ env.OVIE_VERSION }}-macos-x64.tar.gz` |
+            | VS Code Extension | `ovie-lang-*.vsix` |
+
+            Verify: `oviec --version` · `oviec --self-check`
+            SHA256 checksums in `checksums.txt`.
+          files: releases/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

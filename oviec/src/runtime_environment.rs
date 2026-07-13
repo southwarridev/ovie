@@ -1,6 +1,6 @@
 // Ovie Runtime Environment (ORE) Discovery System
 // This module implements the canonical directory structure discovery and validation
-// for Ovie v2.2 Complete Language Consolidation
+// for Ovie v2.3 Complete Module System
 
 use std::path::{Path, PathBuf};
 use std::env;

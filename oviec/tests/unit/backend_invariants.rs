@@ -177,7 +177,7 @@ fn create_valid_program() -> Program {
         globals: HashMap::new(),
         metadata: Metadata {
             source_file: "test.ov".to_string(),
-            compiler_version: "2.2.0".to_string(),
+            compiler_version: "2.3.0".to_string(),
             target_triple: "wasm32-unknown-unknown".to_string(),
             optimization_level: 2,
             debug_info: false,

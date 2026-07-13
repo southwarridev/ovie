@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Ovie Real Bootstrap Verification Script - v2.2.0
+# Ovie Real Bootstrap Verification Script - v2.3.0
 # Compares Rust lexer output to Ovie lexer output for real self-hosting
 # ============================================================================
 
@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}============================================================================${NC}"
 echo -e "${BLUE}                    OVIE REAL BOOTSTRAP VERIFICATION${NC}"
-echo -e "${BLUE}                         v2.2.0 - Rust vs Ovie Lexer${NC}"
+echo -e "${BLUE}                         v2.3.0 - Rust vs Ovie Lexer${NC}"
 echo -e "${BLUE}============================================================================${NC}"
 echo ""
 

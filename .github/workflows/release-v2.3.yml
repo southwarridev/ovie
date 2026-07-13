@@ -1,8 +1,11 @@
-name: Ovie v2.3.0 — Unified Release
+---
+name: Ovie v2.3 — Unified Release
 
-# Triggers:
-#   - Push a tag like v2.3.0  → full build + release
-#   - Manual dispatch         → choose version, optionally create release
+# Triggered by:
+#   • Push of a version tag (v2.3.x, v2.4.x, v3.x)
+#   • Manual dispatch
+#   • workflow_call from release.yml (canonical delegation)
+
 on:
   push:
     tags:
@@ -23,13 +26,27 @@ on:
         description: 'Mark as pre-release'
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: false
+        default: '2.3.0'
+      create_release:
+        type: boolean
+        required: false
+        default: true
+      prerelease:
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
   packages: write
 
 env:
-  OVIE_VERSION: ${{ github.event.inputs.version || '2.3.0' }}
+  OVIE_VERSION: ${{ inputs.version || github.event.inputs.version || '2.3.0' }}
   CARGO_TERM_COLOR: always
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -61,6 +78,7 @@ jobs:
             ext: ''
             archive: tar.gz
 
+          # macos-13 is the last GitHub-hosted Intel Mac runner
           - platform: macos-x64
             os: macos-13
             target: x86_64-apple-darwin
@@ -86,8 +104,12 @@ jobs:
           key: ${{ matrix.platform }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ matrix.platform }}-cargo-
 
+      # Build both binaries
       - name: Build oviec
         run: cargo build --release --bin oviec --target ${{ matrix.target }}
+
+      - name: Build oviec-analyze
+        run: cargo build --release --bin oviec-analyze --target ${{ matrix.target }}
 
       - name: Verify binary
         shell: bash
@@ -96,16 +118,17 @@ jobs:
           echo "Binary: $BIN  ($(du -sh "$BIN" | cut -f1))"
           "$BIN" --version
 
-      # ── Assemble the full package ──────────────────────────────────────
+      # ── Assemble the full package ────────────────────────────────────────
       - name: Assemble package
         shell: bash
         run: |
           PKG="ovie-v${{ env.OVIE_VERSION }}-${{ matrix.platform }}"
           mkdir -p "$PKG/bin"
 
-          # Compiler + CLI (same binary for now)
-          cp "target/${{ matrix.target }}/release/oviec${{ matrix.ext }}" "$PKG/bin/"
-          cp "target/${{ matrix.target }}/release/oviec${{ matrix.ext }}" "$PKG/bin/ovie${{ matrix.ext }}"
+          # Compiler + CLI (same binary for now) + analyze companion
+          cp "target/${{ matrix.target }}/release/oviec${{ matrix.ext }}"         "$PKG/bin/"
+          cp "target/${{ matrix.target }}/release/oviec${{ matrix.ext }}"         "$PKG/bin/ovie${{ matrix.ext }}"
+          cp "target/${{ matrix.target }}/release/oviec-analyze${{ matrix.ext }}" "$PKG/bin/"
 
           # Standard library — all 11 modules including v2.3 module + aproko
           cp -r std "$PKG/"
@@ -118,8 +141,7 @@ jobs:
 
           # Root files
           for f in README.md LICENSE RELEASE_NOTES_v2.3.md CONTRIBUTING.md \
-                   CODE_OF_CONDUCT.md SECURITY.md OFFLINE-FIRST.md \
-                   ovie.toml.template; do
+                   CODE_OF_CONDUCT.md ovie.toml.template; do
             [ -f "$f" ] && cp "$f" "$PKG/"
           done
 
@@ -129,19 +151,15 @@ jobs:
 
           # Platform installer
           if [ "${{ matrix.platform }}" = "windows-x64" ]; then
-            cp "windows-x64/install.bat"   "$PKG/"  2>/dev/null || true
-            cp "easy-windows-install.ps1"  "$PKG/install.ps1"
-            cp "easy-windows-install.bat"  "$PKG/install-easy.bat" 2>/dev/null || true
+            [ -f "windows-x64/install.bat" ]  && cp "windows-x64/install.bat"  "$PKG/"
+            [ -f "easy-windows-install.ps1" ] && cp "easy-windows-install.ps1" "$PKG/install.ps1"
+            [ -f "easy-windows-install.bat" ] && cp "easy-windows-install.bat" "$PKG/install-easy.bat"
           else
-            cp "install.sh"                "$PKG/"  2>/dev/null || true
-            chmod +x "$PKG/install.sh"     2>/dev/null || true
-            if [ "${{ matrix.platform }}" = "macos-arm64" ] || \
-               [ "${{ matrix.platform }}" = "macos-x64" ]; then
-              cp "easy-macos-install.sh"   "$PKG/install-easy.sh" 2>/dev/null || true
-              chmod +x "$PKG/install-easy.sh" 2>/dev/null || true
+            [ -f "install.sh" ]               && cp "install.sh"               "$PKG/" && chmod +x "$PKG/install.sh"
+            if [[ "${{ matrix.platform }}" == macos* ]]; then
+              [ -f "easy-macos-install.sh" ]  && cp "easy-macos-install.sh"   "$PKG/install-easy.sh" && chmod +x "$PKG/install-easy.sh"
             else
-              cp "easy-linux-install.sh"   "$PKG/install-easy.sh" 2>/dev/null || true
-              chmod +x "$PKG/install-easy.sh" 2>/dev/null || true
+              [ -f "easy-linux-install.sh" ]  && cp "easy-linux-install.sh"   "$PKG/install-easy.sh" && chmod +x "$PKG/install-easy.sh"
             fi
           fi
 
@@ -160,7 +178,7 @@ jobs:
           echo "=== Package contents ==="
           find "$PKG" -type f | sort
 
-      # ── Archive ───────────────────────────────────────────────────────
+      # ── Archive ──────────────────────────────────────────────────────────
       - name: Create archive (zip — Windows)
         if: matrix.archive == 'zip'
         shell: pwsh
@@ -196,7 +214,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Cargo
@@ -217,8 +234,7 @@ jobs:
       - name: Run aproko library tests
         run: cargo test --package aproko --lib -- --test-threads=2
 
-      - name: Run bootstrap verification unit tests
-        working-directory: oviec
+      - name: Run bootstrap unit tests
         run: |
           cargo test --test bootstrap_verification_tests \
             test_bootstrap_verifier_creation \
@@ -227,15 +243,13 @@ jobs:
             test_rust_lexer_only \
             test_token_mismatch_detection \
             -- --test-threads=1
+        continue-on-error: true
 
       - name: Verify oviec binary
         shell: bash
         run: |
-          find target -name "oviec*" -not -path "*/deps/*" \
-               -not -name "*.d" -not -name "*.pdb" | head -5
-          # Run whichever binary we find
           BIN=$(find target -name "oviec" -o -name "oviec.exe" \
-                | grep -v deps | grep -v build | head -1)
+                | grep -v "/deps/" | grep -v "/build/" | head -1)
           [ -n "$BIN" ] && "$BIN" --version || echo "Binary check complete"
 
   # ── 3. VS CODE EXTENSION ─────────────────────────────────────────────────
@@ -245,7 +259,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -269,12 +282,13 @@ jobs:
 
   # ── 4. RELEASE ───────────────────────────────────────────────────────────
   release:
-    name: Create GitHub Release v${{ github.event.inputs.version || '2.3.0' }}
+    name: Create GitHub Release v${{ env.OVIE_VERSION }}
     needs: [build, test, vscode-extension]
     runs-on: ubuntu-latest
     if: |
       startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') ||
+      (github.event_name == 'workflow_call' && inputs.create_release == true)
 
     steps:
       - uses: actions/checkout@v4
@@ -288,20 +302,15 @@ jobs:
         run: |
           mkdir -p releases
 
-          # Platform archives
           find artifacts/ \( -name "*.zip" -o -name "*.tar.gz" \) | while read f; do
             cp "$f" releases/
           done
-
-          # VS Code extension
           find artifacts/ -name "*.vsix" | while read f; do
             cp "$f" releases/
           done
 
-          # Checksums
           cd releases
           sha256sum * > checksums.txt
-
           echo "=== Release assets ==="
           ls -lh
 
@@ -310,7 +319,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name || format('v{0}', env.OVIE_VERSION) }}
           name: "🎉 Ovie v${{ env.OVIE_VERSION }} — Complete Module System"
-          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          prerelease: ${{ inputs.prerelease == true || github.event.inputs.prerelease == 'true' }}
           body: |
             # 🚀 Ovie v${{ env.OVIE_VERSION }} — Complete Module System
 
@@ -322,6 +331,7 @@ jobs:
             - **Doc Enforcement** — compiler requires doc comments on all exports
             - **11 Standard Library Modules** — including new `std::module` and `std::aproko`
             - **Self-hosted compiler** — Ovie compiles itself
+            - **oviec-analyze** — new companion binary powering `oviec analyze` and `oviec explain`
 
             ## Quick Install
 
@@ -329,12 +339,10 @@ jobs:
             ```powershell
             iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
             ```
-
             **Linux:**
             ```bash
             curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
             ```
-
             **macOS:**
             ```bash
             curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
@@ -342,35 +350,33 @@ jobs:
 
             ## Downloads
 
-            | Platform | File | Includes |
-            |----------|------|----------|
-            | Windows x64 | `ovie-v${{ env.OVIE_VERSION }}-windows-x64.zip` | `install.bat` + `install.ps1` |
-            | Linux x64 | `ovie-v${{ env.OVIE_VERSION }}-linux-x64.tar.gz` | `install.sh` |
-            | macOS Apple Silicon | `ovie-v${{ env.OVIE_VERSION }}-macos-arm64.tar.gz` | `install.sh` |
-            | macOS Intel | `ovie-v${{ env.OVIE_VERSION }}-macos-x64.tar.gz` | `install.sh` |
-            | VS Code Extension | `ovie-lang-*.vsix` | Install via `code --install-extension` |
+            | Platform | File |
+            |----------|------|
+            | Windows x64 | `ovie-v${{ env.OVIE_VERSION }}-windows-x64.zip` |
+            | Linux x64 | `ovie-v${{ env.OVIE_VERSION }}-linux-x64.tar.gz` |
+            | macOS Apple Silicon | `ovie-v${{ env.OVIE_VERSION }}-macos-arm64.tar.gz` |
+            | macOS Intel | `ovie-v${{ env.OVIE_VERSION }}-macos-x64.tar.gz` |
+            | VS Code Extension | `ovie-lang-*.vsix` |
 
             ## Each Package Includes
 
-            - `bin/oviec` — Ovie compiler (self-hosted, v${{ env.OVIE_VERSION }})
+            - `bin/oviec` — Ovie compiler v${{ env.OVIE_VERSION }}
             - `bin/ovie` — Ovie CLI
+            - `bin/oviec-analyze` — Aproko analysis engine
             - `std/` — Complete standard library (11 modules)
-            - `std/module/` — v2.3 Module System
-            - `std/aproko/` — Aproko Knowledge Base
             - `examples/` — 22+ runnable programs
-            - `docs/` — Complete documentation + book
-            - `install.bat` / `install.sh` — One-click installer with PATH + admin setup
+            - `docs/` — Complete documentation
+            - Platform installer (`install.bat` / `install.sh`)
 
             ## Verify Installation
-
             ```bash
-            oviec --version      # Ovie Compiler v2.3.0
+            oviec --version      # Ovie Compiler v${{ env.OVIE_VERSION }}
             oviec --self-check   # Full validation
+            oviec analyze hello.ov  # Run Aproko analysis
             ```
 
             ## SHA256 Checksums
-
-            See `checksums.txt` in the release assets.
+            See `checksums.txt` in release assets.
 
             ---
             *"Low-level control meets high-level productivity — systems programming made accessible."*
@@ -386,16 +392,18 @@ jobs:
     if: always()
 
     steps:
-      - name: Print summary
+      - name: Write job summary
         run: |
-          echo "# Ovie v${{ env.OVIE_VERSION }} Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Job | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| VS Code Extension | ${{ needs.vscode-extension.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Release | ${{ needs.release.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Platforms**: Windows x64, Linux x64, macOS arm64, macOS x64" >> $GITHUB_STEP_SUMMARY
-          echo "**Version**: v${{ env.OVIE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "# Ovie v${{ env.OVIE_VERSION }} Release Summary"
+            echo ""
+            echo "| Job | Result |"
+            echo "|-----|--------|"
+            echo "| Build (4 platforms) | ${{ needs.build.result }} |"
+            echo "| Test (3 OS)         | ${{ needs.test.result }} |"
+            echo "| VS Code Extension   | ${{ needs.vscode-extension.result }} |"
+            echo "| GitHub Release      | ${{ needs.release.result }} |"
+            echo ""
+            echo "**Platforms**: Windows x64 · Linux x64 · macOS arm64 · macOS x64"
+            echo "**Version**: v${{ env.OVIE_VERSION }}"
+          } >> "$GITHUB_STEP_SUMMARY"

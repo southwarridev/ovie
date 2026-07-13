@@ -1,0 +1,130 @@
+---
+# Lightweight release workflow — Linux-only build, fast turn-around.
+# Use this for quick patch releases or testing the release pipeline.
+# For a full multi-platform release use release-v2.3.yml or manual-release.yml.
+
+name: Simple Release — Ovie v2.3
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 2.3.1)'
+        required: true
+        default: '2.3.0'
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  OVIE_VERSION: ${{ github.event.inputs.version }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+    name: Build Linux x64
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            target/
+          key: linux-cargo-simple-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: |
+          cargo build --release --bin oviec
+          cargo build --release --bin oviec-analyze
+
+      - name: Verify
+        run: target/release/oviec --version
+
+      - name: Assemble package
+        run: |
+          PKG="ovie-v${{ env.OVIE_VERSION }}-linux-x64"
+          mkdir -p "$PKG/bin"
+          cp target/release/oviec         "$PKG/bin/"
+          cp target/release/oviec-analyze "$PKG/bin/"
+          cp target/release/oviec         "$PKG/bin/ovie"
+          cp -r std examples docs         "$PKG/"
+          for f in README.md LICENSE RELEASE_NOTES_v2.3.md ovie.toml.template; do
+            [ -f "$f" ] && cp "$f" "$PKG/"
+          done
+          [ -f "ovie.png" ] && cp "ovie.png" "$PKG/"
+          [ -f "easy-linux-install.sh" ] && cp "easy-linux-install.sh" "$PKG/install.sh" && chmod +x "$PKG/install.sh"
+
+          printf "Ovie v%s — linux-x64\nBuilt: %s\nCommit: %s\n" \
+            "${{ env.OVIE_VERSION }}" "$(date -u)" "${{ github.sha }}" > "$PKG/VERSION.txt"
+
+          tar -czf "$PKG.tar.gz" "$PKG"
+          echo "Archive: $PKG.tar.gz ($(du -sh "$PKG.tar.gz" | cut -f1))"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ovie-linux-x64-simple
+          path: ovie-v${{ env.OVIE_VERSION }}-linux-x64.tar.gz
+          retention-days: 7
+
+  release:
+    name: Publish Simple Release
+    needs: build-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create tag if missing
+        run: |
+          git config user.email "action@github.com"
+          git config user.name  "GitHub Action"
+          if git rev-parse "v${{ env.OVIE_VERSION }}" >/dev/null 2>&1; then
+            echo "Tag already exists"
+          else
+            git tag -a "v${{ env.OVIE_VERSION }}" -m "Ovie v${{ env.OVIE_VERSION }}"
+            git push origin "v${{ env.OVIE_VERSION }}"
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ovie-linux-x64-simple
+          path: releases/
+
+      - name: Generate checksums
+        run: |
+          cd releases
+          sha256sum * > checksums.txt
+          ls -lh
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ env.OVIE_VERSION }}"
+          name: "Ovie v${{ env.OVIE_VERSION }} (Linux x64 quick release)"
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          body: |
+            ## Ovie v${{ env.OVIE_VERSION }} — Linux x64 Quick Release
+
+            > For full multi-platform packages use the **release-v2.3** or **manual-release** workflows.
+
+            **Binaries included**: `oviec` · `ovie` · `oviec-analyze`
+            **Standard library**: all 11 modules including `std::module` + `std::aproko` (v2.3)
+
+            ```bash
+            curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+            oviec --version   # Ovie Compiler v${{ env.OVIE_VERSION }}
+            oviec --self-check
+            ```
+          files: releases/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

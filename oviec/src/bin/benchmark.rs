@@ -113,6 +113,7 @@ fn main() {
         }
     }
     
+    
     // Test memory efficiency with large programs
     println!("\n=== Memory Efficiency Test ===");
     let large_program = (0..500)

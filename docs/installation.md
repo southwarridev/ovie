@@ -8,7 +8,7 @@
 
 This guide covers installing the Ovie Programming Language toolchain on various platforms. Ovie is a **complete, trustworthy programming language** with enforced compiler invariants, proven bootstrap verification, and comprehensive runtime environment.
 
-**🎉 Status: Installing a complete language system v2.2 (February 2026)**
+**🎉 Status: Installing a complete language system v2.3 (2026)**
 
 ## Quick Install
 
@@ -346,7 +346,7 @@ Plug 'ovie-lang/ovie.vim'  " When available
 ```bash
 # Check version
 oviec --version
-# Expected: oviec 2.2.0 (Complete Language System)
+# Expected: oviec 2.3.0 (Complete Module System)
 
 # Check runtime environment
 oviec --env

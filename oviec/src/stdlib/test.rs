@@ -441,30 +441,44 @@ impl Default for TestRegistry {
     }
 }
 
-/// Global test registry instance
-static mut GLOBAL_TEST_REGISTRY: OvieOption<TestRegistry> = OvieOption::None;
+/// Global test registry — uses OnceLock+Mutex to avoid static_mut_refs UB.
+use std::sync::{Mutex, OnceLock};
 
-/// Initialize the global test registry
-pub fn init_test_registry() {
-    unsafe {
-        GLOBAL_TEST_REGISTRY = some(TestRegistry::new());
-    }
+static GLOBAL_TEST_REGISTRY: OnceLock<Mutex<TestRegistry>> = OnceLock::new();
+
+fn registry_cell() -> &'static Mutex<TestRegistry> {
+    GLOBAL_TEST_REGISTRY.get_or_init(|| Mutex::new(TestRegistry::new()))
 }
 
-/// Get a mutable reference to the global test registry
+/// Initialize the global test registry (no-op — auto-initialised on first use)
+pub fn init_test_registry() {
+    let _ = registry_cell(); // ensure initialised
+}
+
+/// Execute a closure with exclusive access to the global test registry.
+/// Replaces the old get_test_registry() raw-pointer API.
+pub fn with_test_registry<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut TestRegistry) -> R,
+{
+    let mut guard = registry_cell().lock().unwrap_or_else(|e| e.into_inner());
+    f(&mut *guard)
+}
+
+/// Get a mutable reference to the global test registry.
+///
+/// # Safety
+/// This function is kept for backwards compatibility with call-sites that
+/// hold the returned reference only within a single thread and do not allow
+/// re-entrant access.  Prefer `with_test_registry` for new code.
 pub fn get_test_registry() -> &'static mut TestRegistry {
-    unsafe {
-        match &mut GLOBAL_TEST_REGISTRY {
-            OvieOption::Some(registry) => registry,
-            OvieOption::None => {
-                init_test_registry();
-                match &mut GLOBAL_TEST_REGISTRY {
-                    OvieOption::Some(registry) => registry,
-                    OvieOption::None => panic!("Failed to initialize test registry"),
-                }
-            }
-        }
-    }
+    // SAFETY: single-threaded Ovie programs cannot cause data races here.
+    // We hold the lock for the duration of the call, then immediately release
+    // it — the returned &mut is valid until the next lock acquisition.
+    // This is technically unsound in multi-threaded contexts; the proper fix
+    // is to migrate all callers to `with_test_registry`.
+    let ptr: *mut TestRegistry = &mut *registry_cell().lock().unwrap_or_else(|e| e.into_inner());
+    unsafe { &mut *ptr }
 }
 
 /// Register a test function with the global registry

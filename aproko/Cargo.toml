@@ -11,6 +11,10 @@ description = "Aproko — Static analysis and reasoning engine for the Ovie prog
 keywords = ["assistant", "code-analysis", "ovie"]
 categories = ["development-tools", "compilers"]
 
+[[bin]]
+name = "oviec-analyze"
+path = "src/bin/analyze.rs"
+
 [dependencies]
 # Error handling
 thiserror.workspace = true

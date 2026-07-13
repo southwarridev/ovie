@@ -69,7 +69,7 @@ jobs:
             type=raw,value=${{ steps.version.outputs.version }}
           labels: |
             org.opencontainers.image.title=Ovie Programming Language
-            org.opencontainers.image.description=Ovie v${{ steps.version.outputs.version }} — Complete Module System. Self-hosted systems programming language.
+            org.opencontainers.image.description=Ovie v${{ steps.version.outputs.version }} — Complete Module System. Self-hosted systems programming language with module system, Aproko KB, and 11 stdlib modules.
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.authors=Ovie Language Team <ovielang@gmail.com>
             org.opencontainers.image.licenses=MIT
@@ -134,6 +134,10 @@ jobs:
         run: cargo publish --package oviec --no-verify
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      # aproko depends on oviec — wait a few seconds for the index to update
+      - name: Wait for crates.io index
+        run: sleep 30
 
       - name: Publish aproko to crates.io
         if: env.CARGO_REGISTRY_TOKEN != ''

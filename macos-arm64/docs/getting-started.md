@@ -8,7 +8,7 @@
 
 Welcome to Ovie! This guide will help you get started with the Ovie Programming Language, whether you're new to programming or an experienced developer.
 
-**🎉 Status: You're learning a complete, trustworthy programming language (v2.2)!**
+**🎉 Status: You're learning a complete, trustworthy programming language (v2.3)!**
 
 ## What is Ovie?
 

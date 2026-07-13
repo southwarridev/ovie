@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 /// HIR invariant validation trait
 pub trait HirInvariantValidation {
-    /// Validate HIR invariants according to Stage 2.2 compiler invariants
+    /// Validate HIR invariants according to Stage 2.3 compiler invariants
     fn validate(&self) -> Result<(), crate::ast::InvariantError>;
 }
 
@@ -2124,7 +2124,7 @@ impl HirProgram {
 }
 
 impl HirInvariantValidation for HirProgram {
-    /// Validate HIR invariants according to Stage 2.2 compiler invariants
+    /// Validate HIR invariants according to Stage 2.3 compiler invariants
     /// 
     /// HIR Invariants (from docs/compiler_invariants.md):
     /// - All identifiers are resolved to symbols

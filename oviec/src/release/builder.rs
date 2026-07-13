@@ -449,9 +449,9 @@ mod tests {
 
     #[test]
     fn test_package_structure_creation() {
-        let structure = PackageStructure::new("2.2.0", &Platform::WindowsX64);
+        let structure = PackageStructure::new("2.3.0", &Platform::WindowsX64);
         
-        assert_eq!(structure.root_dir, "ovie-2.2.0-windows-x64");
+        assert_eq!(structure.root_dir, "ovie-2.3.0-windows-x64");
         assert!(structure.binaries.contains(&"oviec.exe".to_string()));
         assert!(structure.binaries.contains(&"ovie.exe".to_string()));
         assert!(structure.docs.contains(&"README.md".to_string()));
@@ -463,13 +463,13 @@ mod tests {
         let output_dir = source_dir.join("target").join("dist");
         
         let builder = DistributionBuilder::new(
-            "2.2.0".to_string(),
+            "2.3.0".to_string(),
             Platform::LinuxX64,
             source_dir.clone(),
             output_dir.clone(),
         );
         
-        assert_eq!(builder.version, "2.2.0");
+        assert_eq!(builder.version, "2.3.0");
         assert_eq!(builder.platform, Platform::LinuxX64);
         assert_eq!(builder.source_dir, source_dir);
         assert_eq!(builder.output_dir, output_dir);

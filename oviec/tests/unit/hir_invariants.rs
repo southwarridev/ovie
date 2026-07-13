@@ -1,6 +1,6 @@
 //! HIR Invariant Tests
 //! 
-//! Tests for HIR validation according to Stage 2.2 compiler invariants.
+//! Tests for HIR validation according to Stage 2.3 compiler invariants.
 //! These tests ensure that HIR nodes maintain their invariants throughout
 //! the compilation pipeline.
 

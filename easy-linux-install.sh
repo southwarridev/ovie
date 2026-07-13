@@ -170,10 +170,10 @@ fi
 if [ ! -f "$BIN_DIR/ovie" ]; then
     cat > "$BIN_DIR/ovie" << 'EOF'
 #!/bin/bash
-# Ovie CLI Tool - Stage 2.2 Self-Hosted
+# Ovie CLI Tool - Stage 2.3 Complete Module System
 
 if [ "$1" = "--version" ]; then
-    echo "ovie 2.2.0 - Self-Hosted Programming Language"
+    echo "ovie 2.3.0 - Self-Hosted Programming Language"
     echo "Copyright (c) 2026 Ovie Language Team"
     echo "Visit: https://ovie-lang.org"
     exit 0
@@ -207,7 +207,7 @@ if [ "$1" = "new" ]; then
     echo "Creating new Ovie project: $2"
     mkdir -p "$2"
     cat > "$2/main.ov" << 'OVIE_EOF'
-// Hello World in Ovie - Stage 2.2 Self-Hosted!
+// Hello World in Ovie - Stage 2.3 Complete Module System!
 // Compiled by a compiler written in Ovie itself
 
 seeAm "Hello, World from Ovie!"
@@ -235,7 +235,7 @@ fi
 if [ ! -f "$BIN_DIR/oviec" ]; then
     cat > "$BIN_DIR/oviec" << 'EOF'
 #!/bin/bash
-echo "Ovie Compiler (oviec) v2.2.0 - Stage 2.2 Self-Hosted"
+echo "Ovie Compiler (oviec) v2.3.0 - Stage 2.3 Complete Module System"
 echo "This is the Ovie compiler that compiles itself!"
 echo ""
 echo "To build the full compiler:"
@@ -293,7 +293,7 @@ echo "==========================================================================
 echo -e "${GREEN}                          🎉 INSTALLATION COMPLETE! 🎉${NC}"
 echo "============================================================================"
 echo ""
-echo -e "${GREEN}✅ Ovie v${OVIE_VERSION} - Stage 2.2 Self-Hosted installed successfully!${NC}"
+echo -e "${GREEN}✅ Ovie v${OVIE_VERSION} - Stage 2.3 Complete Module System installed successfully!${NC}"
 echo ""
 echo -e "📍 Installation Location: ${INSTALL_DIR}"
 echo -e "🔧 Binaries: ${BIN_DIR}"
