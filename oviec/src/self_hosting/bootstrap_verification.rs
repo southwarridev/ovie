@@ -12,10 +12,14 @@
 use crate::error::{OvieError, OvieResult};
 use crate::lexer::{Lexer as RustLexer, Token, TokenType};
 use crate::interpreter::Interpreter;
+#[allow(unused_imports)]
 use crate::ast::AstNode;
 use sha2::{Sha256, Digest};
+#[allow(unused_imports)]
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
+#[allow(unused_imports)]
+use std::path::Path;
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH, Instant};
 use serde::{Deserialize, Serialize};

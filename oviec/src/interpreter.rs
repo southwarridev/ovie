@@ -768,7 +768,7 @@ impl Interpreter {
                         let msg = arg_values.first().map(|v| self.value_to_string(v)).unwrap_or_else(|| "panic".to_string());
                         return Err(OvieError::runtime_error(format!("panic: {}", msg)));
                     }
-                    "string_length" | "len" => {
+                    "len" => {
                         match arg_values.first() {
                             Some(Value::String(s)) => return Ok(Value::Number(s.len() as f64)),
                             Some(Value::Array(a)) => return Ok(Value::Number(a.len() as f64)),
@@ -1620,7 +1620,7 @@ mod tests {
     }
 }
 /// IR Interpreter for executing IR programs
-use crate::ir::{Program, Function as IrFunction, BasicBlock, Instruction, Terminator, Opcode, Value as IrValue, Constant};
+use crate::ir::{Program, Instruction, Terminator, Opcode, Value as IrValue, Constant};
 
 /// IR Interpreter state
 pub struct IrInterpreter {

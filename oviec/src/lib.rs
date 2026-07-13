@@ -3,6 +3,16 @@
 //! This is the core library for the Ovie programming language compiler.
 //! It provides the complete compilation pipeline from source code to executable output.
 
+// Allow warnings that are expected in a work-in-progress compiler codebase.
+// These are intentional stubs, forward-declarations, and partially-implemented features.
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(unused_mut)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
+#![allow(unreachable_patterns)]
+#![allow(ambiguous_glob_reexports)]
+
 pub mod lexer;
 pub mod parser;
 pub mod ast;

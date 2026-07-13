@@ -4,10 +4,15 @@
 //! and the Ovie Stage 1 components, enabling gradual transition to self-hosting.
 
 use crate::error::{OvieError, OvieResult};
+#[allow(unused_imports)]
 use crate::lexer::{Lexer as RustLexer, Token};
+#[allow(unused_imports)]
 use crate::parser::{Parser as RustParser};
+#[allow(unused_imports)]
 use crate::ast::AstNode;
+#[allow(unused_imports)]
 use crate::ir::{Program as IR, IrBuilder};
+#[allow(unused_imports)]
 use crate::interpreter::IrInterpreter;
 use crate::self_hosting::{RealBootstrapVerifier, RealBootstrapConfig, RealBootstrapResult};
 use std::collections::HashMap;

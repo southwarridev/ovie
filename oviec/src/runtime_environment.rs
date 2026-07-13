@@ -167,8 +167,8 @@ impl OvieRuntimeEnvironment {
             
             // Check user home directory
             if let Ok(home) = env::var("HOME") {
-                paths.push(PathBuf::from(home).join(".ovie"));
-                paths.push(PathBuf::from(home).join(".local/share/ovie"));
+                paths.push(PathBuf::from(&home).join(".ovie"));
+                paths.push(PathBuf::from(&home).join(".local/share/ovie"));
             }
         }
 
