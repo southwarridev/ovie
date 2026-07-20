@@ -277,4 +277,4 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-*"Low-level control meets high-level productivity — systems programming made accessible."*
+"Low-level control meets high-level productivity — systems programming made accessible."
