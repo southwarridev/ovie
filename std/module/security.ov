@@ -257,11 +257,10 @@ export fn verify_file_checksum(file_path: String, expected_checksum: String) -> 
     let actual_hash = compute_seeded_hash(file_path, &content);
 
     // Strip "sha256:" prefix if present in expected
-    let expected_hex = if string_starts_with(expected_checksum, "sha256:") {
-        string_substring(expected_checksum, 7, string_length(expected_checksum))
-    } else {
-        expected_checksum.clone()
-    };
+    mut expected_hex = expected_checksum
+    if string_starts_with(expected_checksum, "sha256:") {
+        expected_hex = string_substring(expected_checksum, 7, string_length(expected_checksum))
+    }
 
     actual_hash == expected_hex
 }

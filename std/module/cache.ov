@@ -473,11 +473,8 @@ export fn identify_load_levels(graph: &DependencyGraph) -> Vec<LoadLevel> {
             .max()
             .unwrap_or(0);
 
-        let this_level = if node.dependencies.is_empty() {
-            0
-        } else {
-            max_dep_level + 1
-        };
+        let this_level = 0
+        if !node.dependencies.is_empty() { this_level = max_dep_level + 1 }
 
         module_level.insert(module_path.clone(), this_level);
 

@@ -618,7 +618,8 @@ impl DateTime {
             } else {
                 mut offset_hours = truncate(abs(self.timezone_offset) / 3600);
                 mut offset_minutes = truncate((abs(self.timezone_offset) % 3600) / 60);
-                mut sign = if self.timezone_offset >= 0 { "+" } else { "-" };
+                mut sign = 1
+        if self.timezone_offset < 0 { sign = -1 }
                 mut offset_str = sign + pad_number(offset_hours, 2) + ":" + pad_number(offset_minutes, 2);
                 result = replace_all(result, "Z", offset_str);
             }

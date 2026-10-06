@@ -3,6 +3,7 @@
 use crate::ast::{AstNode, Statement, Expression, Literal, BinaryOperator, UnaryOperator};
 use crate::error::{OvieError, OvieResult};
 use std::collections::HashMap;
+use std::io::BufRead;
 
 /// Runtime value types
 #[derive(Debug, Clone, PartialEq)]
@@ -42,6 +43,7 @@ impl Value {
             Value::Struct(fields) => {
                 let field_strs: Vec<String> = fields
                     .iter()
+                    .filter(|(k, _)| *k != "__type__") // hide internal type tag
                     .map(|(k, v)| format!("{}: {}", k, v.to_string()))
                     .collect();
                 format!("{{ {} }}", field_strs.join(", "))
@@ -88,9 +90,14 @@ pub struct Function {
 pub struct Environment {
     variables: HashMap<String, Value>,
     functions: HashMap<String, Function>,
-    struct_types: HashMap<String, Vec<String>>, // struct_name -> field_names
-    enum_types: HashMap<String, Vec<String>>,   // enum_name -> variant_names
+    struct_types: HashMap<String, Vec<String>>,
+    enum_types: HashMap<String, Vec<String>>,
     parent: Option<Box<Environment>>,
+    /// Tracks which variable names were defined in THIS scope level.
+    /// On scope exit, these are dropped deterministically — no GC.
+    scope_vars: Vec<String>,
+    /// Scope depth — increments on block entry, decrements on exit.
+    scope_depth: usize,
 }
 
 impl Environment {
@@ -101,20 +108,49 @@ impl Environment {
             struct_types: HashMap::new(),
             enum_types: HashMap::new(),
             parent: None,
+            scope_vars: Vec::new(),
+            scope_depth: 0,
         }
     }
 
     pub fn with_parent(parent: Environment) -> Self {
+        let depth = parent.scope_depth + 1;
         Self {
             variables: HashMap::new(),
             functions: HashMap::new(),
             struct_types: HashMap::new(),
             enum_types: HashMap::new(),
             parent: Some(Box::new(parent)),
+            scope_vars: Vec::new(),
+            scope_depth: depth,
         }
     }
 
+    /// Enter a new lexical block scope.
+    /// Returns the list of var names that existed before — used to drop on exit.
+    pub fn push_scope(&mut self) -> Vec<String> {
+        self.scope_depth += 1;
+        self.scope_vars.clone()
+    }
+
+    /// Exit a lexical block scope.
+    /// Drops all variables defined since push_scope() was called — deterministic dealloc.
+    pub fn pop_scope(&mut self, vars_before: Vec<String>) {
+        // Remove all variables that didn't exist before this scope was entered
+        let to_drop: Vec<String> = self.scope_vars
+            .iter()
+            .filter(|v| !vars_before.contains(v))
+            .cloned()
+            .collect();
+        for name in &to_drop {
+            self.variables.remove(name);
+        }
+        self.scope_vars = vars_before;
+        if self.scope_depth > 0 { self.scope_depth -= 1; }
+    }
+
     pub fn define_variable(&mut self, name: String, value: Value) {
+        self.scope_vars.push(name.clone());
         self.variables.insert(name, value);
     }
 
@@ -203,6 +239,83 @@ impl Interpreter {
                 }
                 Ok(())
             }
+        }
+    }
+
+    /// Load a .ov file from disk and execute its statements into the current environment.
+    /// Looks next to the running binary first, then relative to cwd.
+    fn load_and_exec_module(&mut self, file_path: &str) -> OvieResult<()> {
+        // 1. Check bundled stdlib (embedded at compile time — works offline, no disk needed)
+        let bundled = Self::get_bundled_module(file_path);
+
+        // 2. If not bundled, try disk: next to binary, then cwd
+        let source: Option<String> = if bundled.is_some() {
+            bundled.map(|s| s.to_string())
+        } else {
+            let candidates: Vec<std::path::PathBuf> = vec![
+                std::env::current_exe()
+                    .ok()
+                    .and_then(|p| p.parent().map(|d| d.join(file_path)))
+                    .unwrap_or_else(|| std::path::PathBuf::from(file_path)),
+                std::path::PathBuf::from(file_path),
+            ];
+            let mut found = None;
+            for candidate in &candidates {
+                if candidate.exists() {
+                    if let Ok(s) = std::fs::read_to_string(candidate) {
+                        found = Some(s);
+                        break;
+                    }
+                }
+            }
+            found
+        };
+
+        if let Some(src) = source {
+            let mut compiler = crate::Compiler::new();
+            match compiler.compile_to_ast(&src) {
+                Ok(ast) => {
+                    let AstNode::Program(stmts) = &ast;
+                    for stmt in stmts {
+                        self.execute_statement(stmt)?;
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Warning: could not load module '{}': {}", file_path, e);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Return bundled (embedded) stdlib source for a given module path.
+    /// These are compiled directly into the binary via include_str! — no disk required.
+    fn get_bundled_module(file_path: &str) -> Option<&'static str> {
+        // Normalise path separators
+        let normalised = file_path.replace('\\', "/");
+        match normalised.as_str() {
+            "std/math/mod.ov"             => Some(include_str!("../../std/math/mod.ov")),
+            "std/core/mod.ov"             => Some(include_str!("../../std/core/mod.ov")),
+            "std/core/result.ov"          => Some(include_str!("../../std/core/result.ov")),
+            "std/core/option.ov"          => Some(include_str!("../../std/core/option.ov")),
+            "std/core/vec.ov"             => Some(include_str!("../../std/core/vec.ov")),
+            "std/core/hashmap.ov"         => Some(include_str!("../../std/core/hashmap.ov")),
+            "std/io/mod.ov"               => Some(include_str!("../../std/io/mod.ov")),
+            "std/fs/mod.ov"               => Some(include_str!("../../std/fs/mod.ov")),
+            "std/log/mod.ov"              => Some(include_str!("../../std/log/mod.ov")),
+            "std/time/mod.ov"             => Some(include_str!("../../std/time/mod.ov")),
+            "std/cli/mod.ov"              => Some(include_str!("../../std/cli/mod.ov")),
+            "std/testing/mod.ov"          => Some(include_str!("../../std/testing/mod.ov")),
+            "std/lexer/mod.ov"            => Some(include_str!("../../std/lexer/mod.ov")),
+            "std/lexer/mod_no_types.ov"   => Some(include_str!("../../std/lexer/mod_no_types.ov")),
+            "std/module/mod.ov"           => Some(include_str!("../../std/module/mod.ov")),
+            "std/module/loader.ov"        => Some(include_str!("../../std/module/loader.ov")),
+            "std/module/resolver.ov"      => Some(include_str!("../../std/module/resolver.ov")),
+            "std/module/cache.ov"         => Some(include_str!("../../std/module/cache.ov")),
+            "std/module/package_manager.ov" => Some(include_str!("../../std/module/package_manager.ov")),
+            "std/aproko/mod.ov"           => Some(include_str!("../../std/aproko/mod.ov")),
+            "std/aproko/knowledge_base.ov" => Some(include_str!("../../std/aproko/knowledge_base.ov")),
+            _ => None,
         }
     }
 
@@ -330,21 +443,28 @@ impl Interpreter {
                 loop {
                     let cond = self.evaluate_expression(condition)?;
                     if !cond.is_truthy() { break; }
+                    let snap = self.environment.push_scope();
+                    let mut should_break = false;
+                    let mut should_continue = false;
+                    let mut ret_val: Option<Value> = None;
                     for stmt in body {
                         match self.execute_statement(stmt)? {
-                            Some(Value::Break) => return Ok(None),
-                            Some(Value::Continue) => break,
-                            Some(v) => return Ok(Some(v)),
+                            Some(Value::Break)    => { should_break = true; break; }
+                            Some(Value::Continue) => { should_continue = true; break; }
+                            Some(v)               => { ret_val = Some(v); break; }
                             None => {}
                         }
                     }
+                    self.environment.pop_scope(snap);
+                    if should_break { break; }
+                    if let Some(v) = ret_val { return Ok(Some(v)); }
+                    // should_continue just restarts the loop
                 }
                 Ok(None)
             }
 
             Statement::For { identifier, iterable, body } => {
                 let iterable_value = self.evaluate_expression(iterable)?;
-                
                 let items: Vec<Value> = match iterable_value {
                     Value::Array(arr) => arr,
                     Value::Number(end) => (0..(end as i32)).map(|i| Value::Number(i as f64)).collect(),
@@ -352,15 +472,21 @@ impl Interpreter {
                 };
 
                 'outer: for value in items {
+                    let snap = self.environment.push_scope();
                     self.environment.define_variable(identifier.clone(), value);
+                    let mut should_break = false;
+                    let mut ret_val: Option<Value> = None;
                     for stmt in body {
                         match self.execute_statement(stmt)? {
-                            Some(Value::Break) => break 'outer,
+                            Some(Value::Break)    => { should_break = true; break; }
                             Some(Value::Continue) => break,
-                            Some(v) => return Ok(Some(v)),
+                            Some(v)               => { ret_val = Some(v); break; }
                             None => {}
                         }
                     }
+                    self.environment.pop_scope(snap);
+                    if should_break { break 'outer; }
+                    if let Some(v) = ret_val { return Ok(Some(v)); }
                 }
                 Ok(None)
             }
@@ -398,8 +524,20 @@ impl Interpreter {
                 Ok(None)
             }
 
-            // Module system statements — register symbols but don't load files at runtime
-            Statement::Use { .. } | Statement::Import { .. } => Ok(None),
+            // Module system statements — load and execute .ov files from disk
+            Statement::Use { path: use_path, .. } => {
+                // Convert use std::math::{...} -> std/math/mod.ov
+                let file_path = format!("{}/mod.ov", use_path.join("/"));
+                self.load_and_exec_module(&file_path)?;
+                Ok(None)
+            }
+
+            Statement::Import { path: import_path } => {
+                // Direct file import: import "./utils.ov"
+                let file_path = import_path.trim_matches('"').to_string();
+                self.load_and_exec_module(&file_path)?;
+                Ok(None)
+            }
 
             Statement::Export { statement } => {
                 // Execute the inner statement (function/struct/enum/const definition)
@@ -409,13 +547,18 @@ impl Interpreter {
             Statement::TypeAlias { .. } => Ok(None),
 
             Statement::Block { statements } => {
-                // Execute all statements in the block (used for unsafe blocks etc.)
+                // Block scope — push/pop for deterministic memory release
+                let scope_snapshot = self.environment.push_scope();
+                let mut result = Ok(None);
                 for stmt in statements {
-                    if let Some(return_value) = self.execute_statement(stmt)? {
-                        return Ok(Some(return_value));
+                    match self.execute_statement(stmt) {
+                        Ok(Some(v)) => { result = Ok(Some(v)); break; }
+                        Ok(None) => {}
+                        Err(e) => { result = Err(e); break; }
                     }
                 }
-                Ok(None)
+                self.environment.pop_scope(scope_snapshot);
+                result
             }
         }
     }
@@ -776,7 +919,34 @@ impl Interpreter {
                         }
                     }
 
-                    _ => {
+                    "read_line" => {
+                        // Read a line from stdin, returns the string without trailing newline
+                        let stdin = std::io::stdin();
+                        let mut line = String::new();
+                        match stdin.lock().read_line(&mut line) {
+                            Ok(0) => return Ok(Value::String(String::new())), // EOF
+                            Ok(_) => {
+                                // Strip trailing \n and \r\n
+                                if line.ends_with('\n') { line.pop(); }
+                                if line.ends_with('\r') { line.pop(); }
+                                return Ok(Value::String(line));
+                            }
+                            Err(e) => return Err(OvieError::runtime_error(
+                                format!("read_line failed: {}", e)
+                            )),
+                        }
+                    }
+
+                    "print" => {
+                        // print(text) — no newline, for interactive prompts
+                        let text = arg_values.first()
+                            .map(|v| self.value_to_string(v))
+                            .unwrap_or_default();
+                        print!("{}", text);
+                        use std::io::Write;
+                        let _ = std::io::stdout().flush();
+                        return Ok(Value::Null);
+                    }                    _ => {
                         // Not a builtin, check user-defined functions
                     }
                 }
@@ -839,10 +1009,11 @@ impl Interpreter {
 
                     Ok(result)
                 } else {
-                    // Unknown function — return Null rather than error for v2.3 module system compatibility
-                    // Functions like string_split_lines, make_dir etc. are handled above;
-                    // any remaining unknown calls return Null gracefully
-                    Ok(Value::Null)
+                    // Unknown function — error so broken .ov code is caught immediately
+                    Err(OvieError::runtime_error(format!(
+                        "Undefined function: '{}'. Check the function is defined or the module is imported.",
+                        function
+                    )))
                 }
             }
 
@@ -893,6 +1064,8 @@ impl Interpreter {
 
                 // Evaluate field values
                 let mut field_values = HashMap::new();
+                // Inject hidden type tag so impl-desugared methods know their struct name
+                field_values.insert("__type__".to_string(), Value::String(struct_name.clone()));
                 for field_init in fields {
                     let value = self.evaluate_expression(&field_init.value)?;
                     field_values.insert(field_init.name.clone(), value);
@@ -1018,6 +1191,58 @@ impl Interpreter {
                 for arg in arguments {
                     arg_vals.push(self.evaluate_expression(arg)?);
                 }
+
+                // Try user-defined impl desugared method first: StructName_method(self, args)
+                // Determine struct type name from the value
+                let struct_type_name: Option<String> = match &obj_val {
+                    Value::Struct(fields) => {
+                        // Structs store their type name in a hidden "__type__" field
+                        fields.get("__type__").and_then(|v| {
+                            if let Value::String(s) = v { Some(s.clone()) } else { None }
+                        })
+                    }
+                    _ => None,
+                };
+
+                if let Some(type_name) = struct_type_name {
+                    let desugared_name = format!("{}_{}", type_name, method);
+                    if self.environment.get_function(&desugared_name).is_some() {
+                        // Call StructName_method(self, ...args)
+                        let mut all_args = vec![obj_val.clone()];
+                        all_args.extend(arg_vals.clone());
+                        let call_expr = Expression::Call {
+                            function: desugared_name,
+                            arguments: arguments.iter().map(|_| Expression::Null).collect(),
+                        };
+                        // Invoke directly via environment lookup
+                        let func = self.environment.get_function(
+                            &format!("{}_{}", type_name, method)
+                        ).unwrap();
+                        if all_args.len() != func.parameters.len() {
+                            return Err(OvieError::runtime_error(format!(
+                                "Method '{}' expects {} arguments, got {}",
+                                method, func.parameters.len() - 1, arg_vals.len()
+                            )));
+                        }
+                        let mut func_env = crate::interpreter::Environment::with_parent(
+                            self.environment.clone()
+                        );
+                        for (param, val) in func.parameters.iter().zip(all_args.iter()) {
+                            func_env.define_variable(param.name.clone(), val.clone());
+                        }
+                        let saved = std::mem::replace(&mut self.environment, func_env);
+                        let mut result = Value::Null;
+                        for stmt in &func.body.clone() {
+                            if let Some(v) = self.execute_statement(stmt)? {
+                                result = match v { Value::Return(r) => *r, other => other };
+                                break;
+                            }
+                        }
+                        self.environment = saved;
+                        return Ok(result);
+                    }
+                }
+
                 self.evaluate_method_call(obj_val, method, arg_vals)
             }
 

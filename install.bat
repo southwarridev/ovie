@@ -1,22 +1,23 @@
 @echo off
 REM ============================================================================
 REM  Ovie Programming Language v2.3.0 — Windows Batch Installer
-REM  Works by cloning the repo and copying the prebuilt windows-x64 binaries.
-REM  No Rust, no GitHub release zip needed.
+REM  Works by downloading prebuilt windows-x64 binaries from GitHub releases.
+REM  No Rust, no manual cloning needed.
 REM ============================================================================
+
 setlocal enabledelayedexpansion
 
 set "OVIE_VERSION=2.3.0"
 set "INSTALL_DIR=C:\Program Files\Ovie"
 set "BIN_DIR=%INSTALL_DIR%\bin"
-set "GITHUB_REPO=https://github.com/southwarridev/ovie.git"
+set "GITHUB_REPO=southwarridev/ovie"
 
 echo.
 echo   ============================================================================
 echo   ^|                                                                          ^|
 echo   ^|              OVIE PROGRAMMING LANGUAGE v2.3.0                           ^|
 echo   ^|              Complete Module System - Full Package                       ^|
-echo   ^|              Publisher: Ovie Language Team  ^|  MIT License              ^|
+echo   ^|              Publisher: Ovie Language Team  |  MIT License              ^|
 echo   ^|                                                                          ^|
 echo   ============================================================================
 echo.
@@ -33,96 +34,81 @@ if %errorLevel% neq 0 (
 echo   Running as Administrator: YES
 echo.
 
-REM ── Check for Git ────────────────────────────────────────────────────────────
-git --version >nul 2>&1
+REM ── Step 1: Download latest release ──────────────────────────────────────────
+echo   [1/3] Downloading latest Ovie release...
+
+set "API_URL=https://api.github.com/repos/%GITHUB_REPO%/releases/latest"
+set "ASSET=ovie-windows-x64.zip"
+set "DOWNLOAD_URL="
+
+REM Fetch release info and extract download URL
+powershell -Command ^
+    "$resp = Invoke-RestMethod -Uri 'https://api.github.com/repos/%GITHUB_REPO%/releases/latest' -Headers @{'Accept'='application/vnd.github.v3+json'}; " ^
+    "foreach ($asset in $resp.assets) { if ($asset.name -eq '%ASSET%') { $asset.browser_download_url; exit } }" > "%TEMP%\download_url.txt" 2>nul
+
+set /p DOWNLOAD_URL=<"%TEMP%\download_url.txt"
+
+if not defined DOWNLOAD_URL (
+    echo   [ERROR] Could not find download URL for %ASSET%
+    echo   [ERROR] Check your internet connection or GitHub availability.
+    pause
+    exit /b 1
+)
+
+echo   [OK] Download URL found: %DOWNLOAD_URL%
+
+REM Download the archive
+powershell -Command ^
+    "Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%TEMP%\%ASSET%' -UseBasicParsing"
+
 if %errorlevel% neq 0 (
-    echo   [ERROR] Git is not installed or not in PATH.
-    echo   [ERROR] Download Git from: https://git-scm.com/download/win
-    echo   [ERROR] Install it, then re-run this installer.
-    echo.
+    echo   [ERROR] Download failed. Check your internet connection.
     pause
     exit /b 1
 )
 
-echo   Install directory : %INSTALL_DIR%
-echo   Binaries          : %BIN_DIR%
+echo   [OK] Downloaded %ASSET%
+
+REM ── Step 2: Extract and copy binaries ────────────────────────────────────────
 echo.
-set /p CONFIRM="  Press ENTER to install or type 'cancel' to exit: "
-if /i "!CONFIRM!"=="cancel" exit /b 0
-echo.
+echo   [2/3] Installing Ovie...
 
-REM ── Step 1: Find or clone the repo ───────────────────────────────────────────
-echo   [1/5] Locating Ovie source...
-
-set "REPO_ROOT="
-set "TEMP_CLONE="
-
-REM If this script sits inside the cloned repo, windows-x64\bin\oviec.exe will
-REM be right next to it. Check that first — no internet needed.
-if exist "%~dp0windows-x64\bin\oviec.exe" (
-    set "REPO_ROOT=%~dp0"
-    echo   [OK] Using local repo at %~dp0
-) else (
-    REM Fresh PC — clone from GitHub
-    set "TEMP_CLONE=%TEMP%\ovie-install"
-    if exist "!TEMP_CLONE!" rmdir /s /q "!TEMP_CLONE!" >nul 2>&1
-    echo   [>>] Cloning from GitHub (this takes ~30 seconds)...
-    git clone --depth 1 "%GITHUB_REPO%" "!TEMP_CLONE!"
-    if !errorlevel! neq 0 (
-        echo   [ERROR] git clone failed. Check your internet connection.
-        pause
-        exit /b 1
-    )
-    set "REPO_ROOT=!TEMP_CLONE!"
-    echo   [OK] Cloned to !TEMP_CLONE!
-)
-
-set "SRC=%REPO_ROOT%windows-x64"
-
-REM Sanity-check
-if not exist "%SRC%\bin\oviec.exe" (
-    echo   [ERROR] Cannot find windows-x64\bin\oviec.exe in the repo.
-    echo   [ERROR] The repo layout may have changed.
-    pause
-    exit /b 1
-)
-
-REM ── Step 2: Create directories ───────────────────────────────────────────────
-echo.
-echo   [2/5] Creating install directories...
+REM Create directories
 for %%D in ("%INSTALL_DIR%" "%BIN_DIR%" "%INSTALL_DIR%\std" "%INSTALL_DIR%\examples" "%INSTALL_DIR%\docs") do (
     if not exist "%%~D" mkdir "%%~D" >nul 2>&1
 )
-echo   [OK] Directories created at %INSTALL_DIR%
 
-REM ── Step 3: Copy binaries ────────────────────────────────────────────────────
-echo.
-echo   [3/5] Copying binaries...
-copy /y "%SRC%\bin\oviec.exe" "%BIN_DIR%\oviec.exe" >nul
-echo   [OK] oviec.exe installed
+REM Extract the archive (using PowerShell for reliability)
+powershell -Command ^
+    "Expand-Archive -Path '%TEMP%\%ASSET%' -DestinationPath '%TEMP%\ovie-installer' -Force"
 
-if exist "%SRC%\ovie.exe" (
-    copy /y "%SRC%\ovie.exe" "%BIN_DIR%\ovie.exe" >nul
-) else (
-    copy /y "%BIN_DIR%\oviec.exe" "%BIN_DIR%\ovie.exe" >nul
+REM Copy binaries
+copy /y "%TEMP%\ovie-installer\ovie\bin\oviec.exe" "%BIN_DIR%\oviec.exe" >nul
+copy /y "%TEMP%\ovie-installer\ovie\bin\ovie.exe" "%BIN_DIR%\ovie.exe" >nul 2>nul
+
+echo   [OK] Binaries installed
+
+REM Copy stdlib, examples, docs
+if exist "%TEMP%\ovie-installer\ovie\std" (
+    xcopy /e /y /q "%TEMP%\ovie-installer\ovie\std\*" "%INSTALL_DIR%\std\" >nul
 )
-echo   [OK] ovie.exe installed
-
-REM ── Step 4: Copy stdlib, examples, docs ──────────────────────────────────────
-echo.
-echo   [4/5] Copying standard library, examples and docs...
-if exist "%SRC%\std"      xcopy /e /y /q "%SRC%\std\*"      "%INSTALL_DIR%\std\"      >nul 2>&1
-if exist "%SRC%\examples" xcopy /e /y /q "%SRC%\examples\*" "%INSTALL_DIR%\examples\" >nul 2>&1
-if exist "%SRC%\docs"     xcopy /e /y /q "%SRC%\docs\*"     "%INSTALL_DIR%\docs\"     >nul 2>&1
-
-for %%F in (README.md LICENSE RELEASE_NOTES_v2.3.md ovie.png ovie.svg ovie.toml.template) do (
-    if exist "%SRC%\%%F" copy /y "%SRC%\%%F" "%INSTALL_DIR%\%%F" >nul 2>&1
+if exist "%TEMP%\ovie-installer\ovie\examples" (
+    xcopy /e /y /q "%TEMP%\ovie-installer\ovie\examples\*" "%INSTALL_DIR%\examples\" >nul
 )
-echo   [OK] Files copied
+if exist "%TEMP%\ovie-installer\ovie\docs" (
+    xcopy /e /y /q "%TEMP%\ovie-installer\ovie\docs\*" "%INSTALL_DIR%\docs\" >nul
+)
 
-REM ── Step 5: Add to PATH ───────────────────────────────────────────────────────
+REM Copy root files
+for %%F in (README.md LICENSE) do (
+    if exist "%TEMP%\ovie-installer\ovie\%%F" copy /y "%TEMP%\ovie-installer\ovie\%%F" "%INSTALL_DIR%\%%F" >nul
+)
+
+echo   [OK] Standard library and examples copied
+
+REM ── Step 3: Add to PATH ───────────────────────────────────────────────────────
 echo.
-echo   [5/5] Adding %BIN_DIR% to system PATH...
+echo   [3/3] Adding %BIN_DIR% to system PATH...
 REM Read current system PATH from registry
 for /f "usebackq tokens=2,*" %%A in (`reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul`) do set "CURRENT_PATH=%%B"
 
@@ -134,10 +120,12 @@ if %errorlevel% neq 0 (
     echo   [OK] Already in system PATH
 )
 
-REM ── Cleanup temp clone ────────────────────────────────────────────────────────
-if defined TEMP_CLONE (
-    if exist "!TEMP_CLONE!" rmdir /s /q "!TEMP_CLONE!" >nul 2>&1
-)
+REM ── Cleanup ───────────────────────────────────────────────────────────────────
+echo.
+echo   Cleaning up temporary files...
+if exist "%TEMP%\ovie-installer" rmdir /s /q "%TEMP%\ovie-installer" >nul 2>&1
+if exist "%TEMP%\%ASSET%" del /q "%TEMP%\%ASSET%" >nul 2>&1
+if exist "%TEMP%\download_url.txt" del /q "%TEMP%\download_url.txt" >nul 2>&1
 
 REM ── Verify ────────────────────────────────────────────────────────────────────
 echo.
@@ -163,6 +151,13 @@ echo     oviec --version              ^| Check version
 echo     oviec --self-check           ^| Validate installation
 echo     oviec run examples\hello.ov  ^| Run hello world
 echo     oviec new my-project         ^| Create new project
+echo.
+echo   Downloads for all platforms:
+echo     Windows x64  : https://github.com/%GITHUB_REPO%/releases
+echo     macOS x64    : https://github.com/%GITHUB_REPO%/releases
+echo     macOS arm64  : https://github.com/%GITHUB_REPO%/releases
+echo     Linux x64    : https://github.com/%GITHUB_REPO%/releases
+echo     Linux arm64  : https://github.com/%GITHUB_REPO%/releases
 echo.
 echo   Docs: https://southwarridev.github.io/ovie/docs/book/index.html
 echo.

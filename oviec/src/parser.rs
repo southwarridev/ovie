@@ -49,6 +49,7 @@ impl Parser {
             TokenType::Struct => self.struct_statement(),
             TokenType::Enum => self.enum_statement(),
             TokenType::Let => self.let_statement(),
+            TokenType::Oya => self.let_statement(), // oya = immutable declaration (same as let)
             TokenType::Const => self.const_statement(),
             TokenType::Use => self.use_statement(),
             TokenType::Import => self.import_statement(),
@@ -79,6 +80,15 @@ impl Parser {
             }
             TokenType::Mut => self.assignment_statement(true),
             TokenType::Identifier => {
+                // impl Block { fn method(...) {} }
+                // Desugar each method to a top-level fn: StructName_methodName(self, ...)
+                if self.peek().lexeme == "impl" {
+                    return self.impl_block();
+                }
+                // trait Foo { } — parse and discard (runtime doesn't need traits)
+                if self.peek().lexeme == "trait" {
+                    return self.skip_trait_block();
+                }
                 // Check for 'static' keyword (static mut IDENT: Type = expr)
                 if self.peek().lexeme == "static" {
                     self.advance(); // consume 'static'
@@ -142,6 +152,17 @@ impl Parser {
         self.consume(&TokenType::Fn, "Expected 'fn'")?;
         
         let name = self.consume_identifier("Expected function name")?;
+
+        // Skip optional generic type parameters: fn foo<T>(...) or fn foo<T, U>(...)
+        if self.check(&TokenType::Less) {
+            self.advance(); // consume '<'
+            let mut depth = 1;
+            while depth > 0 && !self.is_at_end() {
+                if self.check(&TokenType::Less) { depth += 1; }
+                if self.check(&TokenType::Greater) { depth -= 1; }
+                self.advance();
+            }
+        }
         
         self.consume(&TokenType::LeftParen, "Expected '(' after function name")?;
         
@@ -515,7 +536,14 @@ fn if_statement(&mut self) -> ParseResult<Statement> {
 
     /// Parse a let statement: let [mut] identifier [: Type] = expression
     fn let_statement(&mut self) -> ParseResult<Statement> {
-        self.consume(&TokenType::Let, "Expected 'let'")?;
+        // Accept both `let` and `oya` as immutable declaration keywords
+        if self.check(&TokenType::Let) {
+            self.advance();
+        } else if self.check(&TokenType::Oya) {
+            self.advance();
+        } else {
+            return Err(self.error("Expected 'let' or 'oya'"));
+        }
         let mutable = self.match_token(&TokenType::Mut);
         
         // Handle tuple destructuring: let (a, b) = expr
@@ -1097,6 +1125,55 @@ fn if_statement(&mut self) -> ParseResult<Statement> {
     /// Parse base primary expression (without range or field access)
     fn primary_base(&mut self) -> ParseResult<Expression> {
         match &self.peek().token_type {
+            // Inline if-expression: if cond { a } else { b }
+            // Used as a value: mut x = if y > 0 { 1 } else { -1 }
+            TokenType::If => {
+                self.advance(); // consume 'if'
+                let condition = self.expression()?;
+                let then_block = self.block_statement()?;
+                // then_block must have exactly one expression statement to use as value
+                let then_val = if then_block.len() == 1 {
+                    match &then_block[0] {
+                        Statement::Expression { expression } => expression.clone(),
+                        Statement::Return { value: Some(v) } => v.clone(),
+                        _ => Expression::Null,
+                    }
+                } else {
+                    Expression::Null
+                };
+                let else_val = if self.match_token(&TokenType::Else) {
+                    let else_block = self.block_statement()?;
+                    if else_block.len() == 1 {
+                        match &else_block[0] {
+                            Statement::Expression { expression } => expression.clone(),
+                            Statement::Return { value: Some(v) } => v.clone(),
+                            _ => Expression::Null,
+                        }
+                    } else {
+                        Expression::Null
+                    }
+                } else {
+                    Expression::Null
+                };
+                // Desugar to a match expression with two arms
+                return Ok(Expression::Match {
+                    value: Box::new(condition),
+                    arms: vec![
+                        crate::ast::MatchArm {
+                            pattern: crate::ast::MatchPattern::Literal(
+                                crate::ast::Literal::Boolean(true)
+                            ),
+                            guard: None,
+                            body: vec![Statement::Expression { expression: then_val }],
+                        },
+                        crate::ast::MatchArm {
+                            pattern: crate::ast::MatchPattern::Wildcard,
+                            guard: None,
+                            body: vec![Statement::Expression { expression: else_val }],
+                        },
+                    ],
+                });
+            }
             TokenType::Match => {
                 return self.match_expression();
             }
@@ -1733,6 +1810,117 @@ fn if_statement(&mut self) -> ParseResult<Statement> {
             token.location.column,
             format!("{} (found '{}')", message, token.lexeme),
         )
+    }
+
+    // ── impl block desugaring ────────────────────────────────────────────────
+    // impl Foo { fn method(self, x) { ... } }
+    // becomes a Block of top-level functions named:  Foo_method(self, x) { ... }
+    // The interpreter handles method calls by looking up StructName_method.
+    fn impl_block(&mut self) -> ParseResult<Statement> {
+        self.advance(); // consume 'impl' identifier
+
+        // Collect the type name (may include generics: Foo<T>)
+        let struct_name = self.consume_identifier("Expected type name after 'impl'")?;
+
+        // Skip generic params if present: <T>, <T: Bound>, etc.
+        if self.check(&TokenType::Less) {
+            self.advance();
+            let mut depth = 1;
+            while depth > 0 && !self.is_at_end() {
+                if self.check(&TokenType::Less) { depth += 1; }
+                if self.check(&TokenType::Greater) { depth -= 1; }
+                self.advance();
+            }
+        }
+
+        // Optional `for TraitName` — skip it
+        if self.check(&TokenType::Identifier) && self.peek().lexeme == "for" {
+            self.advance(); // 'for'
+            self.advance(); // trait name
+            // Skip trait generics if present
+            if self.check(&TokenType::Less) {
+                self.advance();
+                let mut depth = 1;
+                while depth > 0 && !self.is_at_end() {
+                    if self.check(&TokenType::Less) { depth += 1; }
+                    if self.check(&TokenType::Greater) { depth -= 1; }
+                    self.advance();
+                }
+            }
+        }
+
+        self.consume(&TokenType::LeftBrace, "Expected '{' after impl type name")?;
+
+        let mut functions: Vec<Statement> = Vec::new();
+
+        while !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+            // Allow pub/export before fn
+            if self.check(&TokenType::Pub) || self.check(&TokenType::Export) {
+                self.advance();
+            }
+            // Allow doc comments (they come through as unrecognised tokens — skip)
+            if self.check(&TokenType::Identifier) && self.peek().lexeme.starts_with("///") {
+                self.advance();
+                continue;
+            }
+            if self.check(&TokenType::Fn) {
+                // Parse the function normally, then rename it to StructName_method
+                let func = self.function_statement()?;
+                let renamed = match func {
+                    Statement::Function { name, parameters, body } => {
+                        Statement::Function {
+                            name: format!("{}_{}", struct_name, name),
+                            parameters,
+                            body,
+                        }
+                    }
+                    other => other,
+                };
+                functions.push(renamed);
+            } else if self.check(&TokenType::Identifier) && self.peek().lexeme == "type" {
+                // type Alias = Foo; inside impl — skip
+                self.advance(); // 'type'
+                while !self.check(&TokenType::Semicolon) && !self.check(&TokenType::RightBrace) && !self.is_at_end() {
+                    self.advance();
+                }
+                self.consume_optional_semicolon();
+            } else {
+                // Unknown token inside impl — skip to next fn or closing brace
+                self.advance();
+            }
+        }
+
+        self.consume(&TokenType::RightBrace, "Expected '}' after impl block")?;
+
+        Ok(Statement::Block { statements: functions })
+    }
+
+    // ── trait block — parse and discard ─────────────────────────────────────
+    // trait Foo { fn method(&self) -> Type; }
+    // Runtime doesn't need trait definitions — consume and return empty block.
+    fn skip_trait_block(&mut self) -> ParseResult<Statement> {
+        self.advance(); // consume 'trait' identifier
+        // Consume trait name
+        if self.check(&TokenType::Identifier) { self.advance(); }
+        // Skip generics
+        if self.check(&TokenType::Less) {
+            self.advance();
+            let mut depth = 1;
+            while depth > 0 && !self.is_at_end() {
+                if self.check(&TokenType::Less) { depth += 1; }
+                if self.check(&TokenType::Greater) { depth -= 1; }
+                self.advance();
+            }
+        }
+        // Consume the whole block
+        self.consume(&TokenType::LeftBrace, "Expected '{' in trait block")?;
+        let mut depth = 1;
+        while depth > 0 && !self.is_at_end() {
+            if self.check(&TokenType::LeftBrace) { depth += 1; }
+            if self.check(&TokenType::RightBrace) { depth -= 1; }
+            self.advance();
+        }
+        Ok(Statement::Block { statements: vec![] })
     }
 }
 

@@ -958,7 +958,8 @@ impl ProgressBar {
     
     // Render progress bar
     fn render(self) {
-        mut percentage = if self.total > 0 { (self.current / self.total) * 100 } else { 0 };
+        mut percentage = 0
+        if self.total > 0 { percentage = (self.current / self.total) * 100 }
         mut filled = truncate((self.current / self.total) * self.width);
         mut empty = self.width - filled;
         

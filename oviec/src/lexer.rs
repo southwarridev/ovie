@@ -36,6 +36,8 @@ pub enum TokenType {
     SeeAm,
     #[token("let")]
     Let,
+    #[token("oya")]
+    Oya,
     // Module system keywords
     #[token("use")]
     Use,
@@ -330,6 +332,7 @@ impl fmt::Display for TokenType {
             TokenType::Fn => "fn",
             TokenType::Mut => "mut",
             TokenType::Let => "let",
+            TokenType::Oya => "oya",
             TokenType::If => "if",
             TokenType::Else => "else",
             TokenType::For => "for",

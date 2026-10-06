@@ -1,8 +1,8 @@
 #Requires -Version 5.0
 # ============================================================================
 #  Ovie Programming Language v2.3.0 — Windows PowerShell Installer
-#  Works by cloning the repo and copying the prebuilt windows-x64 binaries.
-#  No Rust, no GitHub release zip needed.
+#  Downloads prebuilt windows-x64 binaries from GitHub releases.
+#  No Rust, no manual cloning needed.
 # ============================================================================
 
 param(
@@ -26,14 +26,6 @@ function Require-Admin {
     }
 }
 
-function Require-Git {
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Write-Fail "Git is not installed. Download it from: https://git-scm.com/download/win"
-        Write-Fail "Then re-run this installer."
-        exit 1
-    }
-}
-
 # ── banner ────────────────────────────────────────────────────────────────────
 Clear-Host
 Write-Host ""
@@ -48,7 +40,6 @@ Write-Host ""
 
 # ── preflight ─────────────────────────────────────────────────────────────────
 Require-Admin
-Require-Git
 
 $BinDir = "$InstallDir\bin"
 
@@ -62,78 +53,79 @@ if ($confirm -eq "cancel") { exit 0 }
 Write-Host ""
 
 try {
-    # ── Step 1: find or clone the repo ───────────────────────────────────────
-    Write-Step "[1/5] Locating Ovie source..."
+    # ── Step 1: Download latest release ───────────────────────────────────────
+    Write-Step "[1/3] Downloading latest Ovie release..."
 
-    # Prefer: script is sitting inside the cloned repo already
-    $RepoRoot = $null
+    $GITHUB_REPO = "southwarridev/ovie"
+    $AssetName = "ovie-windows-x64.zip"
+    $ApiUrl = "https://api.github.com/repos/$GITHUB_REPO/releases/latest"
 
-    # Check if this script is inside a repo that has windows-x64\bin\oviec.exe
-    $candidate = $PSScriptRoot
-    if (Test-Path (Join-Path $candidate "windows-x64\bin\oviec.exe")) {
-        $RepoRoot = $candidate
-        Write-Ok "Using local repo at $RepoRoot"
-    }
+    Write-Step "   Fetching release information..."
 
-    # Otherwise clone fresh
-    if (-not $RepoRoot) {
-        $CloneTarget = "$env:TEMP\ovie-install-$(Get-Random)"
-        Write-Step "   Cloning from GitHub (this takes ~30 seconds)..."
-        git clone --depth 1 "https://github.com/southwarridev/ovie.git" $CloneTarget 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            Write-Fail "git clone failed. Check your internet connection."
-            exit 1
-        }
-        $RepoRoot = $CloneTarget
-        Write-Ok "Cloned to $RepoRoot"
-    }
+    $Release = Invoke-RestMethod -Uri $ApiUrl -Headers @{"Accept"="application/vnd.github.v3+json"}
+    $DownloadUrl = $Release.assets | Where-Object { $_.name -eq $AssetName } | Select-Object -ExpandProperty browser_download_url
 
-    $Src = Join-Path $RepoRoot "windows-x64"
-
-    # Sanity-check the source
-    if (-not (Test-Path "$Src\bin\oviec.exe")) {
-        Write-Fail "Cannot find windows-x64\bin\oviec.exe in the repo. The repo layout may have changed."
+    if (-not $DownloadUrl) {
+        Write-Fail "Could not find $AssetName in latest release"
+        Write-Fail "Check your internet connection or GitHub availability."
         exit 1
     }
 
-    # ── Step 2: create directories ───────────────────────────────────────────
-    Write-Step "[2/5] Creating install directories..."
+    Write-Ok "Download URL: $DownloadUrl"
+
+    Write-Step "   Downloading $AssetName..."
+    $TempFile = Join-Path $env:TEMP $AssetName
+    Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempFile -UseBasicParsing
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Fail "Download failed. Check your internet connection."
+        exit 1
+    }
+
+    Write-Ok "Downloaded $AssetName"
+
+    # ── Step 2: Extract and copy binaries ──────────────────────────────────────
+    Write-Step "[2/3] Installing Ovie..."
+
+    # Create directories
     foreach ($d in @($InstallDir, $BinDir, "$InstallDir\std", "$InstallDir\examples", "$InstallDir\docs")) {
         New-Item -ItemType Directory -Path $d -Force | Out-Null
     }
-    Write-Ok "Directories created"
 
-    # ── Step 3: copy binaries ────────────────────────────────────────────────
-    Write-Step "[3/5] Copying binaries..."
+    # Extract the archive
+    $ExtractPath = Join-Path $env:TEMP "ovie-installer"
+    if (Test-Path $ExtractPath) { Remove-Item $ExtractPath -Recurse -Force }
+    Expand-Archive -Path $TempFile -DestinationPath $ExtractPath -Force
 
-    Copy-Item "$Src\bin\oviec.exe" "$BinDir\oviec.exe" -Force
-    Write-Ok "oviec.exe installed"
-
-    # ovie.exe lives at windows-x64\ovie.exe (CLI wrapper)
-    if (Test-Path "$Src\ovie.exe") {
-        Copy-Item "$Src\ovie.exe" "$BinDir\ovie.exe" -Force
-    } else {
-        # Fallback: duplicate oviec as ovie
-        Copy-Item "$BinDir\oviec.exe" "$BinDir\ovie.exe" -Force
+    # Copy binaries
+    Copy-Item "$ExtractPath\ovie\bin\oviec.exe" "$BinDir\oviec.exe" -Force
+    if (Test-Path "$ExtractPath\ovie\bin\ovie.exe") {
+        Copy-Item "$ExtractPath\ovie\bin\ovie.exe" "$BinDir\ovie.exe" -Force
     }
-    Write-Ok "ovie.exe installed"
 
-    # ── Step 4: copy stdlib, examples, docs ─────────────────────────────────
-    Write-Step "[4/5] Copying standard library, examples and docs..."
+    Write-Ok "Binaries installed"
 
-    if (Test-Path "$Src\std")      { Copy-Item "$Src\std"      "$InstallDir\std"      -Recurse -Force }
-    if (Test-Path "$Src\examples") { Copy-Item "$Src\examples" "$InstallDir\examples" -Recurse -Force }
-    if (Test-Path "$Src\docs")     { Copy-Item "$Src\docs"     "$InstallDir\docs"     -Recurse -Force }
+    # Copy stdlib, examples, docs
+    if (Test-Path "$ExtractPath\ovie\std") {
+        Copy-Item "$ExtractPath\ovie\std" "$InstallDir\std" -Recurse -Force
+    }
+    if (Test-Path "$ExtractPath\ovie\examples") {
+        Copy-Item "$ExtractPath\ovie\examples" "$InstallDir\examples" -Recurse -Force
+    }
+    if (Test-Path "$ExtractPath\ovie\docs") {
+        Copy-Item "$ExtractPath\ovie\docs" "$InstallDir\docs" -Recurse -Force
+    }
 
-    # Root-level extras
-    foreach ($f in @("README.md","LICENSE","RELEASE_NOTES_v2.3.md","ovie.png","ovie.svg","ovie.toml.template")) {
-        $fp = Join-Path $Src $f
+    # Copy root files
+    foreach ($f in @("README.md", "LICENSE")) {
+        $fp = Join-Path "$ExtractPath\ovie" $f
         if (Test-Path $fp) { Copy-Item $fp "$InstallDir\" -Force }
     }
-    Write-Ok "Files copied"
 
-    # ── Step 5: PATH ─────────────────────────────────────────────────────────
-    Write-Step "[5/5] Adding $BinDir to system PATH..."
+    Write-Ok "Standard library and examples copied"
+
+    # ── Step 3: Add to PATH ─────────────────────────────────────────────────────
+    Write-Step "[3/3] Adding $BinDir to system PATH..."
     $currentPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
     if ($currentPath -notlike "*$BinDir*") {
         [Environment]::SetEnvironmentVariable("PATH", "$currentPath;$BinDir", "Machine")
@@ -143,18 +135,18 @@ try {
         Write-Ok "Already in PATH"
     }
 
-    # ── Cleanup temp clone ────────────────────────────────────────────────────
-    if ($RepoRoot -like "$env:TEMP\*") {
-        Remove-Item $RepoRoot -Recurse -Force -ErrorAction SilentlyContinue
-    }
+    # ── Cleanup ────────────────────────────────────────────────────────────────
+    Write-Step "Cleaning up temporary files..."
+    if (Test-Path $ExtractPath) { Remove-Item $ExtractPath -Recurse -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $TempFile) { Remove-Item $TempFile -Force -ErrorAction SilentlyContinue }
 
-    # ── Verify ───────────────────────────────────────────────────────────────
+    # ── Verify ─────────────────────────────────────────────────────────────────
     Write-Host ""
     Write-Step "Verifying..."
     $ver = & "$BinDir\oviec.exe" --version 2>&1 | Select-Object -First 1
     Write-Ok $ver
 
-    # ── Done ─────────────────────────────────────────────────────────────────
+    # ── Done ───────────────────────────────────────────────────────────────────
     Write-Host ""
     Write-Host "  ============================================================================" -ForegroundColor Green
     Write-Host "  |                  INSTALLATION COMPLETE!                                 |" -ForegroundColor Green
@@ -167,6 +159,13 @@ try {
     Write-Host "    oviec --self-check           # Validate installation" -ForegroundColor White
     Write-Host "    oviec run examples\hello.ov  # Run hello world" -ForegroundColor White
     Write-Host "    oviec new my-project         # Create new project" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Downloads for all platforms:" -ForegroundColor Cyan
+    Write-Host "    Windows x64  : https://github.com/$GITHUB_REPO/releases" -ForegroundColor White
+    Write-Host "    macOS x64    : https://github.com/$GITHUB_REPO/releases" -ForegroundColor White
+    Write-Host "    macOS arm64  : https://github.com/$GITHUB_REPO/releases" -ForegroundColor White
+    Write-Host "    Linux x64    : https://github.com/$GITHUB_REPO/releases" -ForegroundColor White
+    Write-Host "    Linux arm64  : https://github.com/$GITHUB_REPO/releases" -ForegroundColor White
     Write-Host ""
     Write-Host "  Docs: https://southwarridev.github.io/ovie/docs/book/index.html" -ForegroundColor White
     Write-Host ""

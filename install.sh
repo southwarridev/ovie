@@ -2,11 +2,8 @@
 # ============================================================================
 #  Ovie Programming Language v2.3.0 — Linux/macOS Installer
 #
-#  Uses the prebuilt binaries inside linux-x64/ (Linux) or
-#  macos-arm64/ / macos-x64/ (macOS) from the cloned repo.
-#  If the repo is not present it clones it automatically.
-#
-#  No Rust required. No release tarball needed.
+#  Downloads prebuilt binaries from GitHub releases for your platform.
+#  Supports: linux-x64, linux-arm64, macos-x64, macos-arm64
 #
 #  Usage:
 #    bash install.sh
@@ -31,10 +28,9 @@ echo -e "${CYAN}  |              Publisher: Ovie Language Team  |  MIT License  
 echo -e "${CYAN}  ============================================================================${NC}"
 echo ""
 
-OVIE_VERSION="2.3.0"
 INSTALL_DIR="$HOME/.local/ovie"
 BIN_DIR="$HOME/.local/bin"
-GITHUB_REPO="https://github.com/southwarridev/ovie.git"
+GITHUB_REPO="southwarridev/ovie"
 
 # ── Detect platform ───────────────────────────────────────────────────────────
 OS="$(uname -s)"
@@ -52,93 +48,93 @@ case "$ARCH" in
     *)               ARCH_SLUG="x64" ;;   # best-effort fallback
 esac
 
-# linux-x64  /  macos-x64  /  macos-arm64
-PLATFORM_DIR="${PLATFORM}-${ARCH_SLUG}"
+# github asset names: ovie-linux-x64.tar.gz, ovie-linux-arm64.tar.gz, etc.
+ASSET="ovie-${PLATFORM}-${ARCH_SLUG}.tar.gz"
 
-echo "  Platform          : $OS ($ARCH)"
-echo "  Install directory : $INSTALL_DIR"
-echo "  Binaries added to : $BIN_DIR"
-echo ""
-read -rp "  Press ENTER to install or Ctrl+C to cancel..."
+info "Platform          : $OS ($ARCH)"
+info "Asset             : $ASSET"
+info "Install directory : $INSTALL_DIR"
+info "Binaries added to : $BIN_DIR"
 echo ""
 
-# ── Step 1: Check git ────────────────────────────────────────────────────────
-info "[1/5] Checking requirements..."
-if ! command -v git >/dev/null 2>&1; then
+# ── Step 1: Check git (optional, for fallback) ───────────────────────────────
+info "[1/4] Checking requirements..."
+if ! command -v curl >/dev/null 2>&1; then
     if [ "$PLATFORM" = "macos" ]; then
-        fail "Git is not installed. Run: xcode-select --install"
+        fail "curl is not installed. Install Xcode Command Line Tools: xcode-select --install"
     else
-        fail "Git is not installed.
-         Ubuntu/Debian : sudo apt install git
-         Fedora        : sudo dnf install git
-         Arch          : sudo pacman -S git"
+        fail "curl is not installed. Run: sudo apt install curl (Ubuntu/Debian) or sudo dnf install curl (Fedora)"
     fi
 fi
-ok "Git found"
+ok "curl found"
 
-# ── Step 2: Find or clone the repo ───────────────────────────────────────────
-info "[2/5] Locating Ovie source..."
+# ── Step 2: Download latest release ───────────────────────────────────────────
+info "[2/4] Downloading latest Ovie release..."
 
-REPO_ROOT=""
-TEMP_CLONE=""
+API_URL="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
 
-if [ -n "${BASH_SOURCE[0]}" ] && [ "${BASH_SOURCE[0]}" != "bash" ]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-else
-    SCRIPT_DIR="$(pwd)"
+# Fetch release info and extract download URL
+info "   Fetching release information..."
+RELEASE_JSON=$(curl -s "$API_URL" -H "Accept: application/vnd.github.v3+json")
+DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o "\"browser_download_url\":[^,]*$ASSET[^,]*" | cut -d'"' -f4)
+
+if [ -z "$DOWNLOAD_URL" ]; then
+    # Fallback: parse with jq if available
+    if command -v jq >/dev/null 2>&1; then
+        DOWNLOAD_URL=$(echo "$RELEASE_JSON" | jq -r ".assets[] | select(.name==\"$ASSET\") | .browser_download_url")
+    fi
 fi
 
-if [ -f "$SCRIPT_DIR/$PLATFORM_DIR/oviec" ]; then
-    REPO_ROOT="$SCRIPT_DIR"
-    ok "Using local repo at $REPO_ROOT  ($PLATFORM_DIR/)"
-else
-    TEMP_CLONE="/tmp/ovie-install-$$"
-    info "   Cloning from GitHub (takes ~30 s on first run)..."
-    git clone --depth 1 "$GITHUB_REPO" "$TEMP_CLONE" 2>&1 \
-        | grep -E "Cloning|done\." || true
-    REPO_ROOT="$TEMP_CLONE"
-    ok "Cloned to $TEMP_CLONE"
+if [ -z "$DOWNLOAD_URL" ]; then
+    echo "   Available assets in latest release:"
+    echo "$RELEASE_JSON" | grep -o '"name":"[^"]*"' | head -10 | sed 's/"name":"//;s/"$//'
+    fail "Could not find $ASSET in latest release"
 fi
 
-SRC="$REPO_ROOT/$PLATFORM_DIR"
+info "   Download URL: $DOWNLOAD_URL"
 
-# Fallback: if exact arch folder missing, try x64
-if [ ! -f "$SRC/oviec" ] && [ "$ARCH_SLUG" = "arm64" ]; then
-    warn "No $PLATFORM_DIR/ folder found, trying ${PLATFORM}-x64/ instead..."
-    SRC="$REPO_ROOT/${PLATFORM}-x64"
+TEMP_FILE="/tmp/$ASSET"
+info "   Downloading $ASSET..."
+curl -L "$DOWNLOAD_URL" -o "$TEMP_FILE" -# 2>/dev/null || curl -L "$DOWNLOAD_URL" -o "$TEMP_FILE"
+
+if [ ! -f "$TEMP_FILE" ]; then
+    fail "Download failed. Check your internet connection."
 fi
+ok "Downloaded $ASSET"
 
-[ -f "$SRC/oviec" ] || fail "Cannot find oviec in $SRC. Please report this at https://github.com/southwarridev/ovie/issues"
+# ── Step 3: Extract and install ───────────────────────────────────────────────
+info "[3/4] Installing Ovie..."
 
-ok "Using binaries from $SRC"
-
-# ── Step 3: Create directories ───────────────────────────────────────────────
-info "[3/5] Creating install directories..."
+# Create directories
 mkdir -p "$INSTALL_DIR" "$BIN_DIR" \
          "$INSTALL_DIR/std" "$INSTALL_DIR/examples" "$INSTALL_DIR/docs"
-ok "Directories created"
 
-# ── Step 4: Copy binaries and resources ──────────────────────────────────────
-info "[4/5] Copying binaries..."
+# Extract the archive
+EXTRACT_PATH="/tmp/ovie-installer-$$"
+rm -rf "$EXTRACT_PATH"
+mkdir -p "$EXTRACT_PATH"
+tar -xzf "$TEMP_FILE" -C "$EXTRACT_PATH"
 
-install -m 755 "$SRC/oviec" "$BIN_DIR/oviec"
-ok "oviec installed"
-
-if [ -f "$SRC/ovie" ]; then
-    install -m 755 "$SRC/ovie" "$BIN_DIR/ovie"
+# Copy binaries
+if [ -f "$EXTRACT_PATH/ovie/bin/oviec" ]; then
+    install -m 755 "$EXTRACT_PATH/ovie/bin/oviec" "$BIN_DIR/oviec"
+    ok "oviec installed"
 else
-    cp "$BIN_DIR/oviec" "$BIN_DIR/ovie"
-    chmod +x "$BIN_DIR/ovie"
+    fail "oviec binary not found in archive"
 fi
-ok "ovie installed"
 
-info "   Copying standard library, examples and docs..."
-[ -d "$SRC/std" ]      && cp -r "$SRC/std/."      "$INSTALL_DIR/std/"
-[ -d "$SRC/examples" ] && cp -r "$SRC/examples/." "$INSTALL_DIR/examples/"
-[ -d "$SRC/docs" ]     && cp -r "$SRC/docs/."     "$INSTALL_DIR/docs/"
+if [ -f "$EXTRACT_PATH/ovie/bin/ovie" ]; then
+    install -m 755 "$EXTRACT_PATH/ovie/bin/ovie" "$BIN_DIR/ovie"
+    ok "ovie installed"
+fi
 
-for f in README.md LICENSE RELEASE_NOTES_v2.3.md ovie.png ovie.svg ovie.toml.template; do
-    [ -f "$SRC/$f" ] && cp "$SRC/$f" "$INSTALL_DIR/"
+# Copy stdlib, examples, docs
+[ -d "$EXTRACT_PATH/ovie/std" ]      && cp -r "$EXTRACT_PATH/ovie/std/."      "$INSTALL_DIR/std/"
+[ -d "$EXTRACT_PATH/ovie/examples" ] && cp -r "$EXTRACT_PATH/ovie/examples/." "$INSTALL_DIR/examples/"
+[ -d "$EXTRACT_PATH/ovie/docs" ]     && cp -r "$EXTRACT_PATH/ovie/docs/."     "$INSTALL_DIR/docs/"
+
+for f in README.md LICENSE; do
+    [ -f "$EXTRACT_PATH/ovie/$f" ] && cp "$EXTRACT_PATH/ovie/$f" "$INSTALL_DIR/"
 done
 
 STD_COUNT=$(find "$INSTALL_DIR/std"      -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -146,10 +142,10 @@ EX_COUNT=$(find  "$INSTALL_DIR/examples" -name "*.ov" 2>/dev/null | wc -l | tr -
 ok "Standard library ($STD_COUNT files, 11 modules)"
 ok "Examples ($EX_COUNT .ov files)"
 
-# ── Step 5: Add to PATH ───────────────────────────────────────────────────────
-info "[5/5] Adding $BIN_DIR to PATH..."
+# ── Step 4: Add to PATH ───────────────────────────────────────────────────────
+info "[4/4] Adding $BIN_DIR to PATH..."
 
-# Pick shell rc files — on macOS add to both zsh and bash profiles
+# Pick shell rc files
 if [ "$PLATFORM" = "macos" ]; then
     SHELL_RCS=("$HOME/.zshrc" "$HOME/.bash_profile")
 elif [ -n "$ZSH_VERSION" ] || [ "$(basename "${SHELL:-bash}")" = "zsh" ]; then
@@ -175,10 +171,8 @@ done
 
 export PATH="$BIN_DIR:$PATH"
 
-# ── Cleanup temp clone ────────────────────────────────────────────────────────
-if [ -n "$TEMP_CLONE" ] && [ -d "$TEMP_CLONE" ]; then
-    rm -rf "$TEMP_CLONE"
-fi
+# ── Cleanup ────────────────────────────────────────────────────────────────────
+rm -rf "$EXTRACT_PATH" "$TEMP_FILE"
 
 # ── Verify ────────────────────────────────────────────────────────────────────
 echo ""
@@ -200,6 +194,13 @@ echo "    oviec --version               # Check version"
 echo "    oviec --self-check            # Validate installation"
 echo "    oviec run examples/hello.ov   # Run hello world"
 echo "    oviec new my-project          # Create new project"
+echo ""
+echo "  Downloads for all platforms:"
+echo "    Windows x64  : https://github.com/$GITHUB_REPO/releases"
+echo "    macOS x64    : https://github.com/$GITHUB_REPO/releases"
+echo "    macOS arm64  : https://github.com/$GITHUB_REPO/releases"
+echo "    Linux x64    : https://github.com/$GITHUB_REPO/releases"
+echo "    Linux arm64  : https://github.com/$GITHUB_REPO/releases"
 echo ""
 echo "  Resources:"
 echo "    Website : https://ovie.nashedy.io"

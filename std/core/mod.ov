@@ -325,7 +325,8 @@ impl Vec<T> {
     
     // Grow the vector capacity
     fn grow(mut self) {
-        mut new_capacity = if self.capacity == 0 { 4 } else { self.capacity * 2 };
+        mut new_capacity = 4
+        if self.capacity != 0 { new_capacity = self.capacity * 2 }
         mut new_data = array_with_capacity(new_capacity);
         
         // Copy existing elements

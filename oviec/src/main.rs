@@ -582,8 +582,26 @@ fn run_file(args: CliArgs) -> OvieResult<()> {
     let backend = args.backend.unwrap_or(Backend::Interpreter);
     let mut compiler = create_compiler(Some(backend.clone()), args.debug);
 
-    compiler.compile_and_run_with_backend(&source, backend)?;
-    Ok(())
+    // ── Aproko pre-flight: run static analysis before execution ──────────────
+    // Always run aproko on the file before executing so warnings surface inline.
+    // We don't fail on aproko errors — it's advisory. Silently skip if the
+    // oviec-analyze binary isn't installed yet.
+    run_aproko_inline(&input_file);
+
+    // ── Execute ───────────────────────────────────────────────────────────────
+    match compiler.compile_and_run_with_backend(&source, backend) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            // Print the raw error first
+            eprintln!("\n{}", format_error_for_terminal(&e, &input_file, &source));
+
+            // Then ask aproko to explain it in plain language
+            explain_error_inline(&input_file, &e);
+
+            // Return a clean exit-code 1 (already printed, no double-print)
+            Err(e)
+        }
+    }
 }
 
 fn dump_ast(args: CliArgs) -> OvieResult<()> {
@@ -782,6 +800,142 @@ fn explain_type(args: CliArgs) -> OvieResult<()> {
     let exit = delegate_to_analyze_bin(&["type", &input_file])?;
     if exit != 0 { process::exit(exit); }
     Ok(())
+}
+
+// ── Aproko real-time helpers ──────────────────────────────────────────────────
+
+/// Run aproko static analysis on a file and print any findings to stderr inline.
+/// This runs before execution so warnings are visible even when the program succeeds.
+/// Non-fatal — silently skips if oviec-analyze is not installed.
+fn run_aproko_inline(file: &str) {
+    let bin_name = if cfg!(windows) { "oviec-analyze.exe" } else { "oviec-analyze" };
+    let analyze_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join(bin_name)))
+        .filter(|p| p.exists())
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| bin_name.to_string());
+
+    match std::process::Command::new(&analyze_path)
+        .args(["analyze", file])
+        .output()
+    {
+        Ok(output) => {
+            let out = String::from_utf8_lossy(&output.stdout);
+            // Only print if there are actual findings (non-empty beyond header)
+            let lines: Vec<&str> = out.lines().collect();
+            let has_findings = lines.iter().any(|l| {
+                l.contains("warning") || l.contains("error") || l.contains("hint")
+            });
+            if has_findings {
+                eprintln!("\n== Aproko Analysis ==================================");
+                for line in &lines {
+                    eprintln!("{}", line);
+                }
+                eprintln!("=====================================================\n");
+            }
+        }
+        Err(_) => {} // oviec-analyze not available, skip silently
+    }
+}
+
+/// After a runtime or compile error, call aproko to explain it in plain language.
+/// Prints the explanation directly to stderr so the user sees it immediately.
+fn explain_error_inline(file: &str, error: &oviec::OvieError) {
+    let bin_name = if cfg!(windows) { "oviec-analyze.exe" } else { "oviec-analyze" };
+    let analyze_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join(bin_name)))
+        .filter(|p| p.exists())
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| bin_name.to_string());
+
+    match std::process::Command::new(&analyze_path)
+        .args(["explain", file])
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            let explanation = String::from_utf8_lossy(&output.stdout);
+            if !explanation.trim().is_empty() {
+                eprintln!("\n== Aproko Explanation ================================");
+                eprintln!("{}", explanation.trim());
+                eprintln!("=====================================================");
+            }
+        }
+        _ => {
+            eprintln!("\n== Hint =============================================");
+            eprintln!("{}", get_inline_hint(error));
+            eprintln!("=====================================================");
+        }
+    }
+}
+
+/// Format an OvieError with source context for terminal display.
+/// Shows the error message, the relevant source line, and a caret pointing to the problem.
+fn format_error_for_terminal(error: &oviec::OvieError, file: &str, source: &str) -> String {
+    let mut out = String::new();
+
+    // Header
+    out.push_str(&format!("error: {}\n", error));
+    out.push_str(&format!(" --> {}\n", file));
+
+    // Try to extract line number from the error message and show source context
+    let error_str = error.to_string();
+    let line_num = extract_line_number(&error_str);
+    if let Some(line_no) = line_num {
+        let lines: Vec<&str> = source.lines().collect();
+        if line_no > 0 && line_no <= lines.len() {
+            let line_content = lines[line_no - 1];
+            let line_label = format!("{}", line_no);
+            let pad = " ".repeat(line_label.len());
+            out.push_str(&format!("  {}|\n", pad));
+            out.push_str(&format!("  {} | {}\n", line_label, line_content));
+            out.push_str(&format!("  {}|\n", pad));
+        }
+    }
+    out
+}
+
+/// Extract a line number from an error message string like "line 5" or "at line 5, column 3".
+fn extract_line_number(error_msg: &str) -> Option<usize> {
+    // Patterns: "line 5", "at line 5"
+    for word in error_msg.split_whitespace().collect::<Vec<_>>().windows(2) {
+        if word[0].to_lowercase() == "line" {
+            if let Ok(n) = word[1].trim_end_matches(',').parse::<usize>() {
+                return Some(n);
+            }
+        }
+    }
+    None
+}
+
+/// Produce a plain-language hint from an OvieError when aproko is unavailable.
+fn get_inline_hint(error: &oviec::OvieError) -> String {
+    let msg = error.to_string().to_lowercase();
+
+    if msg.contains("undefined variable") {
+        return "Variable not declared. Use 'mut name = value' or 'name = value' before using it.".to_string();
+    }
+    if msg.contains("undefined function") {
+        return "Function not defined. Check spelling, or make sure the module is imported.".to_string();
+    }
+    if msg.contains("parse error") || msg.contains("expected") {
+        return "Syntax error. Check for missing brackets, colons, or mismatched braces.".to_string();
+    }
+    if msg.contains("division by zero") {
+        return "You divided by zero. Add a check: 'if b != 0 { ... }' before dividing.".to_string();
+    }
+    if msg.contains("type") || msg.contains("cannot") {
+        return "Type mismatch. Make sure both sides of the operation are the same type (e.g. Number + Number, not Number + String).".to_string();
+    }
+    if msg.contains("undefined struct") {
+        return "Struct not defined. Declare it with 'struct Name { field: Type }' before using it.".to_string();
+    }
+    if msg.contains("field") && msg.contains("not found") {
+        return "Field doesn't exist on this struct. Check the struct definition for the correct field name.".to_string();
+    }
+
+    "Run 'oviec analyze <file.ov>' for a detailed breakdown of this error.".to_string()
 }
 
 /// Locate and run `oviec-analyze` with the given arguments.

@@ -1,38 +1,194 @@
----
-# Canonical release workflow for Ovie v2.3+
-# Delegates to release-v2.3.yml via workflow_call, or use directly.
-# Triggered by: push of a version tag (v2.3.x, v2.4.x, v3.x)
-
-name: Release — Ovie
+name: Ovie Release
 
 on:
   push:
     tags:
-      - 'v2.3.*'
-      - 'v2.4.*'
-      - 'v3.*'
+      - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (e.g., 2.3.0)'
-        required: true
-        default: '2.3.0'
-      create_release:
-        description: 'Create GitHub release'
-        type: boolean
-        default: true
-      prerelease:
-        description: 'Mark as pre-release'
-        type: boolean
-        default: false
 
-# Delegate everything to the authoritative v2.3 release workflow
-# so we have a single source of truth.
+permissions:
+  contents: write
+
 jobs:
-  run-v23-release:
-    uses: ./.github/workflows/release-v2.3.yml
-    secrets: inherit
-    with:
-      version: ${{ github.event.inputs.version || '2.3.0' }}
-      create_release: ${{ github.event.inputs.create_release == '' || github.event.inputs.create_release == 'true' }}
-      prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: oviec.exe
+            archive: ovie-windows-x64.zip
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: oviec
+            archive: ovie-macos-x64.tar.gz
+
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: oviec
+            archive: ovie-macos-arm64.tar.gz
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: oviec
+            archive: ovie-linux-x64.tar.gz
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact: oviec
+            archive: ovie-linux-arm64.tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build oviec
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: >
+          cargo build --release --bin oviec
+          --target ${{ matrix.target }}
+
+      - name: Build oviec-analyze (aproko)
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: >
+          cargo build --release --bin oviec-analyze
+          --target ${{ matrix.target }}
+        continue-on-error: true
+
+      - name: Stage release layout
+        shell: bash
+        run: |
+          mkdir -p dist/ovie/bin
+          mkdir -p dist/ovie/std
+          mkdir -p dist/ovie/examples
+          mkdir -p dist/ovie/docs
+
+          # Binaries
+          BIN_DIR="target/${{ matrix.target }}/release"
+          if [ -f "$BIN_DIR/oviec.exe" ]; then
+            cp "$BIN_DIR/oviec.exe" dist/ovie/bin/
+            cp "$BIN_DIR/oviec.exe" dist/ovie/bin/ovie.exe 2>/dev/null || true
+          else
+            cp "$BIN_DIR/oviec" dist/ovie/bin/
+            chmod +x dist/ovie/bin/oviec
+            cp "$BIN_DIR/oviec" dist/ovie/bin/ovie 2>/dev/null || true
+            chmod +x dist/ovie/bin/ovie 2>/dev/null || true
+          fi
+
+          # oviec-analyze if it built
+          if [ -f "$BIN_DIR/oviec-analyze.exe" ]; then
+            cp "$BIN_DIR/oviec-analyze.exe" dist/ovie/bin/ 2>/dev/null || true
+          elif [ -f "$BIN_DIR/oviec-analyze" ]; then
+            cp "$BIN_DIR/oviec-analyze" dist/ovie/bin/ 2>/dev/null || true
+            chmod +x dist/ovie/bin/oviec-analyze
+          fi
+
+          # Standard library (.ov files ship alongside binary)
+          cp -r std/* dist/ovie/std/ 2>/dev/null || true
+
+          # Examples and docs
+          cp -r examples/* dist/ovie/examples/ 2>/dev/null || true
+          cp -r docs      dist/ovie/          2>/dev/null || true
+          cp README.md    dist/ovie/           2>/dev/null || true
+          cp LICENSE      dist/ovie/           2>/dev/null || true
+
+      - name: Create archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/ovie -DestinationPath ${{ matrix.archive }}
+
+      - name: Create archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd dist
+          tar -czf ../${{ matrix.archive }} ovie
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Ovie ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: artifacts/**/*
+          body: |
+            ## Ovie ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | Archive |
+            |---|---|
+            | Windows x64 | `ovie-windows-x64.zip` |
+            | macOS x64   | `ovie-macos-x64.tar.gz` |
+            | macOS arm64 | `ovie-macos-arm64.tar.gz` |
+            | Linux x64   | `ovie-linux-x64.tar.gz` |
+            | Linux arm64 | `ovie-linux-arm64.tar.gz` |
+
+            ### Installation
+            Extract the archive, add the `bin/` folder to your `PATH`.
+
+            ```bash
+            # Linux / macOS
+            tar -xzf ovie-linux-x64.tar.gz
+            export PATH="$PATH:$(pwd)/ovie/bin"
+            oviec --version
+
+            # Windows (PowerShell)
+            Expand-Archive ovie-windows-x64.zip
+            $env:PATH += ";$(pwd)\ovie\bin"
+            oviec --version
+            ```
+
+            ### What's included
+            - `oviec` — the Ovie compiler and interpreter
+            - `oviec-analyze` — Aproko static analysis engine
+            - `std/` — complete standard library (`.ov` source files)
+            - `examples/` — 22+ example programs

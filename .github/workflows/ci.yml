@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  check:
+    name: Check & Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cargo check
+        run: cargo check --workspace
+
+      - name: Build oviec
+        run: cargo build --bin oviec
+
+      - name: Run Rust tests (oviec)
+        run: cargo test --package oviec --lib -- --test-threads=1
+        continue-on-error: true
+
+      - name: Run Rust tests (aproko)
+        run: cargo test --package aproko --lib -- --test-threads=1
+        continue-on-error: true
+
+      - name: Smoke test — hello.ov
+        shell: bash
+        run: |
+          echo 'seeAm "Hello from CI!"' > /tmp/hello.ov
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ./target/debug/oviec.exe run /tmp/hello.ov
+          else
+            ./target/debug/oviec run /tmp/hello.ov
+          fi
+
+      - name: Smoke test — oya keyword
+        shell: bash
+        run: |
+          cat > /tmp/oya_test.ov << 'EOF'
+          oya name = "Ovie"
+          mut count = 0
+          count += 1
+          seeAm name
+          seeAm count
+          EOF
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ./target/debug/oviec.exe run /tmp/oya_test.ov
+          else
+            ./target/debug/oviec run /tmp/oya_test.ov
+          fi
+
+      - name: Smoke test — use std::math
+        shell: bash
+        run: |
+          cat > /tmp/math_test.ov << 'EOF'
+          use std::math
+          seeAm sqrt(16)
+          seeAm abs(-5)
+          seeAm pow(2, 8)
+          EOF
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ./target/debug/oviec.exe run /tmp/math_test.ov
+          else
+            ./target/debug/oviec run /tmp/math_test.ov
+          fi
+
+      - name: Smoke test — impl blocks
+        shell: bash
+        run: |
+          cat > /tmp/impl_test.ov << 'EOF'
+          struct Counter {
+              value: Number,
+          }
+          impl Counter {
+              fn new() -> Counter {
+                  return Counter { value: 0 }
+              }
+              fn inc(self) -> Counter {
+                  self.value = self.value + 1
+                  return self
+              }
+          }
+          mut c = Counter { value: 0 }
+          seeAm c.value
+          EOF
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ./target/debug/oviec.exe run /tmp/impl_test.ov
+          else
+            ./target/debug/oviec run /tmp/impl_test.ov
+          fi

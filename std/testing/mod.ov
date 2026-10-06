@@ -462,11 +462,8 @@ impl TestRunner {
         // In a real implementation, this would use proper timeout and panic handling
         // For now, we'll simulate the execution
         
-        mut timeout = if test.timeout.is_some() { 
-            test.timeout.unwrap() 
-        } else { 
-            self.config.timeout 
-        };
+        mut timeout = self.config.timeout
+        if test.timeout.is_some() { timeout = test.timeout.unwrap() }
         
         // Execute the test function
         mut result = test.test_fn();
@@ -712,11 +709,8 @@ fn property_test<T>(
     property: fn(T) -> Boolean,
     config: PropertyConfig
 ) -> TestResult {
-    mut seed = if config.seed.is_some() { 
-        config.seed.unwrap() 
-    } else { 
-        get_current_timestamp() 
-    };
+    mut seed = get_current_timestamp()
+    if config.seed.is_some() { seed = config.seed.unwrap() }
     
     mut rng = RandomGenerator.new(seed);
     

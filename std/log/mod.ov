@@ -419,13 +419,11 @@ impl FileAppender {
     
     // Open the log file
     fn open(mut self) -> Result<(), String> {
-        mut mode = if self.append_mode { FileMode.Append } else { FileMode.Write };
-        
-        mut file_result = if self.append_mode {
-            open_with_mode(self.file_path, mode)
-        } else {
-            create(self.file_path)
-        };
+        mut mode = FileMode.Write
+        if self.append_mode { mode = FileMode.Append }
+
+        mut file_result = create(self.file_path)
+        if self.append_mode { file_result = open_with_mode(self.file_path, mode) }
         
         if file_result.is_err() {
             return err("Failed to open log file: " + file_result.unwrap_err());

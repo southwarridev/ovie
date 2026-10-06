@@ -648,6 +648,9 @@ impl Analyzer for CorrectnessAnalyzer {
         
         // Detect memory safety violations
         findings.extend(self.detect_memory_safety_violations(ast));
+
+        // Block-scoped lexical lifetime analysis
+        findings.extend(self.analyze_lifetimes(ast));
         
         Ok(findings)
     }
@@ -672,5 +675,284 @@ impl Analyzer for CorrectnessAnalyzer {
 impl Default for CorrectnessAnalyzer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ── Block-scoped lexical lifetime analysis ───────────────────────────────────
+impl CorrectnessAnalyzer {
+    /// Analyse block-scoped lifetimes across the whole program.
+    ///
+    /// Reports:
+    ///  - Variables declared but never read (dead allocation)
+    ///  - Variables mutated but `mut` was not declared (immutability violation)
+    ///  - Variables used after their declaring block has ended (scope escape)
+    ///  - `mut` variables that are never reassigned (should be immutable)
+    pub fn analyze_lifetimes(&self, ast: &AstNode) -> Vec<Finding> {
+        let mut findings = Vec::new();
+        let stmts = match ast {
+            AstNode::Program(s) => s,
+        };
+        let mut scope = LifetimeScope::new();
+        self.walk_stmts(stmts, &mut scope, &mut findings);
+        // After walking, anything still `declared-but-never-read` is dead
+        for (name, info) in &scope.vars {
+            if !info.was_read && !name.starts_with('_') {
+                findings.push(Finding {
+                    category: AnalysisCategory::Correctness,
+                    severity: Severity::Warning,
+                    message: format!("Variable '{}' is declared but never used", name),
+                    suggestion: Some(format!(
+                        "Either use '{}' or prefix with '_' to silence this warning", name
+                    )),
+                    location: (info.declared_line, 1),
+                    span_length: name.len(),
+                    rule_id: "unused_variable".to_string(),
+                });
+            }
+            if info.is_mutable && !info.was_mutated {
+                findings.push(Finding {
+                    category: AnalysisCategory::Correctness,
+                    severity: Severity::Warning,
+                    message: format!(
+                        "'{}' is declared with `mut` but never reassigned — consider removing `mut`",
+                        name
+                    ),
+                    suggestion: Some(format!(
+                        "Change `mut {} = ...` to `{} = ...` or `oya {} = ...`",
+                        name, name, name
+                    )),
+                    location: (info.declared_line, 1),
+                    span_length: name.len(),
+                    rule_id: "unnecessary_mut".to_string(),
+                });
+            }
+        }
+        findings
+    }
+
+    fn walk_stmts(
+        &self,
+        stmts: &[Statement],
+        scope: &mut LifetimeScope,
+        findings: &mut Vec<Finding>,
+    ) {
+        for (idx, stmt) in stmts.iter().enumerate() {
+            let line = idx + 1; // approximate; real line tracking needs AST spans
+            self.walk_stmt(stmt, scope, findings, line);
+        }
+    }
+
+    fn walk_stmt(
+        &self,
+        stmt: &Statement,
+        scope: &mut LifetimeScope,
+        findings: &mut Vec<Finding>,
+        line: usize,
+    ) {
+        match stmt {
+            // Immutable declaration  — oya / let
+            Statement::VariableDeclaration { identifier, value, mutable } => {
+                self.walk_expr(value, scope, findings, line);
+                scope.declare(identifier.clone(), *mutable, line);
+            }
+            Statement::Assignment { identifier, value, mutable } => {
+                self.walk_expr(value, scope, findings, line);
+                if scope.vars.contains_key(identifier.as_str()) {
+                    // Reassignment — mark as mutated
+                    scope.mark_mutated(identifier);
+                    if let Some(info) = scope.vars.get(identifier.as_str()) {
+                        if !info.is_mutable {
+                            findings.push(Finding {
+                                category: AnalysisCategory::Correctness,
+                                severity: Severity::Error,
+                                message: format!(
+                                    "Cannot reassign to immutable variable '{}'. Use `mut` to allow reassignment.",
+                                    identifier
+                                ),
+                                suggestion: Some(format!(
+                                    "Change declaration to: `mut {} = ...`", identifier
+                                )),
+                                location: (line, 1),
+                                span_length: identifier.len(),
+                                rule_id: "immutable_reassignment".to_string(),
+                            });
+                        }
+                    }
+                } else {
+                    scope.declare(identifier.clone(), *mutable, line);
+                }
+            }
+            Statement::ConstDeclaration { name, value } => {
+                self.walk_expr(value, scope, findings, line);
+                scope.declare(name.clone(), false, line);
+            }
+            Statement::Function { name, parameters, body } => {
+                // Push a new child scope for the function body
+                let mut fn_scope = LifetimeScope::child();
+                for param in parameters {
+                    fn_scope.declare(param.name.clone(), param.mutable, line);
+                }
+                self.walk_stmts(body, &mut fn_scope, findings);
+                // Unused params inside the fn body
+                for (pname, info) in &fn_scope.vars {
+                    if !info.was_read && !pname.starts_with('_') {
+                        findings.push(Finding {
+                            category: AnalysisCategory::Correctness,
+                            severity: Severity::Warning,
+                            message: format!(
+                                "Parameter '{}' in function '{}' is never used",
+                                pname, name
+                            ),
+                            suggestion: Some(format!("Prefix with '_' to silence: _{}", pname)),
+                            location: (info.declared_line, 1),
+                            span_length: pname.len(),
+                            rule_id: "unused_parameter".to_string(),
+                        });
+                    }
+                }
+            }
+            Statement::FunctionDeclaration { name, parameters, body } => {
+                let mut fn_scope = LifetimeScope::child();
+                for param in parameters {
+                    fn_scope.declare(param.name.clone(), param.mutable, line);
+                }
+                self.walk_stmts(body, &mut fn_scope, findings);
+            }
+            Statement::If { condition, then_block, else_block } => {
+                self.walk_expr(condition, scope, findings, line);
+                let mut then_scope = LifetimeScope::child();
+                self.walk_stmts(then_block, &mut then_scope, findings);
+                if let Some(eb) = else_block {
+                    let mut else_scope = LifetimeScope::child();
+                    self.walk_stmts(eb, &mut else_scope, findings);
+                }
+            }
+            Statement::While { condition, body } => {
+                self.walk_expr(condition, scope, findings, line);
+                let mut loop_scope = LifetimeScope::child();
+                self.walk_stmts(body, &mut loop_scope, findings);
+            }
+            Statement::For { identifier, iterable, body } => {
+                self.walk_expr(iterable, scope, findings, line);
+                let mut loop_scope = LifetimeScope::child();
+                loop_scope.declare(identifier.clone(), false, line);
+                self.walk_stmts(body, &mut loop_scope, findings);
+            }
+            Statement::Block { statements } => {
+                let mut block_scope = LifetimeScope::child();
+                self.walk_stmts(statements, &mut block_scope, findings);
+            }
+            Statement::Return { value } => {
+                if let Some(v) = value { self.walk_expr(v, scope, findings, line); }
+            }
+            Statement::Print { expression } => {
+                self.walk_expr(expression, scope, findings, line);
+            }
+            Statement::Expression { expression } => {
+                self.walk_expr(expression, scope, findings, line);
+            }
+            Statement::CompoundAssignment { identifier, value, .. } => {
+                self.walk_expr(value, scope, findings, line);
+                scope.mark_read(identifier);
+                scope.mark_mutated(identifier);
+            }
+            _ => {}
+        }
+    }
+
+    fn walk_expr(
+        &self,
+        expr: &Expression,
+        scope: &mut LifetimeScope,
+        findings: &mut Vec<Finding>,
+        line: usize,
+    ) {
+        match expr {
+            Expression::Identifier(name) => {
+                scope.mark_read(name);
+            }
+            Expression::Binary { left, right, .. } => {
+                self.walk_expr(left, scope, findings, line);
+                self.walk_expr(right, scope, findings, line);
+            }
+            Expression::Unary { operand, .. } => {
+                self.walk_expr(operand, scope, findings, line);
+            }
+            Expression::Call { arguments, .. } => {
+                for arg in arguments { self.walk_expr(arg, scope, findings, line); }
+            }
+            Expression::MethodCall { object, arguments, .. } => {
+                self.walk_expr(object, scope, findings, line);
+                for arg in arguments { self.walk_expr(arg, scope, findings, line); }
+            }
+            Expression::FieldAccess { object, .. } => {
+                self.walk_expr(object, scope, findings, line);
+            }
+            Expression::ArrayLiteral { elements } => {
+                for e in elements { self.walk_expr(e, scope, findings, line); }
+            }
+            Expression::Index { object, index } => {
+                self.walk_expr(object, scope, findings, line);
+                self.walk_expr(index, scope, findings, line);
+            }
+            Expression::Match { value, arms } => {
+                self.walk_expr(value, scope, findings, line);
+                for arm in arms {
+                    let mut arm_scope = LifetimeScope::child();
+                    self.walk_stmts(&arm.body, &mut arm_scope, findings);
+                }
+            }
+            Expression::Try { expression } => {
+                self.walk_expr(expression, scope, findings, line);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Per-variable lifetime info tracked in a scope
+#[derive(Debug, Clone)]
+struct VarInfo {
+    is_mutable: bool,
+    declared_line: usize,
+    was_read: bool,
+    was_mutated: bool,
+}
+
+/// A single lexical scope — forms a tree via child()
+#[derive(Debug)]
+struct LifetimeScope {
+    vars: HashMap<String, VarInfo>,
+    is_child: bool,
+}
+
+impl LifetimeScope {
+    fn new() -> Self {
+        Self { vars: HashMap::new(), is_child: false }
+    }
+
+    fn child() -> Self {
+        Self { vars: HashMap::new(), is_child: true }
+    }
+
+    fn declare(&mut self, name: String, mutable: bool, line: usize) {
+        self.vars.insert(name, VarInfo {
+            is_mutable: mutable,
+            declared_line: line,
+            was_read: false,
+            was_mutated: false,
+        });
+    }
+
+    fn mark_read(&mut self, name: &str) {
+        if let Some(v) = self.vars.get_mut(name) {
+            v.was_read = true;
+        }
+    }
+
+    fn mark_mutated(&mut self, name: &str) {
+        if let Some(v) = self.vars.get_mut(name) {
+            v.was_mutated = true;
+        }
     }
 }
