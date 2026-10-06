@@ -8,17 +8,17 @@
   Low-level control with high-level productivity. Direct memory management,
   natural syntax, complete standard library, and Aproko reasoning engine.
 
-  [![GitHub](https://img.shields.io/badge/GitHub-southwarridev%2Fovie-blue?logo=github)](https://github.com/southwarridev/ovie)
+  [![GitHub](https://img.shields.io/badge/GitHub-couragereward%2Fovie-blue?logo=github)](https://github.com/couragereward/ovie)
   [![GitLab](https://img.shields.io/badge/GitLab-ovie1%2Fovie-orange?logo=gitlab)](https://gitlab.com/ovie1/ovie)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-  [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](RELEASE_NOTES_v2.3.md)
+  [![Version](https://img.shields.io/badge/version-2.3.1-blue.svg)](RELEASE_NOTES_v2.3.md)
   [![Website](https://img.shields.io/badge/website-southwarridev.github.io%2Fovie-gold)](https://ovie.nashedy.io)
 
   [Website](https://ovie.nashedy.io)·
   [Book](https://southwarridev.github.io/ovie/docs/book/index.html) ·
   [Install](#installation) ·
   [Docs](#documentation) ·
-  [GitHub](https://github.com/southwarridev/ovie) ·
+  [GitHub](https://github.com/couragereward/ovie) ·
   [GitLab](https://gitlab.com/ovie1/ovie)
 </div>
 
@@ -91,7 +91,7 @@ curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-i
 ### Build from source
 
 ```bash
-git clone https://github.com/southwarridev/ovie.git
+git clone https://github.com/couragereward/ovie.git
 cd ovie
 cargo build --release --bin oviec
 ```
@@ -249,7 +249,7 @@ ovie/
 ## Contributing
 
 ```bash
-git clone https://github.com/southwarridev/ovie.git
+git clone https://github.com/couragereward/ovie.git
 cd ovie
 cargo build --release --workspace
 cargo test --package aproko --lib
@@ -263,9 +263,9 @@ Areas: core language, standard library, Aproko rules, documentation, examples, I
 
 ## Community
 
-- **GitHub**: [github.com/southwarridev/ovie](https://github.com/southwarridev/ovie)
+- **GitHub**: [github.com/couragereward/ovie](https://github.com/couragereward/ovie)
 - **GitLab**: [gitlab.com/ovie1/ovie](https://gitlab.com/ovie1/ovie)
-- **Issues**: [github.com/southwarridev/ovie/issues](https://github.com/southwarridev/ovie/issues)
+- **Issues**: [github.com/couragereward/ovie/issues](https://github.com/couragereward/ovie/issues)
 - **https://discord.gg/AuF4ubMyE](https://discord.gg/AuF4ubMyE)
 - **Website**: [https://ovie.nashedy.io](https://ovie.nashedy.io)
 

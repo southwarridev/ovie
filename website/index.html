@@ -126,10 +126,10 @@ main()</code></pre>
     <div class="achievement-content">
       <div class="achievement-icon">🎉</div>
       <div class="achievement-text">
-        <h3>Ovie v2.3 — Complete Module System</h3>
-        <p>Ovie v2.3 — Complete Module System</p>
+        <h3>Ovie v2.3.1 — Full System Implementation</h3>
+        <p>Block-scoped memory, oya/mut keywords, impl blocks, and complete stdlib</p>
       </div>
-      <a href="#modules" class="btn btn-outline">Explore Modules</a>
+      <a href="#features" class="btn btn-outline">Explore New Features</a>
     </div>
   </div>
 </section>
@@ -150,6 +150,28 @@ main()</code></pre>
       <div class="feature-card"><div class="feature-icon">🌍</div><h3 class="feature-title">Accessible</h3><p class="feature-description">Natural syntax with <code>seeAm</code> (Nigerian Pidgin). 13 keywords. Built for developers everywhere.</p></div>
       <div class="feature-card"><div class="feature-icon">🧪</div><h3 class="feature-title">Property Testing</h3><p class="feature-description">Property-based tests validate universal correctness properties. 100% critical path coverage.</p></div>
       <div class="feature-card"><div class="feature-icon">🚀</div><h3 class="feature-title">Multi-Backend</h3><p class="feature-description">Compile to WebAssembly, LLVM native, or run with the built-in interpreter.</p></div>
+      <div class="feature-card"><div class="feature-icon">💾</div><h3 class="feature-title">Block-Scoped Memory</h3><p class="feature-description">Automatic lifetime management with Aproko analysis. Variables dropped on scope exit.</p></div>
+      <div class="feature-card"><div class="feature-icon">📝</div><h3 class="feature-title">Oya & Mut</h3><p class="feature-description">Natural declaration keywords. <code>oya</code> for immutable, <code>mut</code> for mutable variables.</p></div>
+      <div class="feature-card"><div class="feature-icon">🔧</div><h3 class="feature-title">Impl Blocks</h3><p class="feature-description">Object-oriented patterns with <code>impl</code> blocks. Automatic desugaring to top-level functions.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- v2.3.1 Features -->
+<section id="v2.3.1" class="features">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">v2.3.1 — Full System Implementation</h2>
+      <p class="section-subtitle">Complete block-scoped memory, natural keywords, and impl blocks</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon">🛡️</div><h3 class="feature-title">Aproko Lifetime Analysis</h3><p class="feature-description">Full memory/lifetime tracking with block-scoped variable tracking. Push/pop scope management.</p></div>
+      <div class="feature-card"><div class="feature-icon">📝</div><h3 class="feature-title">Oya Keyword</h3><p class="feature-description">Natural declaration keyword. <code>oya name = "Ovie"</code> for immutable variables.</p></div>
+      <div class="feature-card"><div class="feature-icon">🔄</div><h3 class="feature-title">Mutable Variables</h3><p class="feature-description">Use <code>mut counter = 0</code> for mutable state. Both oya and mut work together.</p></div>
+      <div class="feature-card"><div class="feature-icon">📦</div><h3 class="feature-title">Impl Blocks</h3><p class="feature-description">Object-oriented patterns: <code>impl Counter { fn new() }</code> auto-desugars to <code>Counter_new(self)</code>.</p></div>
+      <div class="feature-card"><div class="feature-icon">🧩</div><h3 class="feature-title">Self-Hosted Stdlib</h3><p class="feature-description">All .ov files bundled with <code>include_str!</code>. Use/Import loads stdlib seamlessly.</p></div>
+      <div class="feature-card"><div class="feature-icon">🔧</div><h3 class="feature-title">Parser Fixes</h3><p class="feature-description">Inline-if expressions, impl blocks, generics skip, trait blocks all now parsed.</p></div>
+      <div class="feature-card"><div class="feature-icon">🛡️</div><h3 class="feature-title">Aproko Inline Hints</h3><p class="feature-description">Compiler validates Aproko analysis hints. Block scopes tracked at every level.</p></div>
     </div>
   </div>
 </section>
@@ -275,38 +297,38 @@ ovie doc --format html</code></pre></div></div>
         <h3>Windows</h3>
         <p>x64 — Windows 10+</p>
         <div class="download-btns">
-          <a href="https://github.com/southwarridev/ovie/releases/latest/download/ovie-windows-x64.zip" class="btn btn-primary"><span class="btn-icon">⬇️</span> Download .zip</a>
-          <a href="https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1" class="btn btn-secondary" download>PowerShell Installer</a>
-          <a href="https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.bat" class="btn btn-secondary" download>.bat Installer</a>
+          <a href="https://github.com/couragereward/ovie/releases/latest/download/ovie-windows-x64.zip" class="btn btn-primary"><span class="btn-icon">⬇️</span> Download .zip</a>
+          <a href="https://raw.githubusercontent.com/couragereward/ovie/main/easy-windows-install.ps1" class="btn btn-secondary" download>PowerShell Installer</a>
+          <a href="https://raw.githubusercontent.com/couragereward/ovie/main/easy-windows-install.bat" class="btn btn-secondary" download>.bat Installer</a>
         </div>
-        <div class="install-cmd"><code>iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex</code></div>
+        <div class="install-cmd"><code>iwr -useb https://raw.githubusercontent.com/couragereward/ovie/main/easy-windows-install.ps1 | iex</code></div>
       </div>
       <div class="download-card">
         <div class="platform-icon">🐧</div>
         <h3>Linux</h3>
         <p>x64 — Ubuntu, Debian, Fedora, Arch</p>
         <div class="download-btns">
-          <a href="https://github.com/southwarridev/ovie/releases/latest/download/ovie-linux-x64.tar.gz" class="btn btn-primary"><span class="btn-icon">⬇️</span> Download .tar.gz</a>
-          <a href="https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh" class="btn btn-secondary" download>Shell Installer</a>
+          <a href="https://github.com/couragereward/ovie/releases/latest/download/ovie-linux-x64.tar.gz" class="btn btn-primary"><span class="btn-icon">⬇️</span> Download .tar.gz</a>
+          <a href="https://raw.githubusercontent.com/couragereward/ovie/main/easy-linux-install.sh" class="btn btn-secondary" download>Shell Installer</a>
         </div>
-        <div class="install-cmd"><code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash</code></div>
+        <div class="install-cmd"><code>curl -sSL https://raw.githubusercontent.com/couragereward/ovie/main/easy-linux-install.sh | bash</code></div>
       </div>
       <div class="download-card">
         <div class="platform-icon">🍎</div>
         <h3>macOS</h3>
         <p>Apple Silicon (arm64) + Intel (x64)</p>
         <div class="download-btns">
-          <a href="https://github.com/southwarridev/ovie/releases/latest/download/ovie-macos-arm64.tar.gz" class="btn btn-primary"><span class="btn-icon">⬇️</span> Apple Silicon</a>
-          <a href="https://github.com/southwarridev/ovie/releases/latest/download/ovie-macos-x64.tar.gz" class="btn btn-secondary"><span class="btn-icon">⬇️</span> Intel</a>
+          <a href="https://github.com/couragereward/ovie/releases/latest/download/ovie-macos-arm64.tar.gz" class="btn btn-primary"><span class="btn-icon">⬇️</span> Apple Silicon</a>
+          <a href="https://github.com/couragereward/ovie/releases/latest/download/ovie-macos-x64.tar.gz" class="btn btn-secondary"><span class="btn-icon">⬇️</span> Intel</a>
         </div>
-        <div class="install-cmd"><code>curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash</code></div>
+        <div class="install-cmd"><code>curl -sSL https://raw.githubusercontent.com/couragereward/ovie/main/easy-macos-install.sh | bash</code></div>
       </div>
     </div>
 
     <div class="download-source">
       <h3>Build from Source</h3>
       <div class="code-window"><div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
-      <div class="code-content"><pre><code>git clone https://github.com/southwarridev/ovie.git
+      <div class="code-content"><pre><code>git clone https://github.com/couragereward/ovie.git
 cd ovie
 make build
 make install
