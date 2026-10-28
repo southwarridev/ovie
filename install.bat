@@ -17,7 +17,7 @@ echo   =========================================================================
 echo   ^|                                                                          ^|
 echo   ^|              OVIE PROGRAMMING LANGUAGE v2.3.0                           ^|
 echo   ^|              Complete Module System - Full Package                       ^|
-echo   ^|              Publisher: Ovie Language Team  |  MIT License              ^|
+echo   ^|              Publisher: Nashedy Ltd  |  MIT License              ^|
 echo   ^|                                                                          ^|
 echo   ============================================================================
 echo.

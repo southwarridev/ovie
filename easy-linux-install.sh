@@ -30,7 +30,7 @@ echo -e "${CYAN}  ==============================================================
 echo -e "${CYAN}  |                                                                          |${NC}"
 echo -e "${CYAN}  |              OVIE PROGRAMMING LANGUAGE v2.3.0                           |${NC}"
 echo -e "${CYAN}  |              Complete Module System - Full Package                       |${NC}"
-echo -e "${CYAN}  |              Publisher: Ovie Language Team  |  MIT License              |${NC}"
+echo -e "${CYAN}  |              Publisher: Nashedy Ltd  |  MIT License              |${NC}"
 echo -e "${CYAN}  |                                                                          |${NC}"
 echo -e "${CYAN}  ============================================================================${NC}"
 echo ""

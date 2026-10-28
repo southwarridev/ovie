@@ -3,98 +3,105 @@
 ## System Requirements
 
 - OS: Windows 10+, macOS 11+, or Linux (any modern distro)
-- Disk: ~50MB for the full installation
+- Disk: ~100MB for full installation including source
 - RAM: 256MB minimum
 - Network: Only needed for initial download — everything after is offline
 
-## Installation
+## One-line Install
 
-### Linux
-
-```bash
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
-```
-
-Or download the binary directly:
-
-```bash
-wget https://github.com/southwarridev/ovie/releases/latest/download/ovie-linux-x64.tar.gz
-tar -xzf ovie-linux-x64.tar.gz
-sudo mv ovie /usr/local/bin/
-sudo mv oviec /usr/local/bin/
-```
-
-### Windows
-
+**Windows (PowerShell as Administrator):**
 ```powershell
 iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
 ```
 
-Or run `easy-windows-install.bat` as Administrator.
+**Linux:**
+```bash
+curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+```
 
-### macOS
-
+**macOS:**
 ```bash
 curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
 ```
 
-### Build from Source
+## Build from Source (Recommended for Development)
 
 ```bash
-git clone https://github.com/southwarridev/ovie.git
+git clone https://github.com/couragereward/ovie.git
 cd ovie
-make build
-make install
+cargo build --release --bin oviec
 ```
 
-Requires Rust toolchain (see `rust-toolchain.toml` for the exact version).
+Requires Rust toolchain (see ust-toolchain.toml for the exact version).
 
-## Verifying Installation
+After building, copy the binary to your PATH:
+
+```powershell
+# Windows
+copy target\release\oviec.exe C:\Users\YourName\AppData\Local\Ovie\bin\
+```
 
 ```bash
-ovie --version       # CLI version
-oviec --version      # Compiler version
-oviec --self-check   # Full installation validation
-oviec --env          # Show runtime environment
+# Linux / macOS
+sudo cp target/release/oviec /usr/local/bin/
 ```
 
-## Setting Up Your Editor
-
-### VS Code
-
-Install the Ovie extension from the marketplace or from the `.vsix` file in `releases/`:
-
-```bash
-code --install-extension ovie-lang-1.0.0.vsix
-```
-
-Features: syntax highlighting, snippets, inline error display, `seeAm` autocomplete.
-
-### Other Editors
-
-Syntax highlighting definitions are in `extensions/ovie-vscode/syntaxes/ovie.tmLanguage.json` — compatible with any editor that supports TextMate grammars.
-
-## Your First Project
-
-```bash
-ovie new my-first-project
-cd my-first-project
-oviec run src/main.ov
-```
-
-This creates:
+## Verify
 
 ```
-my-first-project/
-├── ovie.toml       # Project manifest
-└── src/
-    └── main.ov     # Entry point
+oviec --version
+oviec --self-check
 ```
 
-## Troubleshooting
+You should see:
 
-**`ovie: command not found`** — Add the install directory to your PATH. The installer prints the path at the end.
+```
+Ovie Compiler (oviec) v2.3.0 - Stage 2.3
+```
 
-**Permission denied on Linux** — Run `chmod +x /usr/local/bin/ovie /usr/local/bin/oviec`.
+## Your First Program
 
-**Build fails from source** — Check `rust-toolchain.toml` and ensure you have the exact Rust version installed via `rustup`.
+Create hello.ov:
+
+```ovie
+oya greeting = "Hello from Ovie!"
+seeAm greeting
+```
+
+Run it:
+
+```
+oviec run hello.ov
+```
+
+Output:
+
+```
+== Aproko =============================================
+  OK: no issues found in hello.ov
+=====================================================
+
+Hello from Ovie!
+```
+
+You will see Aproko run before every program. If your code has no issues, it says so. If it finds something, it tells you before your program runs.
+
+## What Gets Installed
+
+| File | Purpose |
+|------|---------|
+| oviec.exe / oviec | Compiler and runner |
+| ovie.exe / ovie | CLI alias |
+| std/ | Standard library (11 modules) |
+| examples/ | 22+ runnable example programs |
+| docs/ | Full documentation |
+
+## Editor Support
+
+A VS Code extension is available in extensions/ovie-vscode/. It provides syntax highlighting and error underlining.
+
+To install manually in VS Code:
+1. Open VS Code
+2. Press Ctrl+Shift+P
+3. Type Extensions: Install from VSIX
+4. Select the .vsix file from the extensions/ovie-vscode/ folder

@@ -98,7 +98,7 @@ echo echo Ovie Programming Language v2.3.0 - v2.3 Complete Module System >> "%BI
 echo echo. >> "%BIN_DIR%\ovie.bat"
 echo if "%%1"=="--version" ( >> "%BIN_DIR%\ovie.bat"
 echo     echo ovie 2.3.0 - Self-Hosted Programming Language >> "%BIN_DIR%\ovie.bat"
-echo     echo Copyright ^(c^) 2026 Ovie Language Team >> "%BIN_DIR%\ovie.bat"
+echo     echo Copyright ^(c^) 2026 Nashedy Ltd >> "%BIN_DIR%\ovie.bat"
 echo     echo Visit: https://ovie-lang.org >> "%BIN_DIR%\ovie.bat"
 echo     exit /b 0 >> "%BIN_DIR%\ovie.bat"
 echo ^) >> "%BIN_DIR%\ovie.bat"

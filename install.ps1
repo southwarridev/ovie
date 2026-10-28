@@ -33,7 +33,7 @@ Write-Host "  ==================================================================
 Write-Host "  |                                                                          |" -ForegroundColor Cyan
 Write-Host "  |              OVIE PROGRAMMING LANGUAGE v2.3.0                           |" -ForegroundColor Cyan
 Write-Host "  |              Complete Module System - Full Package                       |" -ForegroundColor Cyan
-Write-Host "  |              Publisher: Ovie Language Team  |  MIT License              |" -ForegroundColor Cyan
+Write-Host "  |              Publisher: Nashedy Ltd  |  MIT License              |" -ForegroundColor Cyan
 Write-Host "  |                                                                          |" -ForegroundColor Cyan
 Write-Host "  ============================================================================" -ForegroundColor Cyan
 Write-Host ""

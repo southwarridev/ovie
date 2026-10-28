@@ -6,7 +6,7 @@
     <title>Ovie - Low-Level Language with High-Level Features | v2.3</title>
     <meta name="description" content="Ovie v2.3 — self-hosted systems programming language with module system, natural syntax, complete standard library, and Aproko reasoning engine.">
     <meta name="keywords" content="ovie programming language, module system, self-hosted compiler, systems programming, aproko, low-level language">
-    <meta name="author" content="Ovie Language Team">
+    <meta name="author" content="Nashedy Ltd">
     <meta name="theme-color" content="#f59e0b">
     <link rel="icon" type="image/png" href="assets/ovie.png">
     <link rel="apple-touch-icon" href="assets/ovie.png">
@@ -30,7 +30,7 @@
       <a href="#features" class="nav-link">Features</a>
       <a href="#modules" class="nav-link">Modules</a>
       <a href="#download" class="nav-link">Download</a>
-      <a href="#docs" class="nav-link">Docs</a>
+      <a href="#aproko" class="nav-link">Aproko</a><a href="#docs" class="nav-link">Docs</a>
       <a href="docs/book/index.html" class="nav-link">Book</a>
       <a href="#community" class="nav-link">Community</a>
     </div>
@@ -62,7 +62,7 @@
   <div class="hero-container">
     <div class="hero-content">
       <div class="hero-badge">
-        <span class="badge-icon">🏆</span>
+        <span class="badge-icon">⚡</span>
         <span>SELF-HOSTED · MODULE SYSTEM · v2.3</span>
       </div>
       <h1 class="hero-title">Ovie — Systems Programming<br><span class="gradient-text">Made Accessible</span></h1>
@@ -124,10 +124,10 @@ main()</code></pre>
 <section class="achievement-banner">
   <div class="container">
     <div class="achievement-content">
-      <div class="achievement-icon">🎉</div>
+      <div class="achievement-icon">🚀</div>
       <div class="achievement-text">
-        <h3>Ovie v2.3.1 — Full System Implementation</h3>
-        <p>Block-scoped memory, oya/mut keywords, impl blocks, and complete stdlib</p>
+        <h3>Ovie v2.3.0 — Module System, oya keyword, Aproko KB</h3>
+        <p>oya/mut keywords, Aproko runs on every oviec run, complete module system, MIT license — Nashedy Ltd</p>
       </div>
       <a href="#features" class="btn btn-outline">Explore New Features</a>
     </div>
@@ -145,9 +145,9 @@ main()</code></pre>
       <div class="feature-card"><div class="feature-icon">⚡</div><h3 class="feature-title">Low-Level Control</h3><p class="feature-description">Direct memory management, hardware access, and zero-cost abstractions for systems programming.</p></div>
       <div class="feature-card"><div class="feature-icon">📦</div><h3 class="feature-title">Module System</h3><p class="feature-description">Full import/export, namespace management, dependency graph, circular dependency detection, and caching.</p></div>
       <div class="feature-card"><div class="feature-icon">🏗️</div><h3 class="feature-title">Self-Hosted</h3><p class="feature-description">Ovie compiles itself. Formal invariants validated at every stage: AST → HIR → MIR → Backend.</p></div>
-      <div class="feature-card"><div class="feature-icon">🔍</div><h3 class="feature-title">Aproko Engine</h3><p class="feature-description">Built-in static analysis across 6 categories. Explains compiler decisions. AI/LLM-friendly knowledge base.</p></div>
+      <div class="feature-card"><div class="feature-icon">🔍</div><h3 class="feature-title">Aproko Engine</h3><p class="feature-description">Built-in Urhobo-named analyser that runs on every oviec run. Catches best-practice issues before your program runs.</p></div>
       <div class="feature-card"><div class="feature-icon">🔐</div><h3 class="feature-title">Offline-First</h3><p class="feature-description">No network required. All dependencies vendored. Deterministic builds with cryptographic verification.</p></div>
-      <div class="feature-card"><div class="feature-icon">🌍</div><h3 class="feature-title">Accessible</h3><p class="feature-description">Natural syntax with <code>seeAm</code> (Nigerian Pidgin). 13 keywords. Built for developers everywhere.</p></div>
+      <div class="feature-card"><div class="feature-icon">🌍</div><h3 class="feature-title">Accessible</h3><p class="feature-description">Natural syntax with <code>seeAm</code> for output and <code>oya</code> for immutable declarations. Built for developers everywhere.</p></div>
       <div class="feature-card"><div class="feature-icon">🧪</div><h3 class="feature-title">Property Testing</h3><p class="feature-description">Property-based tests validate universal correctness properties. 100% critical path coverage.</p></div>
       <div class="feature-card"><div class="feature-icon">🚀</div><h3 class="feature-title">Multi-Backend</h3><p class="feature-description">Compile to WebAssembly, LLVM native, or run with the built-in interpreter.</p></div>
       <div class="feature-card"><div class="feature-icon">💾</div><h3 class="feature-title">Block-Scoped Memory</h3><p class="feature-description">Automatic lifetime management with Aproko analysis. Variables dropped on scope exit.</p></div>
@@ -176,6 +176,111 @@ main()</code></pre>
   </div>
 </section>
 
+
+<!-- Aproko In Action Section -->
+<section id="aproko" class="features">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-title">Aproko — Runs on Every oviec run</h2>
+      <p class="section-subtitle">Aproko is an Urhobo word for someone who notices everything and tells it straight. It runs automatically before every program.</p>
+    </div>
+    <div class="modules-showcase">
+      <div class="module-demo">
+        <div class="module-demo-tabs">
+          <button class="mdtab active" data-tab="ap-clean">Clean Code</button>
+          <button class="mdtab" data-tab="ap-warn">With Warnings</button>
+          <button class="mdtab" data-tab="ap-calc">Calculator</button>
+        </div>
+        <div class="module-demo-content">
+          <div class="mdcontent active" id="md-ap-clean">
+            <div class="code-window">
+              <div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">hello.ov</span></div>
+              <div class="code-content"><pre><code class="language-ovie">oya greeting = "Hello from Ovie!"
+seeAm greeting</code></pre></div>
+            </div>
+            <div class="code-window" style="margin-top:1rem;">
+              <div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal — oviec run hello.ov</span></div>
+              <div class="code-content"><pre><code>== Aproko =============================================
+  OK: no issues found in hello.ov
+=====================================================
+
+Hello from Ovie!</code></pre></div>
+            </div>
+          </div>
+          <div class="mdcontent" id="md-ap-warn">
+            <div class="code-window">
+              <div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">bad.ov</span></div>
+              <div class="code-content"><pre><code class="language-ovie">name = "Ovie"
+mut count = 0
+seeAm name
+seeAm count</code></pre></div>
+            </div>
+            <div class="code-window" style="margin-top:1rem;">
+              <div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal — oviec run bad.ov</span></div>
+              <div class="code-content"><pre><code>== Aproko =============================================
+  [warning] line 1: 'name' looks like a constant
+    hint: oya name = ...
+=====================================================
+
+Ovie
+0</code></pre></div>
+            </div>
+          </div>
+          <div class="mdcontent" id="md-ap-calc">
+            <div class="code-window">
+              <div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">calculator.ov</span></div>
+              <div class="code-content"><pre><code class="language-ovie">oya APP_NAME   = "OVIE CALCULATOR v1.0"
+oya BORDER     = "==============================="
+oya QUIT_CMD   = "q"
+oya USAGE_MSG  = "Usage: &lt;number&gt; &lt;op&gt; &lt;number&gt;"
+oya BYE_MSG    = "Bye!"
+oya PROMPT     = "&gt; "
+oya DIV_ZERO   = "Error: Division by zero"
+
+fn calculate(a: Number, op: String, b: Number) -&gt; String {
+    if op == "+" { return number_to_string(a + b) }
+    if op == "/" {
+        if b == 0 { return DIV_ZERO }
+        return number_to_string(a / b)
+    }
+    return "Error: Unknown operator"
+}
+
+mut running = true
+while running {
+    print(PROMPT)
+    mut input = string_trim(read_line())
+    if input == QUIT_CMD { seeAm BYE_MSG; running = false }
+}</code></pre></div>
+            </div>
+            <div class="code-window" style="margin-top:1rem;">
+              <div class="code-header"><div class="code-dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div><span class="code-title">terminal</span></div>
+              <div class="code-content"><pre><code>== Aproko =============================================
+  OK: no issues found in calculator.ov
+=====================================================
+
+===============================
+   OVIE CALCULATOR v1.0
+===============================
+&gt; 10 + 5
+= 15
+&gt; q
+Bye!</code></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="module-features">
+        <div class="mf-item"><span class="mf-icon">✅</span><div><h4>Always On</h4><p>No flags, no config. Runs before every <code>oviec run</code> automatically.</p></div></div>
+        <div class="mf-item"><span class="mf-icon">🟡</span><div><h4>Never Blocks</h4><p>Warnings are advisory. Your program always runs. Aproko just tells you what it sees.</p></div></div>
+        <div class="mf-item"><span class="mf-icon">💡</span><div><h4>Recommends oya</h4><p>Spots bare assignments that should be <code>oya</code>. Teaches good habits as you code.</p></div></div>
+        <div class="mf-item"><span class="mf-icon">🔍</span><div><h4>Catches Real Bugs</h4><p>Division by zero, untrimmed input, <code>while true</code> with no break.</p></div></div>
+        <div class="mf-item"><span class="mf-icon">📖</span><div><h4>Always Explains</h4><p>Every warning comes with a <code>hint:</code> showing exactly what to change.</p></div></div>
+        <div class="mf-item"><span class="mf-icon">🛠️</span><div><h4>Deep Analysis</h4><p>Run <code>oviec analyze file.ov</code> for full style, security, and performance analysis.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
 <!-- Module System Section -->
 <section id="modules" class="modules-section">
   <div class="container">
@@ -523,7 +628,7 @@ oviec --self-check</code></pre></div></div>
       </div>
     </div>
     <div class="footer-bottom">
-      <p>© 2026 Ovie Language Team · MIT License · Open Source</p>
+      <p>© 2026 Nashedy Ltd · MIT License · Open Source</p>
       <p>"Low-level control meets high-level productivity — systems programming made accessible."</p>
     </div>
   </div>

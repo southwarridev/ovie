@@ -1,87 +1,194 @@
 # Chapter 3: Language Fundamentals
 
-## Variables
+This chapter covers everything you need to write real Ovie programs. We start with the two most important keywords — `oya` and `mut` — and build up from there.
 
-Immutable by default:
+---
+
+## Variables: oya vs mut
+
+Ovie has two ways to declare a variable.
+
+**`oya` — immutable. Use this by default.**
 
 ```ovie
-name = "Shedrack"
-age = 25
+oya name    = "Shedrack"
+oya version = 2.3
+oya active  = true
 ```
 
-Mutable with `mut`:
+Once you declare something with `oya`, its value is set. You cannot reassign it. This is not a limitation — it is a feature. When you read code later and see `oya`, you immediately know that value never changes anywhere in the program.
+
+**`mut` — mutable. Use this when the value actually changes.**
 
 ```ovie
 mut counter = 0
 counter = counter + 1
+seeAm counter  // 1
 ```
+
+**Side by side:**
+
+```ovie
+oya MAX_SCORE  = 100      // fixed — never changes
+oya GAME_NAME  = "Ovie Runner"
+
+mut player_score = 0      // changes as the player plays
+mut lives        = 3
+
+player_score = player_score + 10
+lives = lives - 1
+
+seeAm player_score  // 10
+seeAm lives         // 2
+```
+
+When to use which:
+- App name, version, limits, error messages → `oya`
+- Counters, accumulators, state that changes → `mut`
+- When in doubt — start with `oya`. If the compiler complains you tried to reassign it, switch to `mut`.
+
+---
 
 ## Types
 
-Ovie infers types. The core types:
+Ovie infers types. The core types you will use:
 
-- `Number` — integers and floats
-- `String` — text
-- `Boolean` — `true` or `false`
-- `Array` — ordered collection
+| Type | What it holds | Example |
+|------|--------------|---------|
+| `Number` | integers and decimals | `42`, `3.14` |
+| `String` | text | `"Hello"` |
+| `Boolean` | true or false | `true`, `false` |
+| `Array` | ordered list | `[1, 2, 3]` |
 
 ```ovie
-x = 42
-pi = 3.14
-greeting = "Hello"
-active = true
-items = [1, 2, 3]
+oya count    = 42
+oya pi       = 3.14
+oya greeting = "Hello"
+oya active   = true
+oya scores   = [10, 20, 30]
 ```
+
+You can add type annotations if you want to be explicit:
+
+```ovie
+oya name: String  = "Ovie"
+oya age:  Number  = 25
+mut flag: Boolean = false
+```
+
+---
 
 ## Functions
 
 ```ovie
-fn add(a, b) {
+fn add(a: Number, b: Number) -> Number {
     return a + b
 }
 
 mut result = add(10, 20)
-seeAm result
+seeAm result  // 30
 ```
 
-With type annotations:
+Functions with no return value:
 
 ```ovie
-fn divide(a: Number, b: Number) -> Number {
-    if b == 0 {
-        return 0
-    }
-    return a / b
+fn greet(name: String) {
+    seeAm "Hello, " + name
 }
+
+greet("Amina")  // Hello, Amina
 ```
 
-## Control Flow
+Using `oya` inside a function for fixed values:
 
 ```ovie
-if counter < 10 {
-    seeAm "small"
+fn circle_area(radius: Number) -> Number {
+    oya PI = 3.14159
+    return PI * radius * radius
+}
+
+seeAm circle_area(5.0)  // 78.53975
+```
+
+---
+
+## Output and Input
+
+Print a value:
+```ovie
+seeAm "Hello World"
+seeAm 42
+seeAm true
+```
+
+Print without newline (for prompts):
+```ovie
+print("Enter your name: ")
+```
+
+Read input from the user:
+```ovie
+print("What is your name? ")
+mut name = read_line()
+seeAm "Hello, " + name
+```
+
+---
+
+## if / else
+
+```ovie
+mut score = 75
+
+if score >= 90 {
+    seeAm "Excellent"
+} else if score >= 60 {
+    seeAm "Good"
 } else {
-    seeAm "big"
+    seeAm "Keep going"
 }
 ```
 
-## Loops
+---
+
+## while
 
 ```ovie
-// For loop with range
-for i in 0..5 {
-    seeAm i
+mut count = 0
+while count < 5 {
+    seeAm count
+    count = count + 1
 }
+```
 
-// While loop
+---
+
+## for
+
+```ovie
+for i in 0..5 {
+    seeAm i   // prints 0 1 2 3 4
+}
+```
+
+---
+
+## break and continue
+
+```ovie
 mut n = 0
-while n < 3 {
+while true {
     n = n + 1
+    if n == 3 { continue }  // skip 3
+    if n == 6 { break }     // stop at 6
     seeAm n
 }
+// prints 1 2 4 5
 ```
 
-## Structs
+---
+
+## struct
 
 ```ovie
 struct Person {
@@ -89,74 +196,100 @@ struct Person {
     age: Number,
 }
 
-mut p = Person {
-    name: "Amina",
-    age: 28,
-}
-
-seeAm p.name
+mut p = Person { name: "Amina", age: 28 }
+seeAm p.name   // Amina
+seeAm p.age    // 28
 ```
 
-## Enums
+---
+
+## enum
 
 ```ovie
-enum Direction {
-    North,
-    South,
-    East,
-    West,
-}
+enum Direction { North, South, East, West }
 
-mut dir = Direction.North
+mut heading = Direction.North
+seeAm heading   // North
 ```
 
-## Error Handling
+---
 
-Use `Result` from the standard library:
+## match
 
 ```ovie
-use std::core::{Result}
+enum Status { Active, Inactive, Pending }
+mut s = Status.Active
 
-fn safe_divide(a: Number, b: Number) -> Result {
-    if b == 0 {
-        return Result.Err("Division by zero")
+match s {
+    Status.Active   => seeAm "Running"
+    Status.Inactive => seeAm "Stopped"
+    Status.Pending  => seeAm "Waiting"
+}
+```
+
+---
+
+## Putting it Together
+
+Here is a small program that uses everything in this chapter:
+
+```ovie
+// Config — all fixed, so oya
+oya APP   = "Grade Calculator"
+oya LIMIT = 100
+
+fn grade(score: Number) -> String {
+    if score >= 90 { return "A" }
+    if score >= 80 { return "B" }
+    if score >= 70 { return "C" }
+    if score >= 60 { return "D" }
+    return "F"
+}
+
+seeAm APP
+seeAm "Enter scores (type 0 to finish):"
+
+mut total = 0
+mut count = 0
+
+mut running = true
+while running {
+    print("> ")
+    mut input = read_line()
+    mut score = string_to_number(string_trim(input))
+
+    if score == 0 {
+        running = false
+    } else {
+        total = total + score
+        count = count + 1
+        seeAm "Grade: " + grade(score)
     }
-    return Result.Ok(a / b)
 }
 
-mut r = safe_divide(10, 2)
-if r.is_ok() {
-    seeAm r.unwrap()
-}
-```
-
-## Output
-
-```ovie
-seeAm "Hello, World!"
-seeAm 42
-seeAm "Result: " + number_to_string(result)
-```
-
-## Comments
-
-```ovie
-// Single line comment
-
-/// Doc comment — used for documentation generation
-fn my_function() {
-    // ...
+if count > 0 {
+    mut avg = total / count
+    seeAm "Average: " + number_to_string(avg)
+    seeAm "Overall: " + grade(avg)
+} else {
+    seeAm "No scores entered."
 }
 ```
 
-## Unsafe Blocks
+Notice: `APP`, `LIMIT` and `PI` use `oya` because they never change. `total`, `count`, `running` use `mut` because they are updated in the loop.
 
-For low-level operations that bypass safety checks:
+---
 
-```ovie
-unsafe {
-    // Direct memory operations here
-}
-```
+## Built-in String and Number Functions
 
-Use sparingly. Aproko will flag unsafe blocks in its analysis.
+| Function | What it does |
+|----------|-------------|
+| `string_length(s)` | length of a string |
+| `string_trim(s)` | remove leading/trailing whitespace |
+| `string_split(s, sep)` | split string into array by separator |
+| `string_to_number(s)` | convert "42" to 42 |
+| `number_to_string(n)` | convert 42 to "42" |
+| `array_length(arr)` | number of items in array |
+| `array_get(arr, i)` | get item at index i |
+| `string_contains(s, sub)` | true if s contains sub |
+| `string_replace(s, from, to)` | replace text in string |
