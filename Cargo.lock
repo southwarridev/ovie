@@ -107,6 +107,7 @@ name = "aproko"
 version = "2.3.0"
 dependencies = [
  "oviec",
+ "regex",
  "serde",
  "thiserror",
  "toml",

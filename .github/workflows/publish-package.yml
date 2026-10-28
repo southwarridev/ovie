@@ -71,7 +71,7 @@ jobs:
             org.opencontainers.image.title=Ovie Programming Language
             org.opencontainers.image.description=Ovie v${{ steps.version.outputs.version }} — Complete Module System. Self-hosted systems programming language with module system, Aproko KB, and 11 stdlib modules.
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
-            org.opencontainers.image.authors=Ovie Language Team <ovielang@gmail.com>
+            org.opencontainers.image.authors=Nashedy Ltd <ovielang@gmail.com>
             org.opencontainers.image.licenses=MIT
             org.opencontainers.image.url=https://southwarridev.github.io/ovie/
 

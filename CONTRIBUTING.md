@@ -303,7 +303,7 @@ Contributors are recognized through:
 
 ## License
 
-By contributing to Ovie, you agree that your contributions will be licensed under the Apache License 2.0.
+By contributing to Ovie, you agree that your contributions will be licensed under the MIT License 2.0.
 
 ---
 

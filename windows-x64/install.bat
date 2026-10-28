@@ -2,7 +2,7 @@
 :: ============================================================================
 ::                    OVIE PROGRAMMING LANGUAGE v2.3.0
 ::                    Windows Installer - Full Package
-::                    Publisher: Ovie Language Team
+::                    Publisher: Nashedy Ltd
 ::                    License: MIT
 :: ============================================================================
 
@@ -30,7 +30,7 @@ echo  ==========================================================================
 echo  ^|                                                                          ^|
 echo  ^|              OVIE PROGRAMMING LANGUAGE v2.3.0                           ^|
 echo  ^|              Complete Module System - Full Package                       ^|
-echo  ^|              Publisher: Ovie Language Team                               ^|
+echo  ^|              Publisher: Nashedy Ltd                               ^|
 echo  ^|              License: MIT Open Source                                    ^|
 echo  ^|                                                                          ^|
 echo  ============================================================================

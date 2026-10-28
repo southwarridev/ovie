@@ -1,0 +1,68 @@
+// ================================================
+// OVIE CALCULATOR v1.0
+// Interactive terminal calculator
+// Uses oya for immutable declarations
+// Operations: + - * / %  |  type q to quit
+// ================================================
+
+// oya for immutable constants
+oya APP_NAME    = "OVIE CALCULATOR v1.0"
+oya BORDER      = "==============================="
+oya QUIT_CMD    = "q"
+oya USAGE_MSG   = "Usage: <number> <op> <number>   e.g.  10 + 5"
+oya BYE_MSG     = "Bye!"
+oya PROMPT      = "> "
+oya DIV_ZERO    = "Error: Division by zero"
+oya UNKNOWN_OP  = "Error: Unknown operator"
+
+fn calculate(a: Number, op: String, b: Number) -> String {
+    if op == "+" { return number_to_string(a + b) }
+    if op == "-" { return number_to_string(a - b) }
+    if op == "*" { return number_to_string(a * b) }
+    if op == "/" {
+        if b == 0 { return DIV_ZERO }
+        return number_to_string(a / b)
+    }
+    if op == "%" {
+        if b == 0 { return DIV_ZERO }
+        return number_to_string(a % b)
+    }
+    return UNKNOWN_OP
+}
+
+seeAm BORDER
+seeAm "   " + APP_NAME
+seeAm BORDER
+seeAm "Enter: <number> <op> <number>"
+seeAm "Operators:  + - * / %"
+seeAm "Type q to quit"
+seeAm BORDER
+seeAm ""
+
+mut running = true
+
+while running {
+    print(PROMPT)
+    mut input = read_line()
+    mut trimmed = string_trim(input)
+
+    if trimmed == QUIT_CMD {
+        seeAm BYE_MSG
+        running = false
+    } else if trimmed == "" {
+        // skip empty lines
+    } else {
+        mut parts = string_split(trimmed, " ")
+        if array_length(parts) != 3 {
+            seeAm USAGE_MSG
+        } else {
+            mut a_str  = array_get(parts, 0)
+            mut op     = array_get(parts, 1)
+            mut b_str  = array_get(parts, 2)
+            mut a      = string_to_number(a_str)
+            mut b      = string_to_number(b_str)
+            mut result = calculate(a, op, b)
+            seeAm "= " + result
+        }
+    }
+}
