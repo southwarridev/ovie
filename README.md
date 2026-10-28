@@ -8,7 +8,7 @@
   Low-level control with high-level productivity.
   Natural syntax, complete standard library, Aproko analysis engine.
 
-  [![GitHub](https://img.shields.io/badge/GitHub-couragereward%2Fovie-blue?logo=github)](https://github.com/couragereward/ovie)
+  [![GitHub](https://img.shields.io/badge/GitHub-southwarridev%2Fovie-blue?logo=github)](https://github.com/southwarride/ovie)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](RELEASE_NOTES_v2.3.md)
 
