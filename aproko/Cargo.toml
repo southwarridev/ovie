@@ -16,6 +16,7 @@ name = "oviec-analyze"
 path = "src/bin/analyze.rs"
 
 [dependencies]
+regex = "1.10"
 # Error handling
 thiserror.workspace = true
 # Serialization
