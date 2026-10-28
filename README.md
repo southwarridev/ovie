@@ -228,7 +228,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Community
 
-- GitHub: [github.com/couragereward/ovie](https://github.com/couragereward/ovie)
+- GitHub: [github.com/southwarridev/ovie](https://github.com/southwarridev/ovie)
 - GitLab: [gitlab.com/ovie1/ovie](https://gitlab.com/ovie1/ovie)
 - Discord: [discord.gg/AuF4ubMyE](https://discord.gg/AuF4ubMyE)
 - Website: [ovie.nashedy.io](https://ovie.nashedy.io)
