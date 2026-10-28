@@ -1,0 +1,539 @@
+/// Package Manager Module
+///
+/// Implements manifest parsing, dependency resolution, lock file generation,
+/// and CLI commands for the Ovie package management system.
+///
+/// # ovie.toml Format
+///
+/// ```toml
+/// [package]
+/// name = "my-package"
+/// version = "1.0.0"
+/// description = "My Ovie package"
+/// authors = ["Author Name"]
+/// license = "MIT"
+///
+/// [dependencies]
+/// std = "2.3.0"
+/// oba = { path = "../oba" }
+///
+/// [dev-dependencies]
+/// test-utils = "1.0.0"
+///
+/// [build]
+/// entry = "src/main.ov"
+/// output = "dist/"
+/// ```
+///
+/// # Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7
+
+/// Package information from [package] section
+struct PackageInfo {
+    name: String,
+    version: String,
+    description: String,
+    authors: String,
+    license: String,
+    homepage: String,
+    repository: String,
+}
+
+/// Dependency specification — version string or path
+struct DependencySpec {
+    name: String,
+    version: String,       // e.g. "1.0.0", ">=1.0.0", "*"
+    path: String,          // local path dependency (empty if not path dep)
+    optional: Boolean,     // optional dependency flag
+    is_dev: Boolean,       // dev-only dependency
+}
+
+/// Build configuration from [build] section
+struct BuildConfig {
+    entry: String,         // entry point file
+    output: String,        // output directory
+    target: String,        // compilation target
+    optimize: Boolean,     // enable optimizations
+}
+
+/// Complete parsed manifest (ovie.toml)
+struct Manifest {
+    package: PackageInfo,
+    dependencies: Array,       // Array of DependencySpec
+    dev_dependencies: Array,   // Array of DependencySpec
+    build: BuildConfig,
+    raw_path: String,          // path to the ovie.toml file
+}
+
+/// Locked dependency entry in ovie.lock
+struct LockedDep {
+    name: String,
+    version: String,
+    checksum: String,
+    path: String,
+    dependencies: Array,   // Array of dependency name strings
+}
+
+/// Complete lock file (ovie.lock)
+struct LockFile {
+    version: Number,
+    packages: Array,       // Array of LockedDep
+}
+
+/// Manifest parse result
+struct ManifestResult {
+    success: Boolean,
+    manifest: Manifest,
+    error: String,
+}
+
+/// Create empty PackageInfo
+fn package_info_empty() -> PackageInfo {
+    return PackageInfo {
+        name: "",
+        version: "",
+        description: "",
+        authors: "",
+        license: "",
+        homepage: "",
+        repository: "",
+    };
+}
+
+/// Create empty BuildConfig
+fn build_config_default() -> BuildConfig {
+    return BuildConfig {
+        entry: "src/main.ov",
+        output: "dist/",
+        target: "native",
+        optimize: false,
+    };
+}
+
+/// Create empty Manifest
+fn manifest_empty() -> Manifest {
+    return Manifest {
+        package: package_info_empty(),
+        dependencies: [],
+        dev_dependencies: [],
+        build: build_config_default(),
+        raw_path: "",
+    };
+}
+
+/// Create a DependencySpec from name and version string
+fn dep_spec_new(name: String, version: String) -> DependencySpec {
+    return DependencySpec {
+        name: name,
+        version: version,
+        path: "",
+        optional: false,
+        is_dev: false,
+    };
+}
+
+/// Create a path-based DependencySpec
+fn dep_spec_path(name: String, path: String) -> DependencySpec {
+    return DependencySpec {
+        name: name,
+        version: "*",
+        path: path,
+        optional: false,
+        is_dev: false,
+    };
+}
+
+/// Parse a TOML key=value line, returning the value string
+/// Handles: key = "value" and key = value
+fn parse_toml_value(line: String) -> String {
+    // Find the = sign
+    mut eq_pos = string_find(line, "=");
+    if eq_pos < 0 {
+        return "";
+    }
+    mut value_part = string_trim(string_substring(line, eq_pos + 1, string_length(line)));
+    // Strip surrounding quotes if present
+    if string_starts_with(value_part, "\"") && string_ends_with(value_part, "\"") {
+        return string_substring(value_part, 1, string_length(value_part) - 1);
+    }
+    return value_part;
+}
+
+/// Parse a TOML key from a key=value line
+fn parse_toml_key(line: String) -> String {
+    mut eq_pos = string_find(line, "=");
+    if eq_pos < 0 {
+        return "";
+    }
+    return string_trim(string_substring(line, 0, eq_pos));
+}
+
+/// Check if a line is a TOML section header like [package]
+fn is_section_header(line: String) -> Boolean {
+    mut trimmed = string_trim(line);
+    return string_starts_with(trimmed, "[") && string_ends_with(trimmed, "]") && !string_starts_with(trimmed, "[[");
+}
+
+/// Extract section name from [section] header
+fn extract_section_name(line: String) -> String {
+    mut trimmed = string_trim(line);
+    return string_substring(trimmed, 1, string_length(trimmed) - 1);
+}
+
+/// Check if a line is a comment or empty
+fn is_comment_or_empty(line: String) -> Boolean {
+    mut trimmed = string_trim(line);
+    if string_length(trimmed) == 0 {
+        return true;
+    }
+    return string_starts_with(trimmed, "#");
+}
+
+/// Parse ovie.toml content string into a Manifest struct
+///
+/// Parses the TOML-formatted manifest file content and populates
+/// a Manifest struct with package info, dependencies, and build config.
+///
+/// # Parameters
+/// - content: String content of ovie.toml
+/// - file_path: Path to the ovie.toml file (for error reporting)
+///
+/// # Returns
+/// ManifestResult with success flag, parsed manifest, and any error message
+fn parse_manifest(content: String, file_path: String) -> ManifestResult {
+    mut manifest = manifest_empty();
+    manifest.raw_path = file_path;
+
+    mut lines = string_split_lines(content);
+    mut current_section = "";
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = array_get(lines, i);
+        i = i + 1;
+
+        // Skip comments and empty lines
+        if is_comment_or_empty(line) {
+            continue;
+        }
+
+        // Section header
+        if is_section_header(line) {
+            current_section = extract_section_name(line);
+            continue;
+        }
+
+        // Parse key=value pairs by section
+        mut key = parse_toml_key(line);
+        mut value = parse_toml_value(line);
+
+        if string_length(key) == 0 {
+            continue;
+        }
+
+        if current_section == "package" {
+            if key == "name" {
+                manifest.package.name = value;
+            }
+            if key == "version" {
+                manifest.package.version = value;
+            }
+            if key == "description" {
+                manifest.package.description = value;
+            }
+            if key == "authors" {
+                manifest.package.authors = value;
+            }
+            if key == "license" {
+                manifest.package.license = value;
+            }
+            if key == "homepage" {
+                manifest.package.homepage = value;
+            }
+            if key == "repository" {
+                manifest.package.repository = value;
+            }
+        }
+
+        if current_section == "dependencies" {
+            // Check if value contains path = "..."
+            if string_contains(value, "path") {
+                mut path_start = string_find(value, "\"");
+                mut path_end = string_rfind(value, "\"");
+                if path_start >= 0 && path_end > path_start {
+                    mut dep_path = string_substring(value, path_start + 1, path_end);
+                    mut dep = dep_spec_path(key, dep_path);
+                    manifest.dependencies = array_push(manifest.dependencies, dep);
+                }
+            } else {
+                mut dep = dep_spec_new(key, value);
+                manifest.dependencies = array_push(manifest.dependencies, dep);
+            }
+        }
+
+        if current_section == "dev-dependencies" {
+            mut dep = dep_spec_new(key, value);
+            dep.is_dev = true;
+            manifest.dev_dependencies = array_push(manifest.dev_dependencies, dep);
+        }
+
+        if current_section == "build" {
+            if key == "entry" {
+                manifest.build.entry = value;
+            }
+            if key == "output" {
+                manifest.build.output = value;
+            }
+            if key == "target" {
+                manifest.build.target = value;
+            }
+            if key == "optimize" {
+                manifest.build.optimize = value == "true";
+            }
+        }
+    }
+
+    // Validate required fields
+    if string_length(manifest.package.name) == 0 {
+        return ManifestResult {
+            success: false,
+            manifest: manifest,
+            error: "Manifest missing required field: package.name",
+        };
+    }
+    if string_length(manifest.package.version) == 0 {
+        return ManifestResult {
+            success: false,
+            manifest: manifest,
+            error: "Manifest missing required field: package.version",
+        };
+    }
+
+    return ManifestResult {
+        success: true,
+        manifest: manifest,
+        error: "",
+    };
+}
+
+/// Load and parse ovie.toml from a directory path
+///
+/// Reads the ovie.toml file from the given directory and parses it.
+///
+/// # Parameters
+/// - dir_path: Directory containing ovie.toml
+///
+/// # Returns
+/// ManifestResult with parsed manifest or error
+fn load_manifest(dir_path: String) -> ManifestResult {
+    mut toml_path = dir_path + "/ovie.toml";
+    mut content = read_file(toml_path);
+
+    if string_length(content) == 0 {
+        return ManifestResult {
+            success: false,
+            manifest: manifest_empty(),
+            error: "Cannot read ovie.toml at: " + toml_path,
+        };
+    }
+
+    return parse_manifest(content, toml_path);
+}
+
+/// Validate a version string format (semver: major.minor.patch)
+///
+/// # Parameters
+/// - version: Version string to validate
+///
+/// # Returns
+/// true if valid semver format, false otherwise
+fn is_valid_version(version: String) -> Boolean {
+    if version == "*" {
+        return true;
+    }
+    // Strip constraint prefix (>=, <=, >, <, =, ~, ^)
+    mut v = version;
+    if string_starts_with(v, ">=") || string_starts_with(v, "<=") {
+        v = string_substring(v, 2, string_length(v));
+    } else if string_starts_with(v, ">") || string_starts_with(v, "<") || string_starts_with(v, "=") || string_starts_with(v, "~") || string_starts_with(v, "^") {
+        v = string_substring(v, 1, string_length(v));
+    }
+    // Check for major.minor.patch pattern
+    mut parts = string_split(v, ".");
+    if array_length(parts) < 2 {
+        return false;
+    }
+    return true;
+}
+
+/// Check if a version satisfies a constraint
+///
+/// Supports: exact match, >=, <=, >, <, * (any)
+///
+/// # Parameters
+/// - version: Actual version string (e.g. "1.2.3")
+/// - constraint: Constraint string (e.g. ">=1.0.0", "*", "1.2.3")
+///
+/// # Returns
+/// true if version satisfies constraint
+fn version_satisfies(version: String, constraint: String) -> Boolean {
+    if constraint == "*" {
+        return true;
+    }
+    if constraint == version {
+        return true;
+    }
+    // Parse constraint operator
+    if string_starts_with(constraint, ">=") {
+        mut required = string_substring(constraint, 2, string_length(constraint));
+        return version_compare(version, required) >= 0;
+    }
+    if string_starts_with(constraint, "<=") {
+        mut required = string_substring(constraint, 2, string_length(constraint));
+        return version_compare(version, required) <= 0;
+    }
+    if string_starts_with(constraint, ">") {
+        mut required = string_substring(constraint, 1, string_length(constraint));
+        return version_compare(version, required) > 0;
+    }
+    if string_starts_with(constraint, "<") {
+        mut required = string_substring(constraint, 1, string_length(constraint));
+        return version_compare(version, required) < 0;
+    }
+    return false;
+}
+
+/// Compare two semver version strings
+///
+/// # Returns
+/// -1 if v1 < v2, 0 if equal, 1 if v1 > v2
+fn version_compare(v1: String, v2: String) -> Number {
+    mut parts1 = string_split(v1, ".");
+    mut parts2 = string_split(v2, ".");
+
+    mut i = 0;
+    while i < 3 {
+        mut n1 = 0;
+        mut n2 = 0;
+        if i < array_length(parts1) {
+            n1 = string_to_number(array_get(parts1, i));
+        }
+        if i < array_length(parts2) {
+            n2 = string_to_number(array_get(parts2, i));
+        }
+        if n1 < n2 {
+            return -1;
+        }
+        if n1 > n2 {
+            return 1;
+        }
+        i = i + 1;
+    }
+    return 0;
+}
+
+/// Generate ovie.lock content from resolved dependencies
+///
+/// # Parameters
+/// - manifest: Parsed manifest
+/// - resolved: Array of LockedDep (resolved dependency tree)
+///
+/// # Returns
+/// String content for ovie.lock file
+fn generate_lock_file(manifest: Manifest, resolved: Array) -> String {
+    mut content = "# This file is auto-generated by ovie. Do not edit manually.\n";
+    content = content + "# ovie.lock version 1\n\n";
+    content = content + "version = 1\n\n";
+
+    mut i = 0;
+    while i < array_length(resolved) {
+        mut dep = array_get(resolved, i);
+        content = content + "[[package]]\n";
+        content = content + "name = \"" + dep.name + "\"\n";
+        content = content + "version = \"" + dep.version + "\"\n";
+        if string_length(dep.checksum) > 0 {
+            content = content + "checksum = \"" + dep.checksum + "\"\n";
+        }
+        if string_length(dep.path) > 0 {
+            content = content + "path = \"" + dep.path + "\"\n";
+        }
+        content = content + "\n";
+        i = i + 1;
+    }
+
+    return content;
+}
+
+/// Resolve dependencies from a manifest into a flat list
+///
+/// Performs basic dependency resolution — collects all direct dependencies
+/// and marks them for installation.
+///
+/// # Parameters
+/// - manifest: Parsed manifest with dependencies
+///
+/// # Returns
+/// Array of LockedDep representing resolved dependency set
+fn resolve_dependencies(manifest: Manifest) -> Array {
+    mut resolved = [];
+
+    // Add direct dependencies
+    mut i = 0;
+    while i < array_length(manifest.dependencies) {
+        mut dep = array_get(manifest.dependencies, i);
+        mut locked = LockedDep {
+            name: dep.name,
+            version: dep.version,
+            checksum: "",
+            path: dep.path,
+            dependencies: [],
+        };
+        resolved = array_push(resolved, locked);
+        i = i + 1;
+    }
+
+    return resolved;
+}
+
+/// Create a new ovie.toml manifest string for a new package
+///
+/// # Parameters
+/// - name: Package name
+/// - version: Initial version (default "0.1.0")
+/// - description: Package description
+///
+/// # Returns
+/// String content for a new ovie.toml
+fn create_manifest_template(name: String, version: String, description: String) -> String {
+    mut content = "[package]\n";
+    content = content + "name = \"" + name + "\"\n";
+    content = content + "version = \"" + version + "\"\n";
+    content = content + "description = \"" + description + "\"\n";
+    content = content + "authors = []\n";
+    content = content + "license = \"MIT\"\n";
+    content = content + "\n[dependencies]\n";
+    content = content + "\n[dev-dependencies]\n";
+    content = content + "\n[build]\n";
+    content = content + "entry = \"src/main.ov\"\n";
+    content = content + "output = \"dist/\"\n";
+    return content;
+}
+
+/// Add a dependency to a manifest content string
+///
+/// # Parameters
+/// - manifest_content: Existing ovie.toml content
+/// - dep_name: Dependency name to add
+/// - dep_version: Version constraint
+///
+/// # Returns
+/// Updated manifest content string
+fn manifest_add_dependency(manifest_content: String, dep_name: String, dep_version: String) -> String {
+    mut dep_line = dep_name + " = \"" + dep_version + "\"\n";
+    // Insert after [dependencies] section header
+    mut dep_section = "[dependencies]\n";
+    if string_contains(manifest_content, dep_section) {
+        return string_replace(manifest_content, dep_section, dep_section + dep_line);
+    }
+    // If no [dependencies] section, append it
+    return manifest_content + "\n[dependencies]\n" + dep_line;
+}

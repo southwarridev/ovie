@@ -1,0 +1,175 @@
+/// File System Integration for Module System
+/// 
+/// This module provides file system operations needed by the module loader
+/// and resolver. It wraps std::fs functionality with module-specific helpers.
+
+use std::fs;
+use std::io;
+use std::core::{Result, Vec};
+
+/// Read a .ov file and return its contents
+///
+/// # Parameters
+/// - `path`: Path to the .ov file
+///
+/// # Returns
+/// Result containing file contents or error
+///
+/// # Examples
+/// ```
+/// let source = read_ov_file("std/math/mod.ov")?;
+/// ```
+export fn read_ov_file(path: String) -> Result<String, String> {
+    // Validate .ov extension
+    if !path.ends_with(".ov") {
+        return Err(format!("Not a valid .ov file: {}", path));
+    }
+    
+    // Read file using std::fs
+    match fs::read_to_string(path.clone()) {
+        Ok(content) => Ok(content),
+        Err(e) => Err(format!("Failed to read {}: {}", path, e))
+    }
+}
+
+/// Check if a file exists
+///
+/// # Parameters
+/// - `path`: Path to check
+///
+/// # Returns
+/// true if file exists, false otherwise
+export fn file_exists(path: String) -> bool {
+    // Use std::fs to check existence
+    fs::exists(path)
+}
+
+/// Check if a path is a directory
+///
+/// # Parameters
+/// - `path`: Path to check
+///
+/// # Returns
+/// true if path is a directory, false otherwise
+export fn is_directory(path: String) -> bool {
+    // Use std::fs to check if directory
+    fs::is_dir(path)
+}
+
+/// List all .ov files in a directory
+///
+/// # Parameters
+/// - `dir_path`: Directory to search
+///
+/// # Returns
+/// Vec of .ov file paths
+export fn list_ov_files(dir_path: String) -> Vec<String> {
+    let mut ov_files = Vec::new();
+    
+    // Read directory entries
+    match fs::read_dir(dir_path.clone()) {
+        Ok(entries) => {
+            for entry in entries {
+                if entry.ends_with(".ov") {
+                    ov_files.push(entry);
+                }
+            }
+        },
+        Err(_) => {}
+    }
+    
+    ov_files
+}
+
+/// Create directory if it doesn't exist
+///
+/// # Parameters
+/// - `dir_path`: Directory path to create
+///
+/// # Returns
+/// Result indicating success or error
+export fn ensure_directory(dir_path: String) -> Result<(), String> {
+    if !file_exists(dir_path.clone()) {
+        match fs::create_dir_all(dir_path.clone()) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format!("Failed to create directory {}: {}", dir_path, e))
+        }
+    } else {
+        Ok(())
+    }
+}
+
+/// Get absolute path from relative path
+///
+/// # Parameters
+/// - `relative_path`: Relative path
+///
+/// # Returns
+/// Absolute path
+export fn get_absolute_path(relative_path: String) -> String {
+    // Use std::fs to get absolute path
+    fs::canonicalize(relative_path)
+}
+
+/// Join path components
+///
+/// # Parameters
+/// - `base`: Base path
+/// - `component`: Component to append
+///
+/// # Returns
+/// Joined path
+export fn join_path(base: String, component: String) -> String {
+    // Simple path joining
+    if base.ends_with("/") {
+        format!("{}{}", base, component)
+    } else {
+        format!("{}/{}", base, component)
+    }
+}
+
+/// Get parent directory of a path
+///
+/// # Parameters
+/// - `path`: File or directory path
+///
+/// # Returns
+/// Parent directory path
+export fn parent_dir(path: String) -> String {
+    let parts: Vec<&str> = path.split("/").collect();
+    if parts.len() <= 1 {
+        return ".".to_string();
+    }
+    
+    let parent_parts = &parts[0..parts.len()-1];
+    parent_parts.join("/")
+}
+
+/// Get filename from path
+///
+/// # Parameters
+/// - `path`: File path
+///
+/// # Returns
+/// Filename without directory
+export fn filename(path: String) -> String {
+    let parts: Vec<&str> = path.split("/").collect();
+    parts.last().unwrap_or(&"").to_string()
+}
+
+/// Get file extension
+///
+/// # Parameters
+/// - `path`: File path
+///
+/// # Returns
+/// Extension without dot, or empty string
+export fn extension(path: String) -> String {
+    let name = filename(path);
+    let parts: Vec<&str> = name.split(".").collect();
+    if parts.len() > 1 {
+        parts.last().unwrap_or(&"").to_string()
+    } else {
+        "".to_string()
+    }
+}

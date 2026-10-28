@@ -1,0 +1,34 @@
+/// Test module demonstrating export validation
+/// This module has various exports to test the validation logic
+
+/// A simple exported function
+export fn add(x: i32, y: i32) -> i32 {
+    x + y
+}
+
+/// An exported struct
+export struct Point {
+    x: f64,
+    y: f64
+}
+
+/// An exported enum
+export enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+/// An exported constant
+export const MAX_SIZE: i32 = 100;
+
+/// A private function (not exported)
+fn internal_helper() -> bool {
+    true
+}
+
+/// Another exported function with documentation
+/// This function multiplies two numbers
+export fn multiply(a: i32, b: i32) -> i32 {
+    a * b
+}

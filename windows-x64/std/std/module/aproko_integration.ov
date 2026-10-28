@@ -1,0 +1,390 @@
+/// Aproko Module System Integration
+///
+/// Integrates Aproko static analysis with the module system. Analyzes
+/// modular programs by loading all imported modules, tracking data flow
+/// across boundaries, detecting unused imports, and checking for
+/// architectural issues in the dependency graph.
+///
+/// # Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6
+
+/// Result of Aproko module analysis
+struct AprokoModuleAnalysisResult {
+    success: Boolean,
+    unused_imports: Array,       // Array of UnusedImport
+    undocumented_exports: Array, // Array of UndocumentedExport
+    architectural_issues: Array, // Array of String
+    data_flow_issues: Array,     // Array of String
+    warnings: Array,             // Array of String
+}
+
+/// An unused import finding
+struct UnusedImport {
+    module_name: String,
+    imported_from: String,
+    symbol_name: String,
+    line_number: Number,
+    suggestion: String,
+}
+
+/// An undocumented export finding
+struct UndocumentedExport {
+    module_name: String,
+    symbol_name: String,
+    line_number: Number,
+}
+
+/// Analyze a complete modular program with Aproko
+///
+/// Loads all modules in the dependency graph, runs analysis on each,
+/// and produces a combined report covering the entire program.
+///
+/// # Parameters
+/// - compilation_result: Result from compile_modular_program
+/// - graph: Dependency graph of the program
+///
+/// # Returns
+/// AprokoModuleAnalysisResult with all findings
+export fn analyze_modular_program(compilation_result: CompilationResult, graph: DependencyGraph) -> AprokoModuleAnalysisResult {
+    mut unused_imports = [];
+    mut undocumented_exports = [];
+    mut architectural_issues = [];
+    mut data_flow_issues = [];
+    mut warnings = [];
+
+    // Analyze each compiled module
+    mut i = 0;
+    while i < array_length(compilation_result.modules_compiled) {
+        mut mod_name = array_get(compilation_result.modules_compiled, i);
+        mut mod_path = graph_get_path(graph, mod_name);
+
+        if string_length(mod_path) > 0 && file_exists(mod_path) {
+            mut source = read_file(mod_path);
+
+            // Check for unused imports
+            mut unused = detect_unused_imports(source, mod_name, compilation_result.modules_compiled);
+            mut ui = 0;
+            while ui < array_length(unused) {
+                unused_imports = array_push(unused_imports, array_get(unused, ui));
+                ui = ui + 1;
+            }
+
+            // Check for undocumented exports
+            mut undoc = detect_undocumented_exports(source, mod_name);
+            mut udi = 0;
+            while udi < array_length(undoc) {
+                undocumented_exports = array_push(undocumented_exports, array_get(undoc, udi));
+                udi = udi + 1;
+            }
+
+            // Update knowledge base with this module's analysis
+            analyze_module(mod_name, source);
+        }
+
+        i = i + 1;
+    }
+
+    // Check for architectural issues in the dependency graph
+    mut arch_issues = analyze_dependency_architecture(graph);
+    mut ai = 0;
+    while ai < array_length(arch_issues) {
+        architectural_issues = array_push(architectural_issues, array_get(arch_issues, ai));
+        ai = ai + 1;
+    }
+
+    mut success = array_length(undocumented_exports) == 0;
+
+    return AprokoModuleAnalysisResult {
+        success: success,
+        unused_imports: unused_imports,
+        undocumented_exports: undocumented_exports,
+        architectural_issues: architectural_issues,
+        data_flow_issues: data_flow_issues,
+        warnings: warnings,
+    };
+}
+
+/// Detect unused imports in a module source
+///
+/// Finds import/use statements where the imported symbols are never
+/// referenced in the module body.
+///
+/// # Parameters
+/// - source: Module source code
+/// - module_name: Name of the module
+/// - all_modules: Array of all module names in the program
+///
+/// # Returns
+/// Array of UnusedImport findings
+export fn detect_unused_imports(source: String, module_name: String, all_modules: Array) -> Array {
+    mut unused = [];
+    mut lines = string_split_lines(source);
+    mut imported_symbols = [];
+    mut import_lines = [];
+
+    // First pass: collect all imported symbols
+    mut i = 0;
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        mut line_num = i + 1;
+        i = i + 1;
+
+        if string_starts_with(line, "use ") || string_starts_with(line, "import ") {
+            // Extract symbols from "use module::{sym1, sym2}" or "use module as alias"
+            mut symbols = extract_imported_symbols(line);
+            mut si = 0;
+            while si < array_length(symbols) {
+                mut sym = array_get(symbols, si);
+                imported_symbols = array_push(imported_symbols, sym);
+                import_lines = array_push(import_lines, line_num);
+                si = si + 1;
+            }
+        }
+    }
+
+    // Second pass: check which symbols are actually used
+    mut body = source;
+    mut sym_i = 0;
+    while sym_i < array_length(imported_symbols) {
+        mut sym = array_get(imported_symbols, sym_i);
+        mut line_num = array_get(import_lines, sym_i);
+
+        // Check if symbol appears in the source body (outside import lines)
+        mut usage_count = count_symbol_usages(source, sym, line_num);
+
+        if usage_count == 0 {
+            mut finding = UnusedImport {
+                module_name: module_name,
+                imported_from: "",
+                symbol_name: sym,
+                line_number: line_num,
+                suggestion: "Remove unused import: " + sym,
+            };
+            unused = array_push(unused, finding);
+        }
+
+        sym_i = sym_i + 1;
+    }
+
+    return unused;
+}
+
+/// Detect exported functions without doc comments
+///
+/// # Parameters
+/// - source: Module source code
+/// - module_name: Name of the module
+///
+/// # Returns
+/// Array of UndocumentedExport findings
+export fn detect_undocumented_exports(source: String, module_name: String) -> Array {
+    mut undoc = [];
+    mut lines = string_split_lines(source);
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        mut line_num = i + 1;
+
+        if string_starts_with(line, "export fn ") || string_starts_with(line, "export struct ") || string_starts_with(line, "export enum ") {
+            // Check if there's a doc comment above
+            mut has_doc = false;
+            if i > 0 {
+                mut prev = string_trim(array_get(lines, i - 1));
+                has_doc = string_starts_with(prev, "///") || string_starts_with(prev, "/**");
+            }
+
+            if !has_doc {
+                mut sym_name = extract_symbol_name_from_export(line);
+                mut finding = UndocumentedExport {
+                    module_name: module_name,
+                    symbol_name: sym_name,
+                    line_number: line_num,
+                };
+                undoc = array_push(undoc, finding);
+            }
+        }
+
+        i = i + 1;
+    }
+
+    return undoc;
+}
+
+/// Analyze dependency graph for architectural issues
+///
+/// Checks for: deeply nested dependencies, modules with too many
+/// dependents (high coupling), isolated modules.
+///
+/// # Parameters
+/// - graph: Dependency graph to analyze
+///
+/// # Returns
+/// Array of issue description strings
+export fn analyze_dependency_architecture(graph: DependencyGraph) -> Array {
+    mut issues = [];
+    mut modules = graph_get_all_modules(graph);
+
+    mut i = 0;
+    while i < array_length(modules) {
+        mut mod_name = array_get(modules, i);
+        mut deps = graph_get_dependencies(graph, mod_name);
+        mut dep_count = array_length(deps);
+
+        // Flag modules with too many direct dependencies
+        if dep_count > 10 {
+            issues = array_push(issues,
+                "Module '" + mod_name + "' has " + number_to_string(dep_count) +
+                " direct dependencies — consider splitting into smaller modules");
+        }
+
+        // Check for modules that depend on everything (god modules)
+        if dep_count > 20 {
+            issues = array_push(issues,
+                "Module '" + mod_name + "' may be a 'god module' with " +
+                number_to_string(dep_count) + " dependencies");
+        }
+
+        i = i + 1;
+    }
+
+    return issues;
+}
+
+/// Format Aproko module analysis result as human-readable string
+///
+/// # Parameters
+/// - result: AprokoModuleAnalysisResult to format
+///
+/// # Returns
+/// Formatted report string
+export fn format_aproko_module_report(result: AprokoModuleAnalysisResult) -> String {
+    mut report = "=== Aproko Module Analysis ===\n\n";
+
+    if array_length(result.unused_imports) > 0 {
+        report = report + "Unused Imports (" + number_to_string(array_length(result.unused_imports)) + "):\n";
+        mut i = 0;
+        while i < array_length(result.unused_imports) {
+            mut u = array_get(result.unused_imports, i);
+            report = report + "  " + u.module_name + ":" + number_to_string(u.line_number) +
+                     " — " + u.suggestion + "\n";
+            i = i + 1;
+        }
+        report = report + "\n";
+    }
+
+    if array_length(result.undocumented_exports) > 0 {
+        report = report + "Undocumented Exports (" + number_to_string(array_length(result.undocumented_exports)) + "):\n";
+        mut i = 0;
+        while i < array_length(result.undocumented_exports) {
+            mut u = array_get(result.undocumented_exports, i);
+            report = report + "  " + u.module_name + ":" + number_to_string(u.line_number) +
+                     " — '" + u.symbol_name + "' has no doc comment\n";
+            i = i + 1;
+        }
+        report = report + "\n";
+    }
+
+    if array_length(result.architectural_issues) > 0 {
+        report = report + "Architectural Issues:\n";
+        mut i = 0;
+        while i < array_length(result.architectural_issues) {
+            report = report + "  " + array_get(result.architectural_issues, i) + "\n";
+            i = i + 1;
+        }
+        report = report + "\n";
+    }
+
+    if result.success && array_length(result.unused_imports) == 0 && array_length(result.architectural_issues) == 0 {
+        report = report + "✓ No issues found.\n";
+    }
+
+    return report;
+}
+
+/// Extract imported symbol names from a use/import statement
+fn extract_imported_symbols(line: String) -> Array {
+    mut symbols = [];
+
+    // Handle: use module::{sym1, sym2}
+    mut open_brace = string_find(line, "{");
+    mut close_brace = string_find(line, "}");
+    if open_brace > 0 && close_brace > open_brace {
+        mut inner = string_substring(line, open_brace + 1, close_brace);
+        mut parts = string_split(inner, ",");
+        mut i = 0;
+        while i < array_length(parts) {
+            mut sym = string_trim(array_get(parts, i));
+            if string_length(sym) > 0 {
+                symbols = array_push(symbols, sym);
+            }
+            i = i + 1;
+        }
+        return symbols;
+    }
+
+    // Handle: use module as alias
+    mut as_pos = string_find(line, " as ");
+    if as_pos > 0 {
+        mut alias = string_trim(string_substring(line, as_pos + 4, string_length(line)));
+        if string_length(alias) > 0 {
+            symbols = array_push(symbols, alias);
+        }
+        return symbols;
+    }
+
+    // Handle: use module (import all — use module name as symbol)
+    mut last_colon = string_rfind(line, "::");
+    if last_colon > 0 {
+        mut mod_name = string_trim(string_substring(line, last_colon + 2, string_length(line)));
+        // Remove trailing semicolon
+        if string_ends_with(mod_name, ";") {
+            mod_name = string_substring(mod_name, 0, string_length(mod_name) - 1);
+        }
+        if string_length(mod_name) > 0 {
+            symbols = array_push(symbols, mod_name);
+        }
+    }
+
+    return symbols;
+}
+
+/// Count how many times a symbol is used in source (excluding its import line)
+fn count_symbol_usages(source: String, symbol: String, import_line: Number) -> Number {
+    mut lines = string_split_lines(source);
+    mut count = 0;
+    mut i = 0;
+    while i < array_length(lines) {
+        mut line_num = i + 1;
+        mut line = array_get(lines, i);
+        i = i + 1;
+        if line_num == import_line { continue; }
+        if string_contains(line, symbol) {
+            count = count + 1;
+        }
+    }
+    return count;
+}
+
+/// Extract symbol name from an export declaration line
+fn extract_symbol_name_from_export(line: String) -> String {
+    mut rest = "";
+    if string_starts_with(line, "export fn ") {
+        rest = string_substring(line, 10, string_length(line));
+    } else if string_starts_with(line, "export struct ") {
+        rest = string_substring(line, 14, string_length(line));
+    } else if string_starts_with(line, "export enum ") {
+        rest = string_substring(line, 12, string_length(line));
+    }
+    // Get first word
+    mut i = 0;
+    mut name = "";
+    while i < string_length(rest) {
+        mut ch = string_char_at(rest, i);
+        if ch == "(" || ch == " " || ch == "{" {
+            return name;
+        }
+        name = name + ch;
+        i = i + 1;
+    }
+    return name;
+}

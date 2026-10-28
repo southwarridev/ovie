@@ -1,0 +1,95 @@
+/// Aproko Knowledge Base Module
+///
+/// Provides persistent storage for Aproko analysis results, enabling LLMs
+/// and agentic tools to access Ovie knowledge efficiently.
+///
+/// # Storage Location
+/// Analysis results are stored at `.ovie/aproko/knowledge/` by default.
+///
+/// # Usage
+/// ```ovie
+/// use std::aproko::{store_entry, kb_query, get_type_info};
+///
+/// // Store an analysis result
+/// mut entry = kb_entry_new("fn_add", "TypeInformation", "{\"params\":[\"Number\",\"Number\"],\"returns\":\"Number\"}");
+/// entry.symbol_name = "add";
+/// store_entry(entry);
+///
+/// // Query for type information
+/// mut results = get_type_info("add");
+/// ```
+
+export use ./knowledge_base::{
+    KnowledgeEntry,
+    EntryCategory,
+    SourceLocation,
+    KnowledgeQuery,
+    KBResult,
+    kb_entry_new,
+    store_entry,
+    kb_query,
+    update_entry,
+    export_json,
+    get_reasoning_rules,
+    get_type_info,
+    get_patterns,
+};
+
+/// Analyze a module's source and populate the knowledge base with type info
+///
+/// Scans exported functions and types from source, creating TypeInformation
+/// entries for each exported symbol.
+///
+/// # Parameters
+/// - module_name: Name of the module being analyzed
+/// - source: Source code of the module
+export fn analyze_module(module_name: String, source: String) {
+    mut lines = string_split_lines(source);
+    mut i = 0;
+
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        i = i + 1;
+
+        // Extract exported function signatures
+        if string_starts_with(line, "export fn ") {
+            mut sig = string_substring(line, 10, string_length(line));
+            mut fn_name = extract_fn_name(sig);
+            if string_length(fn_name) > 0 {
+                mut content = "{\"signature\":\"" + sig + "\",\"module\":\"" + module_name + "\"}";
+                mut entry = kb_entry_new(module_name + "::" + fn_name, "TypeInformation", content);
+                entry.symbol_name = fn_name;
+                entry.module_name = module_name;
+                store_entry(entry);
+            }
+        }
+
+        // Extract exported struct definitions
+        if string_starts_with(line, "export struct ") {
+            mut name = string_substring(line, 14, string_length(line));
+            mut struct_name = string_trim(string_split(name, " ")[0]);
+            if string_length(struct_name) > 0 {
+                mut content = "{\"kind\":\"struct\",\"name\":\"" + struct_name + "\",\"module\":\"" + module_name + "\"}";
+                mut entry = kb_entry_new(module_name + "::" + struct_name, "TypeInformation", content);
+                entry.symbol_name = struct_name;
+                entry.module_name = module_name;
+                store_entry(entry);
+            }
+        }
+    }
+}
+
+/// Extract function name from a signature string like "add(a: Number, b: Number) -> Number"
+fn extract_fn_name(sig: String) -> String {
+    mut i = 0;
+    mut name = "";
+    while i < string_length(sig) {
+        mut ch = string_char_at(sig, i);
+        if ch == "(" || ch == " " {
+            return name;
+        }
+        name = name + ch;
+        i = i + 1;
+    }
+    return name;
+}

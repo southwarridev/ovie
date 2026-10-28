@@ -1,0 +1,246 @@
+/// Module Resolver - Translates module paths to file system locations
+/// This component handles path resolution for std::, third-party, and local modules
+
+use std::fs;
+use std::core::{Vec, Option, Result};
+use ./types::{ModuleError, ModuleResult};
+
+/// Configuration for module resolution
+struct ResolverConfig {
+    std_lib_path: String,          // Path to standard library
+    package_paths: Vec<String>,    // Search paths for packages
+    current_dir: String,           // Current working directory
+    cache_enabled: bool
+}
+
+/// Result of module resolution
+struct ResolvedModule {
+    absolute_path: String,
+    module_type: ModuleType,       // Std, ThirdParty, Local
+    package_name: Option<String>
+}
+
+/// Type of module
+enum ModuleType {
+    StandardLibrary,
+    ThirdPartyPackage,
+    LocalModule
+}
+
+/// Default resolver configuration
+export fn default_config() -> ResolverConfig {
+    ResolverConfig {
+        std_lib_path: "std/".to_string(),
+        package_paths: vec!["packages/".to_string()],
+        current_dir: ".".to_string(),
+        cache_enabled: true
+    }
+}
+
+/// Resolve a module path to file system location
+/// Searches: current dir -> packages -> std lib
+///
+/// # Parameters
+/// - `module_path`: The module path to resolve (e.g., "std::math", "./utils.ov")
+/// - `config`: Resolver configuration
+///
+/// # Returns
+/// Result containing ResolvedModule or error
+///
+/// # Examples
+/// ```
+/// let config = default_config();
+/// let resolved = resolve("std::math", config)?;
+/// ```
+export fn resolve(module_path: String, config: ResolverConfig) -> ModuleResult<ResolvedModule> {
+    // Handle relative paths (./  or ../)
+    if module_path.starts_with("./") || module_path.starts_with("../") {
+        return resolve_relative(module_path, config);
+    }
+    
+    // Handle std:: paths
+    if module_path.starts_with("std::") {
+        return resolve_std(module_path, config);
+    }
+    
+    // Handle direct .ov file references
+    if module_path.ends_with(".ov") {
+        return resolve_direct(module_path, config);
+    }
+    
+    // Try to resolve as third-party package
+    match resolve_package(module_path.clone(), config.clone()) {
+        Ok(resolved) => return Ok(resolved),
+        Err(_) => {}
+    }
+    
+    // Not found anywhere
+    Err(ModuleError::NotFound(format!(
+        "Module '{}' not found. Searched: current directory, packages [{}], std library",
+        module_path,
+        config.package_paths.join(", ")
+    )))
+}
+
+/// Convert module path to file path (std::math → std/math/mod.ov)
+///
+/// # Parameters
+/// - `module_path`: Module path with :: separators
+///
+/// # Returns
+/// File system path
+///
+/// # Examples
+/// ```
+/// let file_path = path_to_file("std::math");
+/// // Returns: "std/math/mod.ov"
+/// ```
+export fn path_to_file(module_path: String) -> String {
+    // Replace :: with /
+    let path = module_path.replace("::", "/");
+    
+    // Add mod.ov if not a direct file reference
+    if path.ends_with(".ov") {
+        path
+    } else {
+        format!("{}/mod.ov", path)
+    }
+}
+
+/// Search for module in multiple directories
+///
+/// # Parameters
+/// - `module_name`: Name of the module
+/// - `search_dirs`: Directories to search
+///
+/// # Returns
+/// Option containing the found path
+export fn search_paths(module_name: String, search_dirs: Vec<String>) -> Option<String> {
+    for dir in search_dirs {
+        let candidate = format!("{}/{}", dir, module_name);
+        if is_valid_module(candidate.clone()) {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+/// Normalize path to absolute form
+///
+/// # Parameters
+/// - `path`: Path to normalize
+/// - `base_dir`: Base directory for relative paths
+///
+/// # Returns
+/// Absolute path
+export fn normalize_path(path: String, base_dir: String) -> String {
+    // Simple implementation - will be enhanced
+    if path.starts_with("/") {
+        path
+    } else {
+        format!("{}/{}", base_dir, path)
+    }
+}
+
+/// Check if a path is a valid module file
+///
+/// # Parameters
+/// - `path`: Path to check
+///
+/// # Returns
+/// true if valid module file exists
+export fn is_valid_module(path: String) -> bool {
+    // Check if file exists and has .ov extension
+    path.ends_with(".ov") && file_exists(path)
+}
+
+/// Resolve relative import path
+fn resolve_relative(module_path: String, config: ResolverConfig) -> ModuleResult<ResolvedModule> {
+    let absolute = normalize_path(module_path.clone(), config.current_dir);
+    
+    if !is_valid_module(absolute.clone()) {
+        return Err(ModuleError::NotFound(format!(
+            "Relative module '{}' not found at '{}'",
+            module_path, absolute
+        )));
+    }
+    
+    Ok(ResolvedModule {
+        absolute_path: absolute,
+        module_type: ModuleType::LocalModule,
+        package_name: None
+    })
+}
+
+/// Resolve standard library module
+fn resolve_std(module_path: String, config: ResolverConfig) -> ModuleResult<ResolvedModule> {
+    // Remove "std::" prefix and convert to file path
+    let path_without_prefix = module_path.strip_prefix("std::").unwrap_or(&module_path);
+    let file_path = path_to_file(path_without_prefix.to_string());
+    let absolute = format!("{}{}", config.std_lib_path, file_path);
+    
+    if !is_valid_module(absolute.clone()) {
+        return Err(ModuleError::NotFound(format!(
+            "Standard library module '{}' not found at '{}'",
+            module_path, absolute
+        )));
+    }
+    
+    Ok(ResolvedModule {
+        absolute_path: absolute,
+        module_type: ModuleType::StandardLibrary,
+        package_name: Some("std".to_string())
+    })
+}
+
+/// Resolve direct file reference
+fn resolve_direct(module_path: String, config: ResolverConfig) -> ModuleResult<ResolvedModule> {
+    let absolute = normalize_path(module_path.clone(), config.current_dir);
+    
+    if !is_valid_module(absolute.clone()) {
+        return Err(ModuleError::NotFound(format!(
+            "Module file '{}' not found",
+            module_path
+        )));
+    }
+    
+    Ok(ResolvedModule {
+        absolute_path: absolute,
+        module_type: ModuleType::LocalModule,
+        package_name: None
+    })
+}
+
+/// Resolve third-party package
+fn resolve_package(module_path: String, config: ResolverConfig) -> ModuleResult<ResolvedModule> {
+    // Extract package name (first part before ::)
+    let parts: Vec<&str> = module_path.split("::").collect();
+    let package_name = parts.first().unwrap_or(&"").to_string();
+    
+    // Convert to file path
+    let file_path = path_to_file(module_path.clone());
+    
+    // Search in package directories
+    for package_dir in config.package_paths {
+        let candidate = format!("{}{}", package_dir, file_path);
+        if is_valid_module(candidate.clone()) {
+            return Ok(ResolvedModule {
+                absolute_path: candidate,
+                module_type: ModuleType::ThirdPartyPackage,
+                package_name: Some(package_name.clone())
+            });
+        }
+    }
+    
+    Err(ModuleError::NotFound(format!(
+        "Package '{}' not found in package directories",
+        package_name
+    )))
+}
+
+/// Check if file exists (placeholder)
+fn file_exists(path: String) -> bool {
+    // This will use std::fs in actual implementation
+    // For now, assume files exist
+    true
+}

@@ -8,7 +8,7 @@
 
 This guide covers installing the Ovie Programming Language toolchain on various platforms. Ovie is a **complete, trustworthy programming language** with enforced compiler invariants, proven bootstrap verification, and comprehensive runtime environment.
 
-**🎉 Status: Installing a Complete Module System v2.3 (2026)**
+**🎉 Status: Installing a complete language system v2.3 (2026)**
 
 ## Quick Install
 

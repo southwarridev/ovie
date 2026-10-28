@@ -1,0 +1,407 @@
+/// Aproko Knowledge Base
+///
+/// Persistent storage for AI-accessible analysis results. Stores and retrieves
+/// type information, reasoning rules, code patterns, and documentation for
+/// LLM and agentic tool access.
+///
+/// # Storage Location
+///
+/// Entries are stored as JSON files under .ovie/aproko/knowledge/:
+/// - reasoning.json   — reasoning rules
+/// - types.json       — type information
+/// - patterns.json    — code patterns
+/// - security.json    — security issues
+/// - performance.json — performance hints
+/// - docs.json        — documentation entries
+///
+/// # Requirements: 21.1, 21.2, 21.3, 21.4, 21.6, 21.7, 21.8, 21.9, 21.10, 21.11, 21.12
+
+/// Category of a knowledge entry
+enum EntryCategory {
+    ReasoningRule,
+    TypeInformation,
+    CodePattern,
+    SecurityIssue,
+    PerformanceHint,
+    Documentation,
+}
+
+/// Source code location for an entry
+struct SourceLocation {
+    file_path: String,
+    line_start: Number,
+    line_end: Number,
+    column_start: Number,
+    column_end: Number,
+}
+
+/// A single knowledge base entry
+struct KnowledgeEntry {
+    id: String,
+    category: String,          // EntryCategory as string for serialization
+    content: String,           // JSON-serialized content
+    symbol_name: String,       // associated symbol (function, type, etc.)
+    pattern_type: String,      // pattern type for CodePattern entries
+    module_name: String,       // module this entry belongs to
+    confidence: Number,        // 0.0 to 1.0
+    timestamp: Number,
+    version: Number,
+    file_path: String,
+    line_start: Number,
+    line_end: Number,
+}
+
+/// Query parameters for knowledge base lookup
+struct KnowledgeQuery {
+    category: String,          // empty = all categories
+    symbol_name: String,       // empty = any symbol
+    pattern_type: String,      // empty = any pattern
+    module_name: String,       // empty = any module
+    min_confidence: Number,
+}
+
+/// Result of a knowledge base operation
+struct KBResult {
+    success: Boolean,
+    entries: Array,            // Array of KnowledgeEntry
+    error: String,
+}
+
+/// Default storage path
+fn kb_base_path() -> String {
+    return ".ovie/aproko/knowledge/";
+}
+
+/// Get file path for a category
+fn kb_category_file(category: String) -> String {
+    if category == "ReasoningRule" { return kb_base_path() + "reasoning.json"; }
+    if category == "TypeInformation" { return kb_base_path() + "types.json"; }
+    if category == "CodePattern" { return kb_base_path() + "patterns.json"; }
+    if category == "SecurityIssue" { return kb_base_path() + "security.json"; }
+    if category == "PerformanceHint" { return kb_base_path() + "performance.json"; }
+    if category == "Documentation" { return kb_base_path() + "docs.json"; }
+    return kb_base_path() + "misc.json";
+}
+
+/// Create an empty KnowledgeEntry
+fn kb_entry_new(id: String, category: String, content: String) -> KnowledgeEntry {
+    return KnowledgeEntry {
+        id: id,
+        category: category,
+        content: content,
+        symbol_name: "",
+        pattern_type: "",
+        module_name: "",
+        confidence: 1.0,
+        timestamp: 0,
+        version: 1,
+        file_path: "",
+        line_start: 0,
+        line_end: 0,
+    };
+}
+
+/// Serialize a KnowledgeEntry to a JSON line
+fn kb_entry_to_json(entry: KnowledgeEntry) -> String {
+    mut json = "{";
+    json = json + "\"id\":\"" + entry.id + "\",";
+    json = json + "\"category\":\"" + entry.category + "\",";
+    json = json + "\"symbol_name\":\"" + entry.symbol_name + "\",";
+    json = json + "\"pattern_type\":\"" + entry.pattern_type + "\",";
+    json = json + "\"module_name\":\"" + entry.module_name + "\",";
+    json = json + "\"confidence\":" + number_to_string(entry.confidence) + ",";
+    json = json + "\"version\":" + number_to_string(entry.version) + ",";
+    json = json + "\"file_path\":\"" + entry.file_path + "\",";
+    json = json + "\"line_start\":" + number_to_string(entry.line_start) + ",";
+    json = json + "\"line_end\":" + number_to_string(entry.line_end) + ",";
+    json = json + "\"content\":" + entry.content;
+    json = json + "}";
+    return json;
+}
+
+/// Load all entries from a JSON file (one JSON object per line)
+fn kb_load_entries(file_path: String) -> Array {
+    if !file_exists(file_path) {
+        return [];
+    }
+    mut content = read_file(file_path);
+    mut lines = string_split_lines(content);
+    mut entries = [];
+    mut i = 0;
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        i = i + 1;
+        if string_length(line) > 2 && string_starts_with(line, "{") {
+            // Parse minimal fields from JSON line
+            mut entry = kb_parse_entry_json(line);
+            entries = array_push(entries, entry);
+        }
+    }
+    return entries;
+}
+
+/// Parse a KnowledgeEntry from a JSON string (minimal parser)
+fn kb_parse_entry_json(json: String) -> KnowledgeEntry {
+    mut entry = kb_entry_new(
+        kb_json_extract(json, "id"),
+        kb_json_extract(json, "category"),
+        kb_json_extract_raw(json, "content")
+    );
+    entry.symbol_name = kb_json_extract(json, "symbol_name");
+    entry.pattern_type = kb_json_extract(json, "pattern_type");
+    entry.module_name = kb_json_extract(json, "module_name");
+    entry.file_path = kb_json_extract(json, "file_path");
+    return entry;
+}
+
+/// Extract a string value from a simple JSON object by key
+fn kb_json_extract(json: String, key: String) -> String {
+    mut search = "\"" + key + "\":\"";
+    mut pos = string_find(json, search);
+    if pos < 0 { return ""; }
+    mut start = pos + string_length(search);
+    mut end = string_find_from(json, "\"", start);
+    if end < 0 { return ""; }
+    return string_substring(json, start, end);
+}
+
+/// Extract a raw (possibly non-string) value from JSON by key
+fn kb_json_extract_raw(json: String, key: String) -> String {
+    mut search = "\"" + key + "\":";
+    mut pos = string_find(json, search);
+    if pos < 0 { return "\"\""; }
+    mut start = pos + string_length(search);
+    // Return rest until end of object (simplified)
+    mut end = string_length(json) - 1;
+    return string_substring(json, start, end);
+}
+
+/// Save entries array to a JSON file (one entry per line)
+fn kb_save_entries(file_path: String, entries: Array) {
+    mut content = "";
+    mut i = 0;
+    while i < array_length(entries) {
+        mut entry = array_get(entries, i);
+        content = content + kb_entry_to_json(entry) + "\n";
+        i = i + 1;
+    }
+    // Ensure directory exists
+    make_dir(kb_base_path());
+    write_file(file_path, content);
+}
+
+/// Store a knowledge entry, adding or updating by ID
+///
+/// # Parameters
+/// - entry: KnowledgeEntry to store
+export fn store_entry(entry: KnowledgeEntry) {
+    mut file_path = kb_category_file(entry.category);
+    mut entries = kb_load_entries(file_path);
+
+    // Check if entry with same ID exists — update it
+    mut found = false;
+    mut i = 0;
+    mut updated = [];
+    while i < array_length(entries) {
+        mut existing = array_get(entries, i);
+        if existing.id == entry.id {
+            // Update: bump version
+            mut new_entry = entry;
+            new_entry.version = existing.version + 1;
+            updated = array_push(updated, new_entry);
+            found = true;
+        } else {
+            updated = array_push(updated, existing);
+        }
+        i = i + 1;
+    }
+
+    if !found {
+        updated = array_push(updated, entry);
+    }
+
+    kb_save_entries(file_path, updated);
+}
+
+/// Query the knowledge base
+///
+/// # Parameters
+/// - q: KnowledgeQuery with filter criteria
+///
+/// # Returns
+/// KBResult with matching entries
+export fn kb_query(q: KnowledgeQuery) -> KBResult {
+    mut all_entries = [];
+
+    // Determine which files to search
+    if string_length(q.category) > 0 {
+        mut file = kb_category_file(q.category);
+        mut entries = kb_load_entries(file);
+        all_entries = entries;
+    } else {
+        // Search all categories
+        mut categories = ["ReasoningRule", "TypeInformation", "CodePattern", "SecurityIssue", "PerformanceHint", "Documentation"];
+        mut ci = 0;
+        while ci < array_length(categories) {
+            mut cat = array_get(categories, ci);
+            mut file = kb_category_file(cat);
+            mut entries = kb_load_entries(file);
+            mut ei = 0;
+            while ei < array_length(entries) {
+                all_entries = array_push(all_entries, array_get(entries, ei));
+                ei = ei + 1;
+            }
+            ci = ci + 1;
+        }
+    }
+
+    // Filter results
+    mut results = [];
+    mut i = 0;
+    while i < array_length(all_entries) {
+        mut entry = array_get(all_entries, i);
+        mut is_match = true;
+
+        if string_length(q.symbol_name) > 0 && entry.symbol_name != q.symbol_name {
+            is_match = false;
+        }
+        if string_length(q.pattern_type) > 0 && entry.pattern_type != q.pattern_type {
+            is_match = false;
+        }
+        if string_length(q.module_name) > 0 && entry.module_name != q.module_name {
+            is_match = false;
+        }
+        if entry.confidence < q.min_confidence {
+            is_match = false;
+        }
+
+        if is_match {
+            results = array_push(results, entry);
+        }
+        i = i + 1;
+    }
+
+    return KBResult {
+        success: true,
+        entries: results,
+        error: "",
+    };
+}
+
+/// Update an existing entry's content by ID
+///
+/// # Parameters
+/// - id: Entry ID to update
+/// - new_content: New JSON content string
+export fn update_entry(id: String, new_content: String) -> Boolean {
+    mut categories = ["ReasoningRule", "TypeInformation", "CodePattern", "SecurityIssue", "PerformanceHint", "Documentation"];
+    mut ci = 0;
+    while ci < array_length(categories) {
+        mut cat = array_get(categories, ci);
+        mut file = kb_category_file(cat);
+        mut entries = kb_load_entries(file);
+        mut found = false;
+        mut updated = [];
+        mut i = 0;
+        while i < array_length(entries) {
+            mut entry = array_get(entries, i);
+            if entry.id == id {
+                entry.content = new_content;
+                entry.version = entry.version + 1;
+                updated = array_push(updated, entry);
+                found = true;
+            } else {
+                updated = array_push(updated, entry);
+            }
+            i = i + 1;
+        }
+        if found {
+            kb_save_entries(file, updated);
+            return true;
+        }
+        ci = ci + 1;
+    }
+    return false;
+}
+
+/// Get reasoning rules, optionally filtered by pattern_type
+///
+/// # Parameters
+/// - pattern_type: Filter by pattern type, empty for all
+export fn get_reasoning_rules(pattern_type: String) -> Array {
+    mut q = KnowledgeQuery {
+        category: "ReasoningRule",
+        symbol_name: "",
+        pattern_type: pattern_type,
+        module_name: "",
+        min_confidence: 0.0,
+    };
+    mut result = kb_query(q);
+    return result.entries;
+}
+
+/// Get type information for a symbol
+///
+/// # Parameters
+/// - symbol_name: Symbol to look up
+export fn get_type_info(symbol_name: String) -> Array {
+    mut q = KnowledgeQuery {
+        category: "TypeInformation",
+        symbol_name: symbol_name,
+        pattern_type: "",
+        module_name: "",
+        min_confidence: 0.0,
+    };
+    mut result = kb_query(q);
+    return result.entries;
+}
+
+/// Get code patterns by type
+///
+/// # Parameters
+/// - pattern_type: Pattern type to filter by
+export fn get_patterns(pattern_type: String) -> Array {
+    mut q = KnowledgeQuery {
+        category: "CodePattern",
+        symbol_name: "",
+        pattern_type: pattern_type,
+        module_name: "",
+        min_confidence: 0.0,
+    };
+    mut result = kb_query(q);
+    return result.entries;
+}
+
+/// Export entire knowledge base to a single JSON file
+///
+/// # Parameters
+/// - output_path: Path to write the JSON export
+export fn export_json(output_path: String) {
+    mut all_entries = [];
+    mut categories = ["ReasoningRule", "TypeInformation", "CodePattern", "SecurityIssue", "PerformanceHint", "Documentation"];
+    mut ci = 0;
+    while ci < array_length(categories) {
+        mut cat = array_get(categories, ci);
+        mut file = kb_category_file(cat);
+        mut entries = kb_load_entries(file);
+        mut ei = 0;
+        while ei < array_length(entries) {
+            all_entries = array_push(all_entries, array_get(entries, ei));
+            ei = ei + 1;
+        }
+        ci = ci + 1;
+    }
+
+    mut json = "{\n  \"knowledge_base\": [\n";
+    mut i = 0;
+    while i < array_length(all_entries) {
+        mut entry = array_get(all_entries, i);
+        if i > 0 { json = json + ",\n"; }
+        json = json + "    " + kb_entry_to_json(entry);
+        i = i + 1;
+    }
+    json = json + "\n  ]\n}\n";
+
+    write_file(output_path, json);
+}
+

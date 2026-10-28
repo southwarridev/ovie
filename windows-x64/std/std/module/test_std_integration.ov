@@ -1,0 +1,1480 @@
+/// Integration Tests — std:: Module Usage (Task 19.1)
+///
+/// Covers every component implemented across all phases:
+///   Phase 1: types.ov
+///   Phase 2: loader.ov
+///   Phase 3: resolver.ov, dependency_graph.ov, cache.ov
+///   Phase 4: migrate.ov, fs_integration.ov, backward compat layer
+
+use std::io;
+use std::core::{Vec, HashMap, Option, Result};
+use ./types::{Module, Import, ExportTable, ModuleError,
+              FunctionSignature, Parameter, Type, TypeDefinition,
+              TypeKind, Field, ConstantInfo, EnumDefinition, EnumVariant};
+use ./resolver::{default_config, resolve, path_to_file,
+                 normalize_path, is_valid_module, search_paths};
+use ./dependency_graph::{new_graph, add_module, add_dependency,
+                          topological_sort, detect_cycles,
+                          get_transitive_deps, update_module_deps,
+                          find_shortest_cycle, format_cycle_error};
+use ./cache::{new_cache, default_cache_config, compute_source_hash,
+              compute_dependencies_hash, is_cache_valid, cache_module,
+              get_cached, invalidate, clear_cache,
+              new_lazy_registry, queue_module, get_or_parse, is_parsed,
+              identify_load_levels};
+use ./migrate::{default_migrate_config, analyze_used_symbols,
+                generate_ovie_toml, migrate_file};
+use ./fs_integration::{join_path, parent_dir, filename, extension};
+use ./loader::{is_loaded, load_with_compat, is_standalone_file,
+               has_legacy_std_usage, is_legacy_module,
+               default_compat_mode, strict_compat_mode, load_with_mode};
+
+// ============================================================
+// SECTION 1: types.ov — data structure construction
+// ============================================================
+
+fn test_module_type_fields() {
+    let m = Module {
+        path: "src/main.ov".to_string(),
+        name: "main".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "abc123".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new(),
+        is_standalone: false
+    };
+    assert(m.path == "src/main.ov".to_string(), "Module path should match");
+    assert(m.name == "main".to_string(), "Module name should match");
+    assert(!m.is_standalone, "Module should not be standalone");
+    assert(m.imports.is_empty(), "Module imports should be empty");
+    io::println("✓ test_module_type_fields passed");
+}
+
+fn test_import_type_fields() {
+    let imp = Import {
+        module_path: "std::math".to_string(),
+        symbols: Some(vec!["sin".to_string(), "cos".to_string()]),
+        alias: None
+    };
+    assert(imp.module_path == "std::math".to_string(), "Import path should match");
+    match imp.symbols {
+        Some(syms) => assert(syms.len() == 2, "Should have 2 symbols"),
+        None => assert(false, "Symbols should be Some")
+    }
+    match imp.alias {
+        None => io::println("✓ test_import_type_fields passed"),
+        Some(_) => assert(false, "Alias should be None")
+    }
+}
+
+fn test_import_wildcard() {
+    let imp = Import {
+        module_path: "std::core".to_string(),
+        symbols: None,
+        alias: None
+    };
+    match imp.symbols {
+        None => io::println("✓ test_import_wildcard passed"),
+        Some(_) => assert(false, "Wildcard import should have None symbols")
+    }
+}
+
+fn test_import_with_alias() {
+    let imp = Import {
+        module_path: "std::math".to_string(),
+        symbols: None,
+        alias: Some("math".to_string())
+    };
+    match imp.alias {
+        Some(a) => {
+            assert(a == "math".to_string(), "Alias should be 'math'");
+            io::println("✓ test_import_with_alias passed");
+        },
+        None => assert(false, "Alias should be Some")
+    }
+}
+
+fn test_export_table_empty() {
+    let et = ExportTable {
+        functions: HashMap::new(),
+        types: HashMap::new(),
+        constants: HashMap::new(),
+        enums: HashMap::new()
+    };
+    assert(et.functions.is_empty(), "Functions should be empty");
+    assert(et.types.is_empty(), "Types should be empty");
+    assert(et.constants.is_empty(), "Constants should be empty");
+    assert(et.enums.is_empty(), "Enums should be empty");
+    io::println("✓ test_export_table_empty passed");
+}
+
+fn test_function_signature_fields() {
+    let sig = FunctionSignature {
+        name: "add".to_string(),
+        parameters: vec![
+            Parameter {
+                name: "a".to_string(),
+                param_type: Type { name: "Number".to_string(), is_generic: false, type_params: Vec::new() },
+                is_mutable: false
+            },
+            Parameter {
+                name: "b".to_string(),
+                param_type: Type { name: "Number".to_string(), is_generic: false, type_params: Vec::new() },
+                is_mutable: false
+            }
+        ],
+        return_type: Type { name: "Number".to_string(), is_generic: false, type_params: Vec::new() },
+        doc_comment: "Adds two numbers".to_string(),
+        is_generic: false
+    };
+    assert(sig.name == "add".to_string(), "Function name should be 'add'");
+    assert(sig.parameters.len() == 2, "Should have 2 parameters");
+    assert(sig.return_type.name == "Number".to_string(), "Return type should be Number");
+    assert(!sig.is_generic, "Should not be generic");
+    io::println("✓ test_function_signature_fields passed");
+}
+
+fn test_type_definition_struct_kind() {
+    let td = TypeDefinition {
+        name: "Point".to_string(),
+        kind: TypeKind::Struct,
+        fields: vec![
+            Field { name: "x".to_string(), field_type: Type { name: "Number".to_string(), is_generic: false, type_params: Vec::new() }, is_public: true },
+            Field { name: "y".to_string(), field_type: Type { name: "Number".to_string(), is_generic: false, type_params: Vec::new() }, is_public: true }
+        ],
+        doc_comment: "A 2D point".to_string()
+    };
+    assert(td.name == "Point".to_string(), "Type name should be 'Point'");
+    assert(td.fields.len() == 2, "Should have 2 fields");
+    assert(td.fields[0].name == "x".to_string(), "First field should be 'x'");
+    io::println("✓ test_type_definition_struct_kind passed");
+}
+
+fn test_constant_info_fields() {
+    let ci = ConstantInfo {
+        name: "MAX_SIZE".to_string(),
+        const_type: Type { name: "Number".to_string(), is_generic: false, type_params: Vec::new() },
+        value: "1024".to_string(),
+        doc_comment: "Maximum buffer size".to_string()
+    };
+    assert(ci.name == "MAX_SIZE".to_string(), "Constant name should match");
+    assert(ci.value == "1024".to_string(), "Constant value should match");
+    io::println("✓ test_constant_info_fields passed");
+}
+
+fn test_enum_definition_fields() {
+    let ed = EnumDefinition {
+        name: "Color".to_string(),
+        variants: vec![
+            EnumVariant { name: "Red".to_string(), fields: None },
+            EnumVariant { name: "Green".to_string(), fields: None },
+            EnumVariant { name: "Blue".to_string(), fields: None }
+        ],
+        doc_comment: "RGB colors".to_string()
+    };
+    assert(ed.name == "Color".to_string(), "Enum name should be 'Color'");
+    assert(ed.variants.len() == 3, "Should have 3 variants");
+    assert(ed.variants[0].name == "Red".to_string(), "First variant should be 'Red'");
+    io::println("✓ test_enum_definition_fields passed");
+}
+
+fn test_module_error_variants() {
+    let _e1 = ModuleError::NotFound("missing.ov".to_string());
+    let _e2 = ModuleError::ParseError("bad syntax".to_string());
+    let _e3 = ModuleError::ExportError("no such symbol".to_string());
+    let _e4 = ModuleError::ImportError("unresolved".to_string());
+    let _e5 = ModuleError::CircularDependency(vec!["a.ov".to_string(), "b.ov".to_string()]);
+    let _e6 = ModuleError::SymbolNotFound("foo".to_string());
+    let _e7 = ModuleError::NameCollision("bar".to_string());
+    assert(true, "All error variants should be constructable");
+    io::println("✓ test_module_error_variants passed");
+}
+
+// ============================================================
+// SECTION 2: resolver.ov
+// ============================================================
+
+fn test_resolver_default_config_has_std_path() {
+    let config = default_config();
+    assert(config.std_lib_path == "std/".to_string(), "std_lib_path should be 'std/'");
+    assert(!config.package_paths.is_empty(), "package_paths should not be empty");
+    assert(config.current_dir == ".".to_string(), "current_dir should be '.'");
+    assert(config.cache_enabled, "cache should be enabled");
+    io::println("✓ test_resolver_default_config_has_std_path passed");
+}
+
+fn test_path_to_file_std_module() {
+    let result = path_to_file("math".to_string());
+    assert(result == "math/mod.ov".to_string(), "path_to_file('math') should return 'math/mod.ov'");
+    io::println("✓ test_path_to_file_std_module passed");
+}
+
+fn test_path_to_file_already_ov() {
+    let result = path_to_file("utils.ov".to_string());
+    assert(result == "utils.ov".to_string(), "path_to_file for .ov file should be unchanged");
+    io::println("✓ test_path_to_file_already_ov passed");
+}
+
+fn test_path_to_file_double_colon() {
+    let result = path_to_file("std::core".to_string());
+    assert(result == "std/core/mod.ov".to_string(), ":: should be replaced with /");
+    io::println("✓ test_path_to_file_double_colon passed");
+}
+
+fn test_normalize_path_absolute_unchanged() {
+    let result = normalize_path("/home/user/project".to_string(), "/base".to_string());
+    assert(result == "/home/user/project".to_string(), "Absolute path should be unchanged");
+    io::println("✓ test_normalize_path_absolute_unchanged passed");
+}
+
+fn test_normalize_path_relative_prepends_base() {
+    let result = normalize_path("utils.ov".to_string(), "/project/src".to_string());
+    assert(result == "/project/src/utils.ov".to_string(), "Relative path should be prepended with base");
+    io::println("✓ test_normalize_path_relative_prepends_base passed");
+}
+
+fn test_is_valid_module_requires_ov_extension() {
+    assert(is_valid_module("mod.ov".to_string()), "mod.ov should be valid");
+    assert(!is_valid_module("mod.rs".to_string()), "mod.rs should not be valid");
+    assert(!is_valid_module("mod".to_string()), "mod without extension should not be valid");
+    assert(!is_valid_module("mod.txt".to_string()), "mod.txt should not be valid");
+    io::println("✓ test_is_valid_module_requires_ov_extension passed");
+}
+
+fn test_search_paths_empty_dirs_returns_none() {
+    let result = search_paths("math/mod.ov".to_string(), Vec::new());
+    match result {
+        None => io::println("✓ test_search_paths_empty_dirs_returns_none passed"),
+        Some(_) => assert(false, "Empty dirs should return None")
+    }
+}
+
+fn test_resolve_std_path_ok() {
+    let config = default_config();
+    let result = resolve("std::math".to_string(), config);
+    match result {
+        Ok(_) => io::println("✓ test_resolve_std_path_ok passed"),
+        Err(e) => io::println("✗ test_resolve_std_path_ok failed: {}", e)
+    }
+}
+
+fn test_resolve_std_core_ok() {
+    let config = default_config();
+    let result = resolve("std::core".to_string(), config);
+    match result {
+        Ok(_) => io::println("✓ test_resolve_std_core_ok passed"),
+        Err(e) => io::println("✗ test_resolve_std_core_ok failed: {}", e)
+    }
+}
+
+fn test_resolve_relative_path_no_panic() {
+    let config = default_config();
+    let _ = resolve("./loader.ov".to_string(), config);
+    assert(true, "resolve should not panic on relative path");
+    io::println("✓ test_resolve_relative_path_no_panic passed");
+}
+
+// ============================================================
+// SECTION 3: dependency_graph.ov
+// ============================================================
+
+fn test_new_graph_is_empty() {
+    let g = new_graph();
+    assert(g.nodes.is_empty(), "New graph should have no nodes");
+    assert(g.edges.is_empty(), "New graph should have no edges");
+    io::println("✓ test_new_graph_is_empty passed");
+}
+
+fn test_add_module_creates_node() {
+    let mut g = new_graph();
+    add_module(&mut g, "a.ov".to_string());
+    assert(g.nodes.contains_key("a.ov"), "Node 'a.ov' should exist");
+    assert(g.nodes.len() == 1, "Should have exactly 1 node");
+    io::println("✓ test_add_module_creates_node passed");
+}
+
+fn test_add_module_idempotent() {
+    let mut g = new_graph();
+    add_module(&mut g, "a.ov".to_string());
+    add_module(&mut g, "a.ov".to_string());
+    assert(g.nodes.len() == 1, "Duplicate add_module should be idempotent");
+    io::println("✓ test_add_module_idempotent passed");
+}
+
+fn test_add_dependency_creates_both_nodes() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "main.ov".to_string(), "utils.ov".to_string());
+    assert(g.nodes.contains_key("main.ov"), "main.ov node should exist");
+    assert(g.nodes.contains_key("utils.ov"), "utils.ov node should exist");
+    assert(g.edges.len() == 1, "Should have 1 edge");
+    io::println("✓ test_add_dependency_creates_both_nodes passed");
+}
+
+fn test_add_dependency_idempotent() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "a.ov".to_string(), "b.ov".to_string());
+    add_dependency(&mut g, "a.ov".to_string(), "b.ov".to_string());
+    assert(g.edges.len() == 1, "Duplicate dependency should be idempotent");
+    io::println("✓ test_add_dependency_idempotent passed");
+}
+
+fn test_add_dependency_updates_adjacency() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "a.ov".to_string(), "b.ov".to_string());
+    match g.nodes.get("a.ov") {
+        Some(a_node) => assert(a_node.dependencies.contains(&"b.ov".to_string()), "a.ov should depend on b.ov"),
+        None => assert(false, "a.ov node should exist")
+    }
+    match g.nodes.get("b.ov") {
+        Some(b_node) => assert(b_node.dependents.contains(&"a.ov".to_string()), "b.ov should have a.ov as dependent"),
+        None => assert(false, "b.ov node should exist")
+    }
+    io::println("✓ test_add_dependency_updates_adjacency passed");
+}
+
+fn test_topological_sort_linear_chain() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "c.ov".to_string(), "b.ov".to_string());
+    add_dependency(&mut g, "b.ov".to_string(), "a.ov".to_string());
+    match topological_sort(&g) {
+        Ok(order) => {
+            let a_pos = order.iter().position(|x| x == "a.ov").unwrap();
+            let b_pos = order.iter().position(|x| x == "b.ov").unwrap();
+            let c_pos = order.iter().position(|x| x == "c.ov").unwrap();
+            assert(a_pos < b_pos, "a.ov should come before b.ov");
+            assert(b_pos < c_pos, "b.ov should come before c.ov");
+            io::println("✓ test_topological_sort_linear_chain passed");
+        },
+        Err(_) => assert(false, "Linear chain should not have cycles")
+    }
+}
+
+fn test_topological_sort_single_node() {
+    let mut g = new_graph();
+    add_module(&mut g, "solo.ov".to_string());
+    match topological_sort(&g) {
+        Ok(order) => {
+            assert(order.len() == 1, "Single node should produce order of length 1");
+            assert(order[0] == "solo.ov".to_string(), "Single node should be solo.ov");
+            io::println("✓ test_topological_sort_single_node passed");
+        },
+        Err(_) => assert(false, "Single node should not have cycles")
+    }
+}
+
+fn test_topological_sort_cycle_returns_err() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "x.ov".to_string(), "y.ov".to_string());
+    add_dependency(&mut g, "y.ov".to_string(), "x.ov".to_string());
+    match topological_sort(&g) {
+        Ok(_) => assert(false, "Cycle should return Err"),
+        Err(_) => io::println("✓ test_topological_sort_cycle_returns_err passed")
+    }
+}
+
+fn test_detect_cycles_acyclic_returns_none() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "b.ov".to_string(), "a.ov".to_string());
+    match detect_cycles(&g) {
+        None => io::println("✓ test_detect_cycles_acyclic_returns_none passed"),
+        Some(_) => assert(false, "Acyclic graph should return None")
+    }
+}
+
+fn test_detect_cycles_cyclic_returns_some() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "a.ov".to_string(), "b.ov".to_string());
+    add_dependency(&mut g, "b.ov".to_string(), "c.ov".to_string());
+    add_dependency(&mut g, "c.ov".to_string(), "a.ov".to_string());
+    match detect_cycles(&g) {
+        Some(cycle) => {
+            assert(!cycle.cycle_path.is_empty(), "Cycle path should not be empty");
+            io::println("✓ test_detect_cycles_cyclic_returns_some passed");
+        },
+        None => assert(false, "Cyclic graph should return Some")
+    }
+}
+
+fn test_get_transitive_deps_direct_only() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "main.ov".to_string(), "utils.ov".to_string());
+    let deps = get_transitive_deps(&g, &"main.ov".to_string());
+    assert(deps.contains(&"utils.ov".to_string()), "Should contain utils.ov");
+    assert(deps.len() == 1, "Should have exactly 1 dep");
+    io::println("✓ test_get_transitive_deps_direct_only passed");
+}
+
+fn test_get_transitive_deps_multi_level() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "root.ov".to_string(), "mid.ov".to_string());
+    add_dependency(&mut g, "mid.ov".to_string(), "leaf.ov".to_string());
+    let deps = get_transitive_deps(&g, &"root.ov".to_string());
+    assert(deps.contains(&"mid.ov".to_string()), "Should contain mid.ov");
+    assert(deps.contains(&"leaf.ov".to_string()), "Should contain leaf.ov");
+    io::println("✓ test_get_transitive_deps_multi_level passed");
+}
+
+fn test_get_transitive_deps_no_deps() {
+    let mut g = new_graph();
+    add_module(&mut g, "standalone.ov".to_string());
+    let deps = get_transitive_deps(&g, &"standalone.ov".to_string());
+    assert(deps.is_empty(), "Standalone module should have no deps");
+    io::println("✓ test_get_transitive_deps_no_deps passed");
+}
+
+fn test_get_transitive_deps_diamond_no_duplicates() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "root.ov".to_string(), "left.ov".to_string());
+    add_dependency(&mut g, "root.ov".to_string(), "right.ov".to_string());
+    add_dependency(&mut g, "left.ov".to_string(), "shared.ov".to_string());
+    add_dependency(&mut g, "right.ov".to_string(), "shared.ov".to_string());
+    let deps = get_transitive_deps(&g, &"root.ov".to_string());
+    let count = deps.iter().filter(|d| *d == "shared.ov").count();
+    assert(count == 1, "shared.ov should appear exactly once");
+    io::println("✓ test_get_transitive_deps_diamond_no_duplicates passed");
+}
+
+fn test_update_module_deps_replaces_old() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "main.ov".to_string(), "old_dep.ov".to_string());
+    update_module_deps(&mut g, &"main.ov".to_string(), vec!["new_dep.ov".to_string()]);
+    match g.nodes.get("main.ov") {
+        Some(node) => {
+            assert(!node.dependencies.contains(&"old_dep.ov".to_string()), "old_dep should be removed");
+            assert(node.dependencies.contains(&"new_dep.ov".to_string()), "new_dep should be added");
+            io::println("✓ test_update_module_deps_replaces_old passed");
+        },
+        None => assert(false, "main.ov node should exist")
+    }
+}
+
+fn test_update_module_deps_clears_all() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "main.ov".to_string(), "a.ov".to_string());
+    add_dependency(&mut g, "main.ov".to_string(), "b.ov".to_string());
+    update_module_deps(&mut g, &"main.ov".to_string(), Vec::new());
+    match g.nodes.get("main.ov") {
+        Some(node) => {
+            assert(node.dependencies.is_empty(), "All deps should be cleared");
+            io::println("✓ test_update_module_deps_clears_all passed");
+        },
+        None => assert(false, "main.ov node should exist")
+    }
+}
+
+fn test_format_cycle_error_contains_cycle_path() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "a.ov".to_string(), "b.ov".to_string());
+    add_dependency(&mut g, "b.ov".to_string(), "a.ov".to_string());
+    match detect_cycles(&g) {
+        Some(cycle) => {
+            let msg = format_cycle_error(&cycle);
+            assert(!msg.is_empty(), "Error message should not be empty");
+            io::println("✓ test_format_cycle_error_contains_cycle_path passed");
+        },
+        None => assert(false, "Should detect cycle")
+    }
+}
+
+fn test_find_shortest_cycle_returns_cycle() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "a.ov".to_string(), "b.ov".to_string());
+    add_dependency(&mut g, "b.ov".to_string(), "a.ov".to_string());
+    match detect_cycles(&g) {
+        Some(cycle) => {
+            let shortest = find_shortest_cycle(&g, &cycle);
+            assert(!shortest.is_empty(), "Shortest cycle should not be empty");
+            assert(shortest.len() >= 2, "Shortest cycle should have at least 2 nodes");
+            io::println("✓ test_find_shortest_cycle_returns_cycle passed");
+        },
+        None => assert(false, "Should detect cycle")
+    }
+}
+
+// ============================================================
+// SECTION 4: cache.ov — hashing, validity, store/retrieve
+// ============================================================
+
+fn test_compute_source_hash_deterministic() {
+    let src = "fn main() { seeAm(\"hello\"); }".to_string();
+    let h1 = compute_source_hash(&src);
+    let h2 = compute_source_hash(&src);
+    assert(h1 == h2, "Same source should produce same hash");
+    io::println("✓ test_compute_source_hash_deterministic passed");
+}
+
+fn test_compute_source_hash_different_inputs() {
+    let h1 = compute_source_hash(&"fn a() {}".to_string());
+    let h2 = compute_source_hash(&"fn b() {}".to_string());
+    assert(h1 != h2, "Different sources should produce different hashes");
+    io::println("✓ test_compute_source_hash_different_inputs passed");
+}
+
+fn test_compute_source_hash_empty_string() {
+    let h = compute_source_hash(&"".to_string());
+    assert(!h.is_empty(), "Hash of empty string should not be empty");
+    io::println("✓ test_compute_source_hash_empty_string passed");
+}
+
+fn test_compute_dependencies_hash_deterministic() {
+    let deps = vec![
+        ("a.ov".to_string(), "hash_a".to_string()),
+        ("b.ov".to_string(), "hash_b".to_string())
+    ];
+    let h1 = compute_dependencies_hash(&deps);
+    let h2 = compute_dependencies_hash(&deps);
+    assert(h1 == h2, "Same deps should produce same hash");
+    io::println("✓ test_compute_dependencies_hash_deterministic passed");
+}
+
+fn test_compute_dependencies_hash_order_independent() {
+    let deps1 = vec![
+        ("a.ov".to_string(), "hash_a".to_string()),
+        ("b.ov".to_string(), "hash_b".to_string())
+    ];
+    let deps2 = vec![
+        ("b.ov".to_string(), "hash_b".to_string()),
+        ("a.ov".to_string(), "hash_a".to_string())
+    ];
+    assert(compute_dependencies_hash(&deps1) == compute_dependencies_hash(&deps2),
+           "Hash should be order-independent");
+    io::println("✓ test_compute_dependencies_hash_order_independent passed");
+}
+
+fn test_compute_dependencies_hash_empty() {
+    let h = compute_dependencies_hash(&Vec::new());
+    assert(!h.is_empty(), "Hash of empty deps should not be empty");
+    io::println("✓ test_compute_dependencies_hash_empty passed");
+}
+
+fn test_new_cache_starts_empty() {
+    let config = default_cache_config("2.3.0".to_string());
+    let cache = new_cache(config);
+    assert(cache.entries.is_empty(), "New cache should be empty");
+    io::println("✓ test_new_cache_starts_empty passed");
+}
+
+fn test_default_cache_config_fields() {
+    let config = default_cache_config("2.3.0".to_string());
+    assert(config.compiler_version == "2.3.0".to_string(), "Compiler version should match");
+    assert(config.cache_dir == ".ovie/cache".to_string(), "Cache dir should be .ovie/cache");
+    assert(config.max_age_seconds == 0, "Default max age should be 0");
+    io::println("✓ test_default_cache_config_fields passed");
+}
+
+fn test_is_cache_valid_miss_on_empty_cache() {
+    let config = default_cache_config("2.3.0".to_string());
+    let cache = new_cache(config);
+    let valid = is_cache_valid(&cache, &"src/main.ov".to_string(),
+                               &"hash1".to_string(), &"deps1".to_string(), 0);
+    assert(!valid, "Empty cache should always be a miss");
+    io::println("✓ test_is_cache_valid_miss_on_empty_cache passed");
+}
+
+fn test_cache_module_and_is_valid() {
+    let config = default_cache_config("2.3.0".to_string());
+    let mut cache = new_cache(config);
+    let src_hash = compute_source_hash(&"fn main() {}".to_string());
+    let deps_hash = compute_dependencies_hash(&Vec::new());
+    match cache_module(&mut cache, &"src/main.ov".to_string(),
+                       src_hash.clone(), deps_hash.clone(),
+                       &"compiled_artifact".to_string(), 1000) {
+        Ok(_) => {
+            let valid = is_cache_valid(&cache, &"src/main.ov".to_string(),
+                                       &src_hash, &deps_hash, 0);
+            assert(valid, "Cache should be valid after storing");
+            io::println("✓ test_cache_module_and_is_valid passed");
+        },
+        Err(e) => io::println("✗ test_cache_module_and_is_valid failed: {}", e)
+    }
+}
+
+fn test_is_cache_valid_wrong_source_hash() {
+    let config = default_cache_config("2.3.0".to_string());
+    let mut cache = new_cache(config);
+    let src_hash = "original_hash".to_string();
+    let deps_hash = "deps_hash".to_string();
+    let _ = cache_module(&mut cache, &"src/a.ov".to_string(),
+                          src_hash.clone(), deps_hash.clone(),
+                          &"artifact".to_string(), 0);
+    let valid = is_cache_valid(&cache, &"src/a.ov".to_string(),
+                               &"different_hash".to_string(), &deps_hash, 0);
+    assert(!valid, "Wrong source hash should invalidate cache");
+    io::println("✓ test_is_cache_valid_wrong_source_hash passed");
+}
+
+fn test_is_cache_valid_wrong_deps_hash() {
+    let config = default_cache_config("2.3.0".to_string());
+    let mut cache = new_cache(config);
+    let src_hash = "src_hash".to_string();
+    let deps_hash = "deps_hash".to_string();
+    let _ = cache_module(&mut cache, &"src/b.ov".to_string(),
+                          src_hash.clone(), deps_hash.clone(),
+                          &"artifact".to_string(), 0);
+    let valid = is_cache_valid(&cache, &"src/b.ov".to_string(),
+                               &src_hash, &"different_deps".to_string(), 0);
+    assert(!valid, "Wrong deps hash should invalidate cache");
+    io::println("✓ test_is_cache_valid_wrong_deps_hash passed");
+}
+
+fn test_is_cache_valid_wrong_compiler_version() {
+    let config = default_cache_config("2.3.0".to_string());
+    let mut cache = new_cache(config);
+    let src_hash = "src_hash".to_string();
+    let deps_hash = "deps_hash".to_string();
+    let _ = cache_module(&mut cache, &"src/c.ov".to_string(),
+                          src_hash.clone(), deps_hash.clone(),
+                          &"artifact".to_string(), 0);
+    cache.config.compiler_version = "2.4.0".to_string();
+    let valid = is_cache_valid(&cache, &"src/c.ov".to_string(),
+                               &src_hash, &deps_hash, 0);
+    assert(!valid, "Wrong compiler version should invalidate cache");
+    io::println("✓ test_is_cache_valid_wrong_compiler_version passed");
+}
+
+fn test_is_cache_valid_max_age_expired() {
+    let mut config = default_cache_config("2.3.0".to_string());
+    config.max_age_seconds = 60;
+    let mut cache = new_cache(config);
+    let src_hash = "src_hash".to_string();
+    let deps_hash = "deps_hash".to_string();
+    let _ = cache_module(&mut cache, &"src/d.ov".to_string(),
+                          src_hash.clone(), deps_hash.clone(),
+                          &"artifact".to_string(), 1000);
+    let valid = is_cache_valid(&cache, &"src/d.ov".to_string(),
+                               &src_hash, &deps_hash, 2000);
+    assert(!valid, "Expired cache entry should be invalid");
+    io::println("✓ test_is_cache_valid_max_age_expired passed");
+}
+
+fn test_is_cache_valid_within_max_age() {
+    let mut config = default_cache_config("2.3.0".to_string());
+    config.max_age_seconds = 3600;
+    let mut cache = new_cache(config);
+    let src_hash = "src_hash".to_string();
+    let deps_hash = "deps_hash".to_string();
+    let _ = cache_module(&mut cache, &"src/e.ov".to_string(),
+                          src_hash.clone(), deps_hash.clone(),
+                          &"artifact".to_string(), 1000);
+    let valid = is_cache_valid(&cache, &"src/e.ov".to_string(),
+                               &src_hash, &deps_hash, 1100);
+    assert(valid, "Cache within max age should be valid");
+    io::println("✓ test_is_cache_valid_within_max_age passed");
+}
+
+fn test_invalidate_removes_entry() {
+    let config = default_cache_config("2.3.0".to_string());
+    let mut cache = new_cache(config);
+    let _ = cache_module(&mut cache, &"src/f.ov".to_string(),
+                          "src_hash".to_string(), "deps_hash".to_string(),
+                          &"artifact".to_string(), 0);
+    assert(cache.entries.contains_key("src/f.ov"), "Entry should exist before invalidate");
+    invalidate(&mut cache, &"src/f.ov".to_string());
+    assert(!cache.entries.contains_key("src/f.ov"), "Entry should be removed after invalidate");
+    io::println("✓ test_invalidate_removes_entry passed");
+}
+
+fn test_invalidate_nonexistent_is_noop() {
+    let config = default_cache_config("2.3.0".to_string());
+    let mut cache = new_cache(config);
+    invalidate(&mut cache, &"nonexistent.ov".to_string());
+    assert(true, "Invalidating nonexistent entry should be a no-op");
+    io::println("✓ test_invalidate_nonexistent_is_noop passed");
+}
+
+fn test_clear_cache_removes_all_entries() {
+    let config = default_cache_config("2.3.0".to_string());
+    let mut cache = new_cache(config);
+    let _ = cache_module(&mut cache, &"a.ov".to_string(), "h1".to_string(), "d1".to_string(), &"art1".to_string(), 0);
+    let _ = cache_module(&mut cache, &"b.ov".to_string(), "h2".to_string(), "d2".to_string(), &"art2".to_string(), 0);
+    let _ = cache_module(&mut cache, &"c.ov".to_string(), "h3".to_string(), "d3".to_string(), &"art3".to_string(), 0);
+    assert(cache.entries.len() == 3, "Should have 3 entries before clear");
+    clear_cache(&mut cache);
+    assert(cache.entries.is_empty(), "Cache should be empty after clear");
+    io::println("✓ test_clear_cache_removes_all_entries passed");
+}
+
+// ============================================================
+// SECTION 5: cache.ov — lazy registry
+// ============================================================
+
+fn test_new_lazy_registry_empty() {
+    let reg = new_lazy_registry();
+    assert(reg.parsed.is_empty(), "New registry should have no parsed modules");
+    assert(reg.pending.is_empty(), "New registry should have no pending modules");
+    io::println("✓ test_new_lazy_registry_empty passed");
+}
+
+fn test_queue_module_adds_to_pending() {
+    let mut reg = new_lazy_registry();
+    queue_module(&mut reg, "std/math/mod.ov".to_string());
+    assert(reg.pending.contains(&"std/math/mod.ov".to_string()), "Module should be in pending");
+    io::println("✓ test_queue_module_adds_to_pending passed");
+}
+
+fn test_queue_module_idempotent() {
+    let mut reg = new_lazy_registry();
+    queue_module(&mut reg, "a.ov".to_string());
+    queue_module(&mut reg, "a.ov".to_string());
+    assert(reg.pending.len() == 1, "Duplicate queue should be idempotent");
+    io::println("✓ test_queue_module_idempotent passed");
+}
+
+fn test_is_parsed_false_initially() {
+    let reg = new_lazy_registry();
+    assert(!is_parsed(&reg, &"a.ov".to_string()), "Module should not be parsed initially");
+    io::println("✓ test_is_parsed_false_initially passed");
+}
+
+fn test_is_parsed_true_after_get_or_parse() {
+    let mut reg = new_lazy_registry();
+    let source = "export fn hello() -> String { \"hi\".to_string() }".to_string();
+    let _ = get_or_parse(&mut reg, &"hello.ov".to_string(), source);
+    assert(is_parsed(&reg, &"hello.ov".to_string()), "Module should be parsed after get_or_parse");
+    io::println("✓ test_is_parsed_true_after_get_or_parse passed");
+}
+
+fn test_get_or_parse_returns_same_module_twice() {
+    let mut reg = new_lazy_registry();
+    let source = "export fn greet() -> String { \"hello\".to_string() }".to_string();
+    match get_or_parse(&mut reg, &"greet.ov".to_string(), source.clone()) {
+        Ok(m1) => {
+            match get_or_parse(&mut reg, &"greet.ov".to_string(), source) {
+                Ok(m2) => {
+                    assert(m1.path == m2.path, "Same path should be returned");
+                    assert(m1.source_hash == m2.source_hash, "Same hash should be returned");
+                    io::println("✓ test_get_or_parse_returns_same_module_twice passed");
+                },
+                Err(e) => io::println("✗ test_get_or_parse_returns_same_module_twice failed: {}", e)
+            }
+        },
+        Err(e) => io::println("✗ test_get_or_parse_returns_same_module_twice failed: {}", e)
+    }
+}
+
+fn test_get_or_parse_removes_from_pending() {
+    let mut reg = new_lazy_registry();
+    queue_module(&mut reg, "queued.ov".to_string());
+    assert(reg.pending.contains(&"queued.ov".to_string()), "Should be in pending before parse");
+    let _ = get_or_parse(&mut reg, &"queued.ov".to_string(), "fn main() {}".to_string());
+    assert(!reg.pending.contains(&"queued.ov".to_string()), "Should be removed from pending after parse");
+    io::println("✓ test_get_or_parse_removes_from_pending passed");
+}
+
+// ============================================================
+// SECTION 6: cache.ov — identify_load_levels
+// ============================================================
+
+fn test_identify_load_levels_no_deps_all_level_zero() {
+    let mut g = new_graph();
+    add_module(&mut g, "a.ov".to_string());
+    add_module(&mut g, "b.ov".to_string());
+    add_module(&mut g, "c.ov".to_string());
+    let levels = identify_load_levels(&g);
+    assert(!levels.is_empty(), "Should have at least one level");
+    assert(!levels[0].modules.is_empty(), "Level 0 should have modules");
+    assert(levels[0].level == 0, "First level should be 0");
+    io::println("✓ test_identify_load_levels_no_deps_all_level_zero passed");
+}
+
+fn test_identify_load_levels_linear_chain() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "c.ov".to_string(), "b.ov".to_string());
+    add_dependency(&mut g, "b.ov".to_string(), "a.ov".to_string());
+    let levels = identify_load_levels(&g);
+    assert(levels.len() >= 3, "Linear chain should have 3 levels");
+    assert(levels[0].modules.contains(&"a.ov".to_string()), "a.ov should be at level 0");
+    assert(levels[1].modules.contains(&"b.ov".to_string()), "b.ov should be at level 1");
+    assert(levels[2].modules.contains(&"c.ov".to_string()), "c.ov should be at level 2");
+    io::println("✓ test_identify_load_levels_linear_chain passed");
+}
+
+fn test_identify_load_levels_cycle_returns_empty() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "x.ov".to_string(), "y.ov".to_string());
+    add_dependency(&mut g, "y.ov".to_string(), "x.ov".to_string());
+    let levels = identify_load_levels(&g);
+    assert(levels.is_empty(), "Cyclic graph should return empty levels");
+    io::println("✓ test_identify_load_levels_cycle_returns_empty passed");
+}
+
+fn test_identify_load_levels_diamond() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "root.ov".to_string(), "left.ov".to_string());
+    add_dependency(&mut g, "root.ov".to_string(), "right.ov".to_string());
+    add_dependency(&mut g, "left.ov".to_string(), "leaf.ov".to_string());
+    add_dependency(&mut g, "right.ov".to_string(), "leaf.ov".to_string());
+    let levels = identify_load_levels(&g);
+    assert(levels.len() >= 3, "Diamond should have at least 3 levels");
+    assert(levels[0].modules.contains(&"leaf.ov".to_string()), "leaf.ov should be at level 0");
+    io::println("✓ test_identify_load_levels_diamond passed");
+}
+
+// ============================================================
+// SECTION 7: migrate.ov
+// ============================================================
+
+fn test_default_migrate_config_fields() {
+    let config = default_migrate_config();
+    assert(config.write, "write should be true by default");
+    assert(config.add_exports, "add_exports should be true by default");
+    assert(config.fix_std_paths, "fix_std_paths should be true by default");
+    assert(config.create_manifest, "create_manifest should be true by default");
+    io::println("✓ test_default_migrate_config_fields passed");
+}
+
+fn test_analyze_used_symbols_vec() {
+    let src = "let v = Vec::new();".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.contains_key("std::core"), "Should detect std::core usage");
+    match used.get("std::core") {
+        Some(syms) => assert(syms.contains(&"Vec".to_string()), "Should detect Vec"),
+        None => assert(false, "std::core should be in used map")
+    }
+    io::println("✓ test_analyze_used_symbols_vec passed");
+}
+
+fn test_analyze_used_symbols_hashmap() {
+    let src = "let m = HashMap::new();".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.contains_key("std::core"), "Should detect std::core usage");
+    match used.get("std::core") {
+        Some(syms) => assert(syms.contains(&"HashMap".to_string()), "Should detect HashMap"),
+        None => assert(false, "std::core should be in used map")
+    }
+    io::println("✓ test_analyze_used_symbols_hashmap passed");
+}
+
+fn test_analyze_used_symbols_math() {
+    let src = "let x = sin(PI);".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.contains_key("std::math"), "Should detect std::math usage");
+    match used.get("std::math") {
+        Some(syms) => {
+            assert(syms.contains(&"sin".to_string()), "Should detect sin");
+            assert(syms.contains(&"PI".to_string()), "Should detect PI");
+        },
+        None => assert(false, "std::math should be in used map")
+    }
+    io::println("✓ test_analyze_used_symbols_math passed");
+}
+
+fn test_analyze_used_symbols_io() {
+    let src = "println(\"hello\");".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.contains_key("std::io"), "Should detect std::io usage");
+    io::println("✓ test_analyze_used_symbols_io passed");
+}
+
+fn test_analyze_used_symbols_multiple_modules() {
+    let src = "let v = Vec::new(); let x = sin(0.0); println(\"hi\");".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.contains_key("std::core"), "Should detect std::core");
+    assert(used.contains_key("std::math"), "Should detect std::math");
+    assert(used.contains_key("std::io"), "Should detect std::io");
+    io::println("✓ test_analyze_used_symbols_multiple_modules passed");
+}
+
+fn test_analyze_used_symbols_empty_source() {
+    let src = "".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.is_empty(), "Empty source should have no symbols");
+    io::println("✓ test_analyze_used_symbols_empty_source passed");
+}
+
+fn test_analyze_used_symbols_no_std_symbols() {
+    let src = "fn add(a: Number, b: Number) -> Number { a + b }".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(used.is_empty(), "Source with no std symbols should return empty map");
+    io::println("✓ test_analyze_used_symbols_no_std_symbols passed");
+}
+
+fn test_generate_ovie_toml_package_section() {
+    let toml = generate_ovie_toml(&"my_app".to_string(), &"0.1.0".to_string());
+    assert(toml.contains("[package]"), "TOML should have [package] section");
+    assert(toml.contains("name = \"my_app\""), "TOML should have name field");
+    assert(toml.contains("version = \"0.1.0\""), "TOML should have version field");
+    io::println("✓ test_generate_ovie_toml_package_section passed");
+}
+
+fn test_generate_ovie_toml_dependencies_section() {
+    let toml = generate_ovie_toml(&"proj".to_string(), &"1.0.0".to_string());
+    assert(toml.contains("[dependencies]"), "TOML should have [dependencies] section");
+    io::println("✓ test_generate_ovie_toml_dependencies_section passed");
+}
+
+fn test_generate_ovie_toml_different_names() {
+    let t1 = generate_ovie_toml(&"app_one".to_string(), &"0.1.0".to_string());
+    let t2 = generate_ovie_toml(&"app_two".to_string(), &"0.1.0".to_string());
+    assert(t1 != t2, "Different names should produce different TOMLs");
+    assert(t1.contains("app_one"), "t1 should contain app_one");
+    assert(t2.contains("app_two"), "t2 should contain app_two");
+    io::println("✓ test_generate_ovie_toml_different_names passed");
+}
+
+fn test_generate_ovie_toml_different_versions() {
+    let t1 = generate_ovie_toml(&"app".to_string(), &"0.1.0".to_string());
+    let t2 = generate_ovie_toml(&"app".to_string(), &"2.0.0".to_string());
+    assert(t1 != t2, "Different versions should produce different TOMLs");
+    assert(t1.contains("0.1.0"), "t1 should contain 0.1.0");
+    assert(t2.contains("2.0.0"), "t2 should contain 2.0.0");
+    io::println("✓ test_generate_ovie_toml_different_versions passed");
+}
+
+fn test_migrate_file_nonexistent_returns_failure() {
+    let config = default_migrate_config();
+    let result = migrate_file("/nonexistent/path/file.ov".to_string(), config);
+    assert(!result.success, "Nonexistent file should return failure");
+    match result.error {
+        Some(_) => io::println("✓ test_migrate_file_nonexistent_returns_failure passed"),
+        None => assert(false, "Error should be Some for nonexistent file")
+    }
+}
+
+// ============================================================
+// SECTION 8: fs_integration.ov
+// ============================================================
+
+fn test_join_path_no_trailing_slash() {
+    let result = join_path("/home/user".to_string(), "project".to_string());
+    assert(result == "/home/user/project".to_string(), "join_path should add separator");
+    io::println("✓ test_join_path_no_trailing_slash passed");
+}
+
+fn test_join_path_with_trailing_slash() {
+    let result = join_path("/home/user/".to_string(), "project".to_string());
+    assert(result == "/home/user/project".to_string(), "join_path should not double slash");
+    io::println("✓ test_join_path_with_trailing_slash passed");
+}
+
+fn test_join_path_empty_base() {
+    let result = join_path("".to_string(), "file.ov".to_string());
+    assert(result.contains("file.ov"), "Result should contain file.ov");
+    io::println("✓ test_join_path_empty_base passed");
+}
+
+fn test_parent_dir_standard_path() {
+    let result = parent_dir("/home/user/project/main.ov".to_string());
+    assert(result == "/home/user/project".to_string(), "Parent dir should be /home/user/project");
+    io::println("✓ test_parent_dir_standard_path passed");
+}
+
+fn test_parent_dir_single_component() {
+    let result = parent_dir("file.ov".to_string());
+    assert(result == ".".to_string(), "Single component should return '.'");
+    io::println("✓ test_parent_dir_single_component passed");
+}
+
+fn test_parent_dir_nested() {
+    let result = parent_dir("a/b/c/d.ov".to_string());
+    assert(result == "a/b/c".to_string(), "Nested path parent should be a/b/c");
+    io::println("✓ test_parent_dir_nested passed");
+}
+
+fn test_filename_standard_path() {
+    let result = filename("/home/user/project/main.ov".to_string());
+    assert(result == "main.ov".to_string(), "Filename should be main.ov");
+    io::println("✓ test_filename_standard_path passed");
+}
+
+fn test_filename_no_directory() {
+    let result = filename("utils.ov".to_string());
+    assert(result == "utils.ov".to_string(), "Filename without dir should be unchanged");
+    io::println("✓ test_filename_no_directory passed");
+}
+
+fn test_extension_ov_file() {
+    let result = extension("main.ov".to_string());
+    assert(result == "ov".to_string(), "Extension of .ov file should be 'ov'");
+    io::println("✓ test_extension_ov_file passed");
+}
+
+fn test_extension_no_extension() {
+    let result = extension("Makefile".to_string());
+    assert(result == "".to_string(), "File without extension should return empty string");
+    io::println("✓ test_extension_no_extension passed");
+}
+
+fn test_extension_multiple_dots() {
+    let result = extension("archive.tar.gz".to_string());
+    assert(result == "gz".to_string(), "Multiple dots should return last extension");
+    io::println("✓ test_extension_multiple_dots passed");
+}
+
+fn test_extension_from_full_path() {
+    let result = extension("/home/user/project/main.ov".to_string());
+    assert(result == "ov".to_string(), "Extension from full path should be 'ov'");
+    io::println("✓ test_extension_from_full_path passed");
+}
+
+// ============================================================
+// SECTION 9: loader.ov — backward compatibility layer
+// ============================================================
+
+fn test_is_standalone_no_keywords() {
+    let src = "fn main() { seeAm(\"hello\"); }".to_string();
+    assert(is_standalone_file(&src), "File with no module keywords should be standalone");
+    io::println("✓ test_is_standalone_no_keywords passed");
+}
+
+fn test_is_standalone_comments_only_before_fn() {
+    let src = "// A comment\n// Another\nfn main() {}".to_string();
+    assert(is_standalone_file(&src), "Comments before fn should still be standalone");
+    io::println("✓ test_is_standalone_comments_only_before_fn passed");
+}
+
+fn test_is_standalone_blank_lines_ignored() {
+    let src = "\n\n\nfn main() {}".to_string();
+    assert(is_standalone_file(&src), "Blank lines should not affect standalone detection");
+    io::println("✓ test_is_standalone_blank_lines_ignored passed");
+}
+
+fn test_is_standalone_multiline_no_module_keywords() {
+    let src = "fn add(a: Number, b: Number) -> Number {\n    return a + b;\n}\n\nfn main() {\n    seeAm(add(1, 2));\n}".to_string();
+    assert(is_standalone_file(&src), "Multi-function file without module keywords should be standalone");
+    io::println("✓ test_is_standalone_multiline_no_module_keywords passed");
+}
+
+fn test_not_standalone_has_use() {
+    let src = "use std::core::{Vec};\nfn main() {}".to_string();
+    assert(!is_standalone_file(&src), "File with 'use' should not be standalone");
+    io::println("✓ test_not_standalone_has_use passed");
+}
+
+fn test_not_standalone_has_import() {
+    let src = "import \"./utils.ov\";\nfn main() {}".to_string();
+    assert(!is_standalone_file(&src), "File with 'import' should not be standalone");
+    io::println("✓ test_not_standalone_has_import passed");
+}
+
+fn test_not_standalone_has_export() {
+    let src = "export fn add(a: Number, b: Number) -> Number { a + b }".to_string();
+    assert(!is_standalone_file(&src), "File with 'export' should not be standalone");
+    io::println("✓ test_not_standalone_has_export passed");
+}
+
+fn test_not_standalone_export_in_middle() {
+    let src = "fn helper() {}\nexport fn public_fn() {}".to_string();
+    assert(!is_standalone_file(&src), "File with export anywhere should not be standalone");
+    io::println("✓ test_not_standalone_export_in_middle passed");
+}
+
+fn test_has_legacy_std_usage_core() {
+    let src = "use core::{Vec, HashMap};\nfn main() {}".to_string();
+    assert(has_legacy_std_usage(&src), "use core:: should be detected as legacy");
+    io::println("✓ test_has_legacy_std_usage_core passed");
+}
+
+fn test_has_legacy_std_usage_fs() {
+    let src = "use fs::{read_to_string};\nfn main() {}".to_string();
+    assert(has_legacy_std_usage(&src), "use fs:: should be detected as legacy");
+    io::println("✓ test_has_legacy_std_usage_fs passed");
+}
+
+fn test_has_legacy_std_usage_io() {
+    let src = "use io::{println};\nfn main() {}".to_string();
+    assert(has_legacy_std_usage(&src), "use io:: should be detected as legacy");
+    io::println("✓ test_has_legacy_std_usage_io passed");
+}
+
+fn test_has_legacy_std_usage_math() {
+    let src = "use math::{sin, cos};\nfn main() {}".to_string();
+    assert(has_legacy_std_usage(&src), "use math:: should be detected as legacy");
+    io::println("✓ test_has_legacy_std_usage_math passed");
+}
+
+fn test_has_legacy_std_usage_all_patterns() {
+    let patterns = vec![
+        "use time::{Duration};",
+        "use env::{args};",
+        "use cli::{App};",
+        "use log::{info};",
+        "use testing::{assert};"
+    ];
+    for src in patterns {
+        assert(has_legacy_std_usage(&src.to_string()), "All legacy patterns should be detected");
+    }
+    io::println("✓ test_has_legacy_std_usage_all_patterns passed");
+}
+
+fn test_no_legacy_std_usage_modern() {
+    let src = "use std::core::{Vec};\nfn main() {}".to_string();
+    assert(!has_legacy_std_usage(&src), "Modern std:: usage should not be detected as legacy");
+    io::println("✓ test_no_legacy_std_usage_modern passed");
+}
+
+fn test_no_legacy_std_usage_standalone() {
+    let src = "fn main() { seeAm(\"hello\"); }".to_string();
+    assert(!has_legacy_std_usage(&src), "Standalone file should not have legacy usage");
+    io::println("✓ test_no_legacy_std_usage_standalone passed");
+}
+
+fn test_default_compat_mode_fields() {
+    let mode = default_compat_mode();
+    assert(mode.allow_implicit_std, "Default mode should allow implicit std");
+    assert(mode.warn_on_legacy, "Default mode should warn on legacy");
+    assert(!mode.lenient_exports, "Default mode should not have lenient exports");
+    io::println("✓ test_default_compat_mode_fields passed");
+}
+
+fn test_strict_compat_mode_fields() {
+    let mode = strict_compat_mode();
+    assert(!mode.allow_implicit_std, "Strict mode should not allow implicit std");
+    assert(!mode.warn_on_legacy, "Strict mode should not warn on legacy");
+    assert(!mode.lenient_exports, "Strict mode should not have lenient exports");
+    io::println("✓ test_strict_compat_mode_fields passed");
+}
+
+fn test_load_with_compat_standalone_sets_is_standalone() {
+    let src = "fn main() { seeAm(\"hello\"); }".to_string();
+    match load_with_compat("test_standalone.ov".to_string(), src) {
+        Ok(module) => {
+            assert(module.is_standalone, "Standalone source should set is_standalone=true");
+            io::println("✓ test_load_with_compat_standalone_sets_is_standalone passed");
+        },
+        Err(e) => io::println("✗ test_load_with_compat_standalone_sets_is_standalone failed: {}", e)
+    }
+}
+
+fn test_load_with_compat_modular_not_standalone() {
+    let src = "export fn greet() -> String { \"hi\".to_string() }".to_string();
+    match load_with_compat("test_modular.ov".to_string(), src) {
+        Ok(module) => {
+            assert(!module.is_standalone, "Modular source should set is_standalone=false");
+            io::println("✓ test_load_with_compat_modular_not_standalone passed");
+        },
+        Err(e) => io::println("✗ test_load_with_compat_modular_not_standalone failed: {}", e)
+    }
+}
+
+fn test_is_legacy_module_true_for_standalone() {
+    let src = "fn main() {}".to_string();
+    match load_with_compat("legacy.ov".to_string(), src) {
+        Ok(module) => {
+            assert(is_legacy_module(&module), "Standalone module should be legacy");
+            io::println("✓ test_is_legacy_module_true_for_standalone passed");
+        },
+        Err(e) => io::println("✗ test_is_legacy_module_true_for_standalone failed: {}", e)
+    }
+}
+
+fn test_is_legacy_module_false_for_modular() {
+    let src = "export fn foo() {}".to_string();
+    match load_with_compat("modular.ov".to_string(), src) {
+        Ok(module) => {
+            assert(!is_legacy_module(&module), "Modular module should not be legacy");
+            io::println("✓ test_is_legacy_module_false_for_modular passed");
+        },
+        Err(e) => io::println("✗ test_is_legacy_module_false_for_modular failed: {}", e)
+    }
+}
+
+fn test_load_with_mode_strict_rejects_standalone() {
+    let src = "fn main() {}".to_string();
+    let mode = strict_compat_mode();
+    match load_with_mode("strict_test.ov".to_string(), src, mode) {
+        Ok(_) => assert(false, "Strict mode should reject standalone files"),
+        Err(_) => io::println("✓ test_load_with_mode_strict_rejects_standalone passed")
+    }
+}
+
+fn test_load_with_mode_default_accepts_standalone() {
+    let src = "fn main() {}".to_string();
+    let mode = default_compat_mode();
+    match load_with_mode("compat_test.ov".to_string(), src, mode) {
+        Ok(_) => io::println("✓ test_load_with_mode_default_accepts_standalone passed"),
+        Err(e) => io::println("✗ test_load_with_mode_default_accepts_standalone failed: {}", e)
+    }
+}
+
+fn test_load_with_mode_strict_accepts_modular() {
+    let src = "export fn foo() {}".to_string();
+    let mode = strict_compat_mode();
+    match load_with_mode("strict_modular.ov".to_string(), src, mode) {
+        Ok(_) => io::println("✓ test_load_with_mode_strict_accepts_modular passed"),
+        Err(e) => io::println("✗ test_load_with_mode_strict_accepts_modular failed: {}", e)
+    }
+}
+
+fn test_is_loaded_false_before_load() {
+    assert(!is_loaded("never_loaded_xyz.ov".to_string()), "Unloaded module should return false");
+    io::println("✓ test_is_loaded_false_before_load passed");
+}
+
+fn test_is_loaded_true_after_load_with_compat() {
+    let src = "fn main() {}".to_string();
+    let path = "loaded_check_test.ov".to_string();
+    let _ = load_with_compat(path.clone(), src);
+    assert(is_loaded(path), "Module should be loaded after load_with_compat");
+    io::println("✓ test_is_loaded_true_after_load_with_compat passed");
+}
+
+// ============================================================
+// SECTION 10: Cross-component integration
+// ============================================================
+
+fn test_resolver_and_dep_graph_together() {
+    let config = default_config();
+    match resolve("std::core".to_string(), config.clone()) {
+        Ok(r1) => {
+            match resolve("std::math".to_string(), config) {
+                Ok(r2) => {
+                    let mut g = new_graph();
+                    add_module(&mut g, r1.absolute_path.clone());
+                    add_module(&mut g, r2.absolute_path.clone());
+                    assert(g.nodes.len() == 2, "Should have 2 nodes in graph");
+                    io::println("✓ test_resolver_and_dep_graph_together passed");
+                },
+                Err(e) => io::println("✗ test_resolver_and_dep_graph_together failed: {}", e)
+            }
+        },
+        Err(e) => io::println("✗ test_resolver_and_dep_graph_together failed: {}", e)
+    }
+}
+
+fn test_cache_and_dep_graph_together() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "app.ov".to_string(), "lib.ov".to_string());
+    let deps = get_transitive_deps(&g, &"app.ov".to_string());
+    let dep_pairs: Vec<(String, String)> = deps.iter()
+        .map(|d| (d.clone(), compute_source_hash(d)))
+        .collect();
+    let deps_hash = compute_dependencies_hash(&dep_pairs);
+    let config = default_cache_config("2.3.0".to_string());
+    let mut cache = new_cache(config);
+    let src_hash = compute_source_hash(&"fn main() {}".to_string());
+    match cache_module(&mut cache, &"app.ov".to_string(),
+                       src_hash.clone(), deps_hash.clone(),
+                       &"artifact".to_string(), 0) {
+        Ok(_) => {
+            assert(is_cache_valid(&cache, &"app.ov".to_string(), &src_hash, &deps_hash, 0),
+                   "Cache should be valid after storing");
+            io::println("✓ test_cache_and_dep_graph_together passed");
+        },
+        Err(e) => io::println("✗ test_cache_and_dep_graph_together failed: {}", e)
+    }
+}
+
+fn test_migrate_analyze_then_generate_toml() {
+    let src = "let v = Vec::new(); let x = sin(0.0);".to_string();
+    let used = analyze_used_symbols(&src);
+    assert(!used.is_empty(), "Should detect symbols");
+    let toml = generate_ovie_toml(&"my_project".to_string(), &"0.1.0".to_string());
+    assert(toml.contains("[package]"), "TOML should have package section");
+    assert(toml.contains("my_project"), "TOML should contain project name");
+    io::println("✓ test_migrate_analyze_then_generate_toml passed");
+}
+
+fn test_load_with_compat_then_is_loaded() {
+    let src = "export fn compute(x: Number) -> Number { x * 2 }".to_string();
+    let path = "compute_module.ov".to_string();
+    match load_with_compat(path.clone(), src) {
+        Ok(_) => {
+            assert(is_loaded(path), "Module should be loaded after load_with_compat");
+            io::println("✓ test_load_with_compat_then_is_loaded passed");
+        },
+        Err(e) => io::println("✗ test_load_with_compat_then_is_loaded failed: {}", e)
+    }
+}
+
+fn test_dep_graph_topological_sort_matches_load_levels() {
+    let mut g = new_graph();
+    add_dependency(&mut g, "c.ov".to_string(), "b.ov".to_string());
+    add_dependency(&mut g, "b.ov".to_string(), "a.ov".to_string());
+    match topological_sort(&g) {
+        Ok(order) => {
+            let levels = identify_load_levels(&g);
+            assert(order[0] == "a.ov".to_string(), "a.ov should be first in topo order");
+            assert(levels[0].modules.contains(&"a.ov".to_string()), "a.ov should be at level 0");
+            io::println("✓ test_dep_graph_topological_sort_matches_load_levels passed");
+        },
+        Err(_) => assert(false, "Should not have cycles")
+    }
+}
+
+fn test_lazy_registry_parse_uniqueness_across_calls() {
+    let mut reg = new_lazy_registry();
+    let src = "export fn unique_fn() {}".to_string();
+    let path = "unique_test.ov".to_string();
+    match get_or_parse(&mut reg, &path, src.clone()) {
+        Ok(m1) => {
+            match get_or_parse(&mut reg, &path, src.clone()) {
+                Ok(m2) => {
+                    match get_or_parse(&mut reg, &path, src) {
+                        Ok(m3) => {
+                            assert(m1.source_hash == m2.source_hash, "Hash should be same on second call");
+                            assert(m2.source_hash == m3.source_hash, "Hash should be same on third call");
+                            assert(reg.parsed.len() == 1, "Should only have 1 entry in parsed map");
+                            io::println("✓ test_lazy_registry_parse_uniqueness_across_calls passed");
+                        },
+                        Err(e) => io::println("✗ test_lazy_registry_parse_uniqueness_across_calls failed: {}", e)
+                    }
+                },
+                Err(e) => io::println("✗ test_lazy_registry_parse_uniqueness_across_calls failed: {}", e)
+            }
+        },
+        Err(e) => io::println("✗ test_lazy_registry_parse_uniqueness_across_calls failed: {}", e)
+    }
+}
+
+// ============================================================
+// ENTRY POINT
+// ============================================================
+
+fn main() {
+    io::println("=== Integration Tests — std:: Module System (Task 19.1) ===\n");
+
+    io::println("--- Section 1: types.ov ---");
+    test_module_type_fields();
+    test_import_type_fields();
+    test_import_wildcard();
+    test_import_with_alias();
+    test_export_table_empty();
+    test_function_signature_fields();
+    test_type_definition_struct_kind();
+    test_constant_info_fields();
+    test_enum_definition_fields();
+    test_module_error_variants();
+
+    io::println("\n--- Section 2: resolver.ov ---");
+    test_resolver_default_config_has_std_path();
+    test_path_to_file_std_module();
+    test_path_to_file_already_ov();
+    test_path_to_file_double_colon();
+    test_normalize_path_absolute_unchanged();
+    test_normalize_path_relative_prepends_base();
+    test_is_valid_module_requires_ov_extension();
+    test_search_paths_empty_dirs_returns_none();
+    test_resolve_std_path_ok();
+    test_resolve_std_core_ok();
+    test_resolve_relative_path_no_panic();
+
+    io::println("\n--- Section 3: dependency_graph.ov ---");
+    test_new_graph_is_empty();
+    test_add_module_creates_node();
+    test_add_module_idempotent();
+    test_add_dependency_creates_both_nodes();
+    test_add_dependency_idempotent();
+    test_add_dependency_updates_adjacency();
+    test_topological_sort_linear_chain();
+    test_topological_sort_single_node();
+    test_topological_sort_cycle_returns_err();
+    test_detect_cycles_acyclic_returns_none();
+    test_detect_cycles_cyclic_returns_some();
+    test_get_transitive_deps_direct_only();
+    test_get_transitive_deps_multi_level();
+    test_get_transitive_deps_no_deps();
+    test_get_transitive_deps_diamond_no_duplicates();
+    test_update_module_deps_replaces_old();
+    test_update_module_deps_clears_all();
+    test_format_cycle_error_contains_cycle_path();
+    test_find_shortest_cycle_returns_cycle();
+
+    io::println("\n--- Section 4: cache.ov — hashing & validity ---");
+    test_compute_source_hash_deterministic();
+    test_compute_source_hash_different_inputs();
+    test_compute_source_hash_empty_string();
+    test_compute_dependencies_hash_deterministic();
+    test_compute_dependencies_hash_order_independent();
+    test_compute_dependencies_hash_empty();
+    test_new_cache_starts_empty();
+    test_default_cache_config_fields();
+    test_is_cache_valid_miss_on_empty_cache();
+    test_cache_module_and_is_valid();
+    test_is_cache_valid_wrong_source_hash();
+    test_is_cache_valid_wrong_deps_hash();
+    test_is_cache_valid_wrong_compiler_version();
+    test_is_cache_valid_max_age_expired();
+    test_is_cache_valid_within_max_age();
+    test_invalidate_removes_entry();
+    test_invalidate_nonexistent_is_noop();
+    test_clear_cache_removes_all_entries();
+
+    io::println("\n--- Section 5: cache.ov — lazy registry ---");
+    test_new_lazy_registry_empty();
+    test_queue_module_adds_to_pending();
+    test_queue_module_idempotent();
+    test_is_parsed_false_initially();
+    test_is_parsed_true_after_get_or_parse();
+    test_get_or_parse_returns_same_module_twice();
+    test_get_or_parse_removes_from_pending();
+
+    io::println("\n--- Section 6: cache.ov — load levels ---");
+    test_identify_load_levels_no_deps_all_level_zero();
+    test_identify_load_levels_linear_chain();
+    test_identify_load_levels_cycle_returns_empty();
+    test_identify_load_levels_diamond();
+
+    io::println("\n--- Section 7: migrate.ov ---");
+    test_default_migrate_config_fields();
+    test_analyze_used_symbols_vec();
+    test_analyze_used_symbols_hashmap();
+    test_analyze_used_symbols_math();
+    test_analyze_used_symbols_io();
+    test_analyze_used_symbols_multiple_modules();
+    test_analyze_used_symbols_empty_source();
+    test_analyze_used_symbols_no_std_symbols();
+    test_generate_ovie_toml_package_section();
+    test_generate_ovie_toml_dependencies_section();
+    test_generate_ovie_toml_different_names();
+    test_generate_ovie_toml_different_versions();
+    test_migrate_file_nonexistent_returns_failure();
+
+    io::println("\n--- Section 8: fs_integration.ov ---");
+    test_join_path_no_trailing_slash();
+    test_join_path_with_trailing_slash();
+    test_join_path_empty_base();
+    test_parent_dir_standard_path();
+    test_parent_dir_single_component();
+    test_parent_dir_nested();
+    test_filename_standard_path();
+    test_filename_no_directory();
+    test_extension_ov_file();
+    test_extension_no_extension();
+    test_extension_multiple_dots();
+    test_extension_from_full_path();
+
+    io::println("\n--- Section 9: loader.ov backward compat ---");
+    test_is_standalone_no_keywords();
+    test_is_standalone_comments_only_before_fn();
+    test_is_standalone_blank_lines_ignored();
+    test_is_standalone_multiline_no_module_keywords();
+    test_not_standalone_has_use();
+    test_not_standalone_has_import();
+    test_not_standalone_has_export();
+    test_not_standalone_export_in_middle();
+    test_has_legacy_std_usage_core();
+    test_has_legacy_std_usage_fs();
+    test_has_legacy_std_usage_io();
+    test_has_legacy_std_usage_math();
+    test_has_legacy_std_usage_all_patterns();
+    test_no_legacy_std_usage_modern();
+    test_no_legacy_std_usage_standalone();
+    test_default_compat_mode_fields();
+    test_strict_compat_mode_fields();
+    test_load_with_compat_standalone_sets_is_standalone();
+    test_load_with_compat_modular_not_standalone();
+    test_is_legacy_module_true_for_standalone();
+    test_is_legacy_module_false_for_modular();
+    test_load_with_mode_strict_rejects_standalone();
+    test_load_with_mode_default_accepts_standalone();
+    test_load_with_mode_strict_accepts_modular();
+    test_is_loaded_false_before_load();
+    test_is_loaded_true_after_load_with_compat();
+
+    io::println("\n--- Section 10: Cross-component integration ---");
+    test_resolver_and_dep_graph_together();
+    test_cache_and_dep_graph_together();
+    test_migrate_analyze_then_generate_toml();
+    test_load_with_compat_then_is_loaded();
+    test_dep_graph_topological_sort_matches_load_levels();
+    test_lazy_registry_parse_uniqueness_across_calls();
+
+    io::println("\n=== All tests completed ===");
+}

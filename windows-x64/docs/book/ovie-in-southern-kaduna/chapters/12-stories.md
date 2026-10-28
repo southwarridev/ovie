@@ -55,4 +55,4 @@ The language gets better when more people use it and contribute to it. That's ho
 
 *"Low-level control meets high-level productivity — systems programming made accessible."*
 
-*— Ovie Language Team*
+*— Nashedy Ltd*

@@ -1,0 +1,111 @@
+/// Core data structures for the Ovie module system
+/// This file defines the fundamental types used throughout module loading,
+/// resolution, and dependency management.
+
+/// Represents a loaded module with its metadata and exports
+struct Module {
+    path: String,              // Absolute file path
+    name: String,              // Module name
+    exports: ExportTable,      // Public symbols
+    imports: Vec<Import>,      // Dependencies
+    source_hash: String,       // Content hash for caching
+    compiled_at: i64,          // Timestamp
+    doc_comments: HashMap<String, String>,  // Symbol documentation
+    is_standalone: bool        // true = legacy mode (no import/export statements)
+}
+
+/// Tracks import statements
+struct Import {
+    module_path: String,       // e.g., "std::math" or "./utils.ov"
+    symbols: Option<Vec<String>>,  // None = import all, Some = specific symbols
+    alias: Option<String>      // Optional alias
+}
+
+/// Registry of exported symbols
+struct ExportTable {
+    functions: HashMap<String, FunctionSignature>,
+    types: HashMap<String, TypeDefinition>,
+    constants: HashMap<String, ConstantInfo>,
+    enums: HashMap<String, EnumDefinition>
+}
+
+/// Function signature for type checking
+struct FunctionSignature {
+    name: String,
+    parameters: Vec<Parameter>,
+    return_type: Type,
+    doc_comment: String,
+    is_generic: bool
+}
+
+/// Parameter information
+struct Parameter {
+    name: String,
+    param_type: Type,
+    is_mutable: bool
+}
+
+/// Type information
+struct Type {
+    name: String,
+    is_generic: bool,
+    type_params: Vec<String>
+}
+
+/// Type definition
+struct TypeDefinition {
+    name: String,
+    kind: TypeKind,
+    fields: Vec<Field>,
+    doc_comment: String
+}
+
+enum TypeKind {
+    Struct,
+    Enum,
+    Alias
+}
+
+/// Field in a struct
+struct Field {
+    name: String,
+    field_type: Type,
+    is_public: bool
+}
+
+/// Constant information
+struct ConstantInfo {
+    name: String,
+    const_type: Type,
+    value: String,
+    doc_comment: String
+}
+
+/// Enum definition
+struct EnumDefinition {
+    name: String,
+    variants: Vec<EnumVariant>,
+    doc_comment: String
+}
+
+/// Enum variant
+struct EnumVariant {
+    name: String,
+    fields: Option<Vec<Field>>
+}
+
+/// Module error types
+enum ModuleError {
+    NotFound(String),           // Module path not found
+    ParseError(String),         // Failed to parse module
+    ExportError(String),        // Invalid export
+    ImportError(String),        // Invalid import
+    CircularDependency(Vec<String>),  // Cycle detected
+    SymbolNotFound(String),     // Symbol doesn't exist
+    NameCollision(String),      // Symbol name conflict
+    SecurityError(String),      // Security violation (path traversal, checksum mismatch, etc.)
+    IoError(String)             // File system I/O error
+}
+
+/// Result type for module operations
+type ModuleResult<T> = Result<T, ModuleError>;

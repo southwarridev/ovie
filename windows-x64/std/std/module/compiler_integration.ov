@@ -1,0 +1,343 @@
+/// Compiler Integration for the Module System
+///
+/// Integrates the module loader, resolver, dependency graph, and cache
+/// with the Oviec compiler pipeline. Handles loading all dependencies
+/// before compilation, determining compilation order, and cross-module
+/// symbol resolution.
+///
+/// # Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 10.1, 10.2, 10.3, 10.4
+
+/// Result of a full modular compilation
+struct CompilationResult {
+    success: Boolean,
+    modules_compiled: Array,   // Array of module names in compilation order
+    errors: Array,             // Array of CompilationError
+    warnings: Array,           // Array of String
+    metadata: Array,           // Array of ModuleMetadata
+}
+
+/// A compilation error with location info
+struct CompilationError {
+    module_name: String,
+    file_path: String,
+    line_number: Number,
+    message: String,
+    error_kind: String,        // "syntax" | "type" | "symbol" | "doc" | "circular"
+}
+
+/// Metadata generated for a compiled module
+struct ModuleMetadata {
+    name: String,
+    file_path: String,
+    exports: Array,            // Array of export names
+    dependencies: Array,       // Array of dependency module names
+    doc_entries: Array,        // Array of "name::summary" strings
+}
+
+/// Compile a modular program starting from an entry point
+///
+/// Loads all dependencies, validates them, determines compilation order
+/// via topological sort, and compiles in order.
+///
+/// # Parameters
+/// - entry_path: Path to the main .ov file
+/// - project_root: Project root directory
+///
+/// # Returns
+/// CompilationResult with ordered module list and any errors
+export fn compile_modular_program(entry_path: String, project_root: String) -> CompilationResult {
+    mut errors = [];
+    mut warnings = [];
+    mut metadata = [];
+
+    // Step 1: Load the entry module
+    mut entry_result = load_module(entry_path);
+    if !entry_result.success {
+        mut err = CompilationError {
+            module_name: "entry",
+            file_path: entry_path,
+            line_number: 0,
+            message: entry_result.error,
+            error_kind: "syntax",
+        };
+        return CompilationResult {
+            success: false,
+            modules_compiled: [],
+            errors: [err],
+            warnings: [],
+            metadata: [],
+        };
+    }
+
+    // Step 2: Build dependency graph by recursively loading imports
+    mut graph = dependency_graph_new();
+    mut config = resolver_config_default(project_root);
+    mut load_errors = load_all_dependencies(entry_result.module, graph, config);
+
+    if array_length(load_errors) > 0 {
+        return CompilationResult {
+            success: false,
+            modules_compiled: [],
+            errors: load_errors,
+            warnings: [],
+            metadata: [],
+        };
+    }
+
+    // Step 3: Detect circular dependencies
+    mut cycles = detect_cycles(graph);
+    if array_length(cycles) > 0 {
+        mut cycle_errors = [];
+        mut ci = 0;
+        while ci < array_length(cycles) {
+            mut cycle = array_get(cycles, ci);
+            mut err = CompilationError {
+                module_name: array_get(cycle, 0),
+                file_path: "",
+                line_number: 0,
+                message: "Circular dependency: " + array_join(cycle, " → "),
+                error_kind: "circular",
+            };
+            cycle_errors = array_push(cycle_errors, err);
+            ci = ci + 1;
+        }
+        return CompilationResult {
+            success: false,
+            modules_compiled: [],
+            errors: cycle_errors,
+            warnings: [],
+            metadata: [],
+        };
+    }
+
+    // Step 4: Topological sort for compilation order
+    mut ordered = topological_sort(graph);
+
+    // Step 5: Compile each module in order
+    mut compiled = [];
+    mut i = 0;
+    while i < array_length(ordered) {
+        mut mod_name = array_get(ordered, i);
+        mut mod_path = graph_get_path(graph, mod_name);
+        mut source = read_file(mod_path);
+
+        // Step 5a: Enforce documentation
+        mut doc_result = enforce_module_docs(source, mod_path);
+        if !doc_result.passed {
+            mut di = 0;
+            while di < array_length(doc_result.errors) {
+                mut derr = array_get(doc_result.errors, di);
+                mut err = CompilationError {
+                    module_name: mod_name,
+                    file_path: mod_path,
+                    line_number: derr.line_number,
+                    message: derr.error_message,
+                    error_kind: "doc",
+                };
+                errors = array_push(errors, err);
+                di = di + 1;
+            }
+        }
+
+        // Step 5b: Collect doc warnings
+        mut wi = 0;
+        while wi < array_length(doc_result.warnings) {
+            warnings = array_push(warnings, mod_name + ": " + array_get(doc_result.warnings, wi));
+            wi = wi + 1;
+        }
+
+        // Step 5c: Build module metadata
+        mut doc_meta = build_doc_metadata(source);
+        mut exports = get_module_exports(source);
+        mut deps = graph_get_dependencies(graph, mod_name);
+
+        mut mod_meta = ModuleMetadata {
+            name: mod_name,
+            file_path: mod_path,
+            exports: exports,
+            dependencies: deps,
+            doc_entries: doc_meta,
+        };
+        metadata = array_push(metadata, mod_meta);
+
+        // Step 5d: Update Aproko knowledge base
+        analyze_module(mod_name, source);
+
+        compiled = array_push(compiled, mod_name);
+        i = i + 1;
+    }
+
+    mut success = array_length(errors) == 0;
+
+    return CompilationResult {
+        success: success,
+        modules_compiled: compiled,
+        errors: errors,
+        warnings: warnings,
+        metadata: metadata,
+    };
+}
+
+/// Resolve a symbol reference across module boundaries
+///
+/// Given a symbol name and the importing module's context, finds the
+/// module that exports the symbol and returns its full qualified name.
+///
+/// # Parameters
+/// - symbol_name: Unqualified symbol name to resolve
+/// - importing_module: Name of the module doing the import
+/// - graph: Dependency graph
+///
+/// # Returns
+/// Qualified name "module_name::symbol_name" or empty string if not found
+export fn resolve_cross_module_symbol(symbol_name: String, importing_module: String, graph: DependencyGraph) -> String {
+    mut deps = graph_get_dependencies(graph, importing_module);
+    mut i = 0;
+    while i < array_length(deps) {
+        mut dep_name = array_get(deps, i);
+        mut dep_path = graph_get_path(graph, dep_name);
+        if string_length(dep_path) > 0 {
+            mut source = read_file(dep_path);
+            mut exports = get_module_exports(source);
+            mut ei = 0;
+            while ei < array_length(exports) {
+                if array_get(exports, ei) == symbol_name {
+                    return dep_name + "::" + symbol_name;
+                }
+                ei = ei + 1;
+            }
+        }
+        i = i + 1;
+    }
+    return "";
+}
+
+/// Generate module metadata JSON for tooling
+///
+/// # Parameters
+/// - result: CompilationResult from compile_modular_program
+///
+/// # Returns
+/// JSON string with module metadata
+export fn generate_module_metadata_json(result: CompilationResult) -> String {
+    mut json = "{\"modules\":[\n";
+    mut i = 0;
+    while i < array_length(result.metadata) {
+        mut meta = array_get(result.metadata, i);
+        if i > 0 { json = json + ",\n"; }
+        json = json + "  {";
+        json = json + "\"name\":\"" + meta.name + "\",";
+        json = json + "\"file\":\"" + meta.file_path + "\",";
+        json = json + "\"exports\":[";
+        mut ei = 0;
+        while ei < array_length(meta.exports) {
+            if ei > 0 { json = json + ","; }
+            json = json + "\"" + array_get(meta.exports, ei) + "\"";
+            ei = ei + 1;
+        }
+        json = json + "],";
+        json = json + "\"dependencies\":[";
+        mut di = 0;
+        while di < array_length(meta.dependencies) {
+            if di > 0 { json = json + ","; }
+            json = json + "\"" + array_get(meta.dependencies, di) + "\"";
+            di = di + 1;
+        }
+        json = json + "]}";
+        i = i + 1;
+    }
+    json = json + "\n]}\n";
+    return json;
+}
+
+/// Recursively load all dependencies of a module into the dependency graph
+fn load_all_dependencies(module: Module, graph: DependencyGraph, config: ResolverConfig) -> Array {
+    mut errors = [];
+    mut mod_name = module.name;
+
+    // Add this module to the graph
+    graph_add_module(graph, mod_name, module.path);
+
+    // Process each import
+    mut i = 0;
+    while i < array_length(module.imports) {
+        mut imp = array_get(module.imports, i);
+        mut resolved_path = resolve(imp.module_path, config);
+
+        if string_length(resolved_path) == 0 {
+            mut err = CompilationError {
+                module_name: mod_name,
+                file_path: module.path,
+                line_number: 0,
+                message: "Module not found: " + imp.module_path,
+                error_kind: "symbol",
+            };
+            errors = array_push(errors, err);
+            i = i + 1;
+            continue;
+        }
+
+        // Load the dependency
+        mut dep_result = load_module(resolved_path);
+        if !dep_result.success {
+            mut err = CompilationError {
+                module_name: imp.module_path,
+                file_path: resolved_path,
+                line_number: 0,
+                message: dep_result.error,
+                error_kind: "syntax",
+            };
+            errors = array_push(errors, err);
+            i = i + 1;
+            continue;
+        }
+
+        mut dep_name = dep_result.module.name;
+        graph_add_dependency(graph, mod_name, dep_name);
+
+        // Recurse if not already in graph
+        if !graph_has_module(graph, dep_name) {
+            mut sub_errors = load_all_dependencies(dep_result.module, graph, config);
+            mut si = 0;
+            while si < array_length(sub_errors) {
+                errors = array_push(errors, array_get(sub_errors, si));
+                si = si + 1;
+            }
+        }
+
+        i = i + 1;
+    }
+
+    return errors;
+}
+
+/// Extract exported symbol names from module source
+fn get_module_exports(source: String) -> Array {
+    mut exports = [];
+    mut lines = string_split_lines(source);
+    mut i = 0;
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        if string_starts_with(line, "export fn ") {
+            mut sig = string_substring(line, 10, string_length(line));
+            mut name = extract_fn_name_doc(sig);
+            if string_length(name) > 0 {
+                exports = array_push(exports, name);
+            }
+        } else if string_starts_with(line, "export struct ") {
+            mut rest = string_substring(line, 14, string_length(line));
+            mut name = extract_first_word(rest);
+            if string_length(name) > 0 {
+                exports = array_push(exports, name);
+            }
+        } else if string_starts_with(line, "export enum ") {
+            mut rest = string_substring(line, 12, string_length(line));
+            mut name = extract_first_word(rest);
+            if string_length(name) > 0 {
+                exports = array_push(exports, name);
+            }
+        }
+        i = i + 1;
+    }
+    return exports;
+}

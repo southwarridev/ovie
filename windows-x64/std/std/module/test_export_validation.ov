@@ -1,0 +1,358 @@
+/// Test suite for export statement parsing and validation (Task 2.3)
+/// 
+/// This test file verifies:
+/// 1. Export statements are parsed correctly
+/// 2. Exported symbols are validated to exist in the module
+/// 3. Error handling for invalid exports
+/// 4. Preservation of symbol names and type signatures
+
+use std::io;
+use ./loader::{load_module, register_export};
+use ./types::{Module, ExportTable, ModuleError, FunctionSignature, TypeDefinition, ConstantInfo, EnumDefinition, Type, TypeKind, Parameter, Field, EnumVariant};
+use std::core::{Vec, HashMap, Option, Result};
+
+/// Test 1: Valid exports are registered correctly
+fn test_valid_exports() {
+    io::println("Test 1: Valid exports are registered correctly");
+    
+    // Create a test module with valid exports
+    let mut module = Module {
+        path: "test_module.ov".to_string(),
+        name: "test_module".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "test_hash".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new()
+    };
+    
+    // Add a function to exports
+    let func_sig = FunctionSignature {
+        name: "test_function".to_string(),
+        parameters: Vec::new(),
+        return_type: Type {
+            name: "i32".to_string(),
+            is_generic: false,
+            type_params: Vec::new()
+        },
+        doc_comment: "Test function".to_string(),
+        is_generic: false
+    };
+    module.exports.functions.insert("test_function".to_string(), func_sig);
+    
+    // Validate the export
+    match register_export(&mut module, "test_function".to_string(), "function".to_string()) {
+        Ok(_) => io::println("  ✓ Valid function export registered successfully"),
+        Err(e) => io::println("  ✗ Failed to register valid export: {}", e)
+    }
+}
+
+/// Test 2: Exporting undefined function fails
+fn test_undefined_function_export() {
+    io::println("\nTest 2: Exporting undefined function fails");
+    
+    // Create a module without the function
+    let mut module = Module {
+        path: "test_module.ov".to_string(),
+        name: "test_module".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "test_hash".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new()
+    };
+    
+    // Try to export a non-existent function
+    match register_export(&mut module, "nonexistent_function".to_string(), "function".to_string()) {
+        Ok(_) => io::println("  ✗ Should have failed to export undefined function"),
+        Err(ModuleError::ExportError(msg)) => {
+            io::println("  ✓ Correctly rejected undefined function export");
+            io::println("    Error message: {}", msg);
+        },
+        Err(e) => io::println("  ✗ Wrong error type: {}", e)
+    }
+}
+
+/// Test 3: Exporting undefined type fails
+fn test_undefined_type_export() {
+    io::println("\nTest 3: Exporting undefined type fails");
+    
+    let mut module = Module {
+        path: "test_module.ov".to_string(),
+        name: "test_module".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "test_hash".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new()
+    };
+    
+    // Try to export a non-existent type
+    match register_export(&mut module, "NonexistentType".to_string(), "type".to_string()) {
+        Ok(_) => io::println("  ✗ Should have failed to export undefined type"),
+        Err(ModuleError::ExportError(msg)) => {
+            io::println("  ✓ Correctly rejected undefined type export");
+            io::println("    Error message: {}", msg);
+        },
+        Err(e) => io::println("  ✗ Wrong error type: {}", e)
+    }
+}
+
+/// Test 4: Exporting undefined constant fails
+fn test_undefined_constant_export() {
+    io::println("\nTest 4: Exporting undefined constant fails");
+    
+    let mut module = Module {
+        path: "test_module.ov".to_string(),
+        name: "test_module".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "test_hash".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new()
+    };
+    
+    // Try to export a non-existent constant
+    match register_export(&mut module, "NONEXISTENT_CONST".to_string(), "constant".to_string()) {
+        Ok(_) => io::println("  ✗ Should have failed to export undefined constant"),
+        Err(ModuleError::ExportError(msg)) => {
+            io::println("  ✓ Correctly rejected undefined constant export");
+            io::println("    Error message: {}", msg);
+        },
+        Err(e) => io::println("  ✗ Wrong error type: {}", e)
+    }
+}
+
+/// Test 5: Exporting undefined enum fails
+fn test_undefined_enum_export() {
+    io::println("\nTest 5: Exporting undefined enum fails");
+    
+    let mut module = Module {
+        path: "test_module.ov".to_string(),
+        name: "test_module".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "test_hash".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new()
+    };
+    
+    // Try to export a non-existent enum
+    match register_export(&mut module, "NonexistentEnum".to_string(), "enum".to_string()) {
+        Ok(_) => io::println("  ✗ Should have failed to export undefined enum"),
+        Err(ModuleError::ExportError(msg)) => {
+            io::println("  ✓ Correctly rejected undefined enum export");
+            io::println("    Error message: {}", msg);
+        },
+        Err(e) => io::println("  ✗ Wrong error type: {}", e)
+    }
+}
+
+/// Test 6: Invalid symbol type fails
+fn test_invalid_symbol_type() {
+    io::println("\nTest 6: Invalid symbol type fails");
+    
+    let mut module = Module {
+        path: "test_module.ov".to_string(),
+        name: "test_module".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "test_hash".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new()
+    };
+    
+    // Try to export with invalid symbol type
+    match register_export(&mut module, "something".to_string(), "invalid_type".to_string()) {
+        Ok(_) => io::println("  ✗ Should have failed with invalid symbol type"),
+        Err(ModuleError::ExportError(msg)) => {
+            io::println("  ✓ Correctly rejected invalid symbol type");
+            io::println("    Error message: {}", msg);
+        },
+        Err(e) => io::println("  ✗ Wrong error type: {}", e)
+    }
+}
+
+/// Test 7: Symbol names and signatures are preserved
+fn test_symbol_preservation() {
+    io::println("\nTest 7: Symbol names and signatures are preserved");
+    
+    let mut module = Module {
+        path: "test_module.ov".to_string(),
+        name: "test_module".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "test_hash".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new()
+    };
+    
+    // Add a function with specific signature
+    let original_func = FunctionSignature {
+        name: "calculate".to_string(),
+        parameters: vec![
+            Parameter {
+                name: "x".to_string(),
+                param_type: Type {
+                    name: "i32".to_string(),
+                    is_generic: false,
+                    type_params: Vec::new()
+                },
+                is_mutable: false
+            },
+            Parameter {
+                name: "y".to_string(),
+                param_type: Type {
+                    name: "i32".to_string(),
+                    is_generic: false,
+                    type_params: Vec::new()
+                },
+                is_mutable: false
+            }
+        ],
+        return_type: Type {
+            name: "i64".to_string(),
+            is_generic: false,
+            type_params: Vec::new()
+        },
+        doc_comment: "Calculates something important".to_string(),
+        is_generic: false
+    };
+    
+    module.exports.functions.insert("calculate".to_string(), original_func.clone());
+    
+    // Verify the function is preserved correctly
+    match module.exports.functions.get("calculate") {
+        Some(func) => {
+            let mut all_preserved = true;
+            
+            if func.name != original_func.name {
+                io::println("  ✗ Function name not preserved");
+                all_preserved = false;
+            }
+            
+            if func.parameters.len() != original_func.parameters.len() {
+                io::println("  ✗ Parameter count not preserved");
+                all_preserved = false;
+            }
+            
+            if func.return_type.name != original_func.return_type.name {
+                io::println("  ✗ Return type not preserved");
+                all_preserved = false;
+            }
+            
+            if func.doc_comment != original_func.doc_comment {
+                io::println("  ✗ Documentation not preserved");
+                all_preserved = false;
+            }
+            
+            if all_preserved {
+                io::println("  ✓ All function signature information preserved correctly");
+            }
+        },
+        None => io::println("  ✗ Function not found in exports")
+    }
+}
+
+/// Test 8: Error messages list available symbols
+fn test_error_messages_list_symbols() {
+    io::println("\nTest 8: Error messages list available symbols");
+    
+    let mut module = Module {
+        path: "test_module.ov".to_string(),
+        name: "test_module".to_string(),
+        exports: ExportTable {
+            functions: HashMap::new(),
+            types: HashMap::new(),
+            constants: HashMap::new(),
+            enums: HashMap::new()
+        },
+        imports: Vec::new(),
+        source_hash: "test_hash".to_string(),
+        compiled_at: 0,
+        doc_comments: HashMap::new()
+    };
+    
+    // Add some functions
+    module.exports.functions.insert("func1".to_string(), FunctionSignature {
+        name: "func1".to_string(),
+        parameters: Vec::new(),
+        return_type: Type { name: "()".to_string(), is_generic: false, type_params: Vec::new() },
+        doc_comment: String::new(),
+        is_generic: false
+    });
+    
+    module.exports.functions.insert("func2".to_string(), FunctionSignature {
+        name: "func2".to_string(),
+        parameters: Vec::new(),
+        return_type: Type { name: "()".to_string(), is_generic: false, type_params: Vec::new() },
+        doc_comment: String::new(),
+        is_generic: false
+    });
+    
+    // Try to export non-existent function
+    match register_export(&mut module, "func3".to_string(), "function".to_string()) {
+        Ok(_) => io::println("  ✗ Should have failed"),
+        Err(ModuleError::ExportError(msg)) => {
+            if msg.contains("func1") && msg.contains("func2") {
+                io::println("  ✓ Error message lists available functions");
+                io::println("    Message: {}", msg);
+            } else {
+                io::println("  ✗ Error message doesn't list available functions");
+                io::println("    Message: {}", msg);
+            }
+        },
+        Err(e) => io::println("  ✗ Wrong error type: {}", e)
+    }
+}
+
+/// Main test runner
+fn main() {
+    io::println("=== Export Validation Test Suite (Task 2.3) ===\n");
+    
+    test_valid_exports();
+    test_undefined_function_export();
+    test_undefined_type_export();
+    test_undefined_constant_export();
+    test_undefined_enum_export();
+    test_invalid_symbol_type();
+    test_symbol_preservation();
+    test_error_messages_list_symbols();
+    
+    io::println("\n=== Test Suite Complete ===");
+}

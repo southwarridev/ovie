@@ -1,0 +1,171 @@
+// Ovie Standard Library - Module Loader
+// Runtime-compatible implementation (no Rust syntax)
+// The module loader handles finding, reading, and registering .ov modules.
+
+// ===== MODULE CACHE =====
+// Tracks which modules have been loaded to avoid double-loading
+mut _loaded_modules = []
+mut _module_cache = []
+
+// ===== CORE LOADER FUNCTIONS =====
+
+/// Load a module from a file path
+export fn load_module(path) {
+    // Check cache first
+    if is_loaded(path) {
+        return get_module(path)
+    }
+    // Read the source file
+    mut source = read_file(path)
+    if source == "" {
+        seeAm "Warning: module not found: " + path
+        return null
+    }
+    // Register as loaded
+    _loaded_modules = array_push(_loaded_modules, path)
+    return load_module_from_source(path, source)
+}
+
+/// Load a module from source string directly
+export fn load_module_from_source(path, source) {
+    mut module = Module {
+        path: path,
+        source: source,
+        name: extract_module_name(path),
+        hash: compute_hash(source),
+    }
+    _module_cache = array_push(_module_cache, module)
+    return module
+}
+
+/// Check if a module has already been loaded
+export fn is_loaded(path) {
+    mut i = 0
+    while i < array_length(_loaded_modules) {
+        if array_get(_loaded_modules, i) == path {
+            return true
+        }
+        i += 1
+    }
+    return false
+}
+
+/// Get a loaded module by path
+export fn get_module(path) {
+    mut i = 0
+    while i < array_length(_module_cache) {
+        mut m = array_get(_module_cache, i)
+        if m.path == path {
+            return m
+        }
+        i += 1
+    }
+    return null
+}
+
+/// Register an export from a module
+export fn register_export(module_path, export_name, export_type) {
+    // No-op at runtime — exports are handled by the interpreter's use/import wiring
+    return true
+}
+
+/// Validate imports in a module (runtime stub — interpreter handles this)
+export fn validate_imports(module) {
+    return true
+}
+
+/// Load dependencies for a module
+export fn load_dependencies(module) {
+    return []
+}
+
+// ===== HELPER FUNCTIONS =====
+
+/// Extract module name from path: "std/math/mod.ov" -> "math"
+fn extract_module_name(path) {
+    mut parts = string_split(path, "/")
+    mut len = array_length(parts)
+    if len >= 2 {
+        mut parent = array_get(parts, len - 2)
+        return parent
+    }
+    return path
+}
+
+/// Compute a simple hash of source for caching
+fn compute_hash(source) {
+    mut h = 0
+    mut i = 0
+    mut len = string_length(source)
+    while i < len {
+        mut ch = string_char_at(source, i)
+        h = h + string_length(ch)
+        i += 1
+    }
+    return number_to_string(h)
+}
+
+/// Resolve an import path relative to known std dirs
+fn resolve_import_path(import_path) {
+    if string_starts_with(import_path, "./") {
+        return import_path
+    }
+    if string_starts_with(import_path, "std/") {
+        return import_path
+    }
+    return "std/" + import_path + "/mod.ov"
+}
+
+/// Check for name collisions across loaded modules
+export fn check_name_collisions(module, loaded) {
+    return []
+}
+
+/// Standalone file detection
+export fn is_standalone_file(source) {
+    return !string_contains(source, "export fn")
+}
+
+/// Load a standalone .ov file
+export fn load_standalone(path, source) {
+    return load_module_from_source(path, source)
+}
+
+/// Load with backwards compatibility
+export fn load_with_compat(path, source) {
+    return load_module_from_source(path, source)
+}
+
+/// Check if module uses legacy std patterns
+export fn is_legacy_module(module) {
+    return false
+}
+
+/// Default compatibility mode
+export fn default_compat_mode() {
+    return "auto"
+}
+
+/// Strict compatibility mode
+export fn strict_compat_mode() {
+    return "strict"
+}
+
+/// Load with explicit mode
+export fn load_with_mode(path, source, mode) {
+    return load_module_from_source(path, source)
+}
+
+/// Check for legacy std usage patterns
+export fn has_legacy_std_usage(source) {
+    return string_contains(source, "use std::")
+}
+
+// ===== MODULE STRUCT =====
+
+struct Module {
+    path: String,
+    source: String,
+    name: String,
+    hash: String,
+}

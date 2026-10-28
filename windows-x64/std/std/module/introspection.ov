@@ -1,0 +1,149 @@
+/// Module Introspection API
+///
+/// Provides runtime APIs to query loaded modules, their exports,
+/// dependencies, and metadata. Enables documentation generators
+/// and tooling to inspect the module system.
+///
+/// # Requirements: 18.1, 18.2, 18.3, 18.4, 18.5, 18.6
+
+/// Metadata for a loaded module
+struct ModuleInfo {
+    name: String,
+    version: String,
+    file_path: String,
+    exports: Array,       // Array of export names
+    dependencies: Array,  // Array of dependency module names
+    doc_summary: String,
+}
+
+/// List all modules currently loaded in the dependency graph
+///
+/// # Parameters
+/// - graph: The dependency graph to inspect
+///
+/// # Returns
+/// Array of module names
+export fn list_loaded_modules(graph: DependencyGraph) -> Array {
+    return graph_get_all_modules(graph);
+}
+
+/// Query exports of a specific module
+///
+/// # Parameters
+/// - module_name: Name of the module to inspect
+/// - graph: Dependency graph
+///
+/// # Returns
+/// Array of exported symbol names
+export fn query_module_exports(module_name: String, graph: DependencyGraph) -> Array {
+    mut path = graph_get_path(graph, module_name);
+    if string_length(path) == 0 || !file_exists(path) {
+        return [];
+    }
+    mut source = read_file(path);
+    return get_module_exports(source);
+}
+
+/// Query dependencies of a specific module
+///
+/// # Parameters
+/// - module_name: Name of the module to inspect
+/// - graph: Dependency graph
+///
+/// # Returns
+/// Array of dependency module names
+export fn query_module_dependencies(module_name: String, graph: DependencyGraph) -> Array {
+    return graph_get_dependencies(graph, module_name);
+}
+
+/// Get full metadata for a module
+///
+/// # Parameters
+/// - module_name: Name of the module
+/// - graph: Dependency graph
+///
+/// # Returns
+/// ModuleInfo with all metadata
+export fn get_module_info(module_name: String, graph: DependencyGraph) -> ModuleInfo {
+    mut path = graph_get_path(graph, module_name);
+    mut exports = query_module_exports(module_name, graph);
+    mut deps = query_module_dependencies(module_name, graph);
+    mut summary = "";
+
+    if string_length(path) > 0 && file_exists(path) {
+        mut source = read_file(path);
+        // Extract first doc comment as summary
+        mut lines = string_split_lines(source);
+        mut i = 0;
+        while i < array_length(lines) {
+            mut line = string_trim(array_get(lines, i));
+            if string_starts_with(line, "/// ") {
+                summary = string_substring(line, 4, string_length(line));
+                i = -1; // stop
+            }
+            i = i + 1;
+        }
+    }
+
+    return ModuleInfo {
+        name: module_name,
+        version: "2.3.0",
+        file_path: path,
+        exports: exports,
+        dependencies: deps,
+        doc_summary: summary,
+    };
+}
+
+/// Generate documentation from module exports
+///
+/// # Parameters
+/// - module_name: Module to document
+/// - graph: Dependency graph
+/// - format: "html" | "markdown" | "json"
+///
+/// # Returns
+/// Documentation string in requested format
+export fn generate_module_documentation(module_name: String, graph: DependencyGraph, format: String) -> String {
+    mut path = graph_get_path(graph, module_name);
+    if string_length(path) == 0 || !file_exists(path) {
+        return "";
+    }
+    mut source = read_file(path);
+    return generate_module_docs(module_name, source, format);
+}
+
+/// Reflect on an exported symbol — get its type signature
+///
+/// # Parameters
+/// - module_name: Module containing the symbol
+/// - symbol_name: Symbol to reflect on
+/// - graph: Dependency graph
+///
+/// # Returns
+/// Type signature string or empty if not found
+export fn reflect_symbol(module_name: String, symbol_name: String, graph: DependencyGraph) -> String {
+    mut path = graph_get_path(graph, module_name);
+    if string_length(path) == 0 || !file_exists(path) {
+        return "";
+    }
+    mut source = read_file(path);
+    mut sigs = load_module_signatures(module_name, source);
+    mut i = 0;
+    while i < array_length(sigs) {
+        mut sig = array_get(sigs, i);
+        if sig.fn_name == symbol_name {
+            mut result = sig.fn_name + "(";
+            mut pi = 0;
+            while pi < array_length(sig.param_names) {
+                if pi > 0 { result = result + ", "; }
+                result = result + array_get(sig.param_names, pi) + ": " + array_get(sig.param_types, pi);
+                pi = pi + 1;
+            }
+            result = result + ") -> " + sig.return_type;
+            return result;
+        }
+        i = i + 1;
+    }
+    return "";
+}

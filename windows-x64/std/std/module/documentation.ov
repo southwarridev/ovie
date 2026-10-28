@@ -1,0 +1,563 @@
+/// Documentation System
+///
+/// Parses, validates, and generates documentation from Ovie doc comments.
+/// Supports /// single-line and /** */ multi-line doc comment syntax.
+///
+/// # Requirements: 22.1, 22.2, 22.3, 22.4, 22.5, 22.6, 22.7, 22.8, 22.9,
+///                 22.10, 22.11, 22.12, 22.13, 22.14, 22.15, 22.16
+
+/// A parsed parameter documentation entry
+struct ParamDoc {
+    name: String,
+    description: String,
+    type_hint: String,
+}
+
+/// A parsed code example from a doc comment
+struct CodeExample {
+    code: String,
+    language: String,
+    description: String,
+}
+
+/// A fully parsed doc comment
+struct DocComment {
+    summary: String,
+    description: String,
+    params: Array,           // Array of ParamDoc
+    returns: String,
+    examples: Array,         // Array of CodeExample
+    complexity: String,      // e.g. "O(n log n)"
+    edge_cases: String,
+    related: Array,          // Array of String (related function names)
+    formula: String,         // mathematical formula if applicable
+    is_complete: Boolean,
+    missing_sections: Array, // Array of String
+}
+
+/// Validation result for a doc comment
+struct DocValidation {
+    valid: Boolean,
+    errors: Array,           // Array of String
+    warnings: Array,         // Array of String
+}
+
+/// Create an empty DocComment
+fn doc_comment_new() -> DocComment {
+    return DocComment {
+        summary: "",
+        description: "",
+        params: [],
+        returns: "",
+        examples: [],
+        complexity: "",
+        edge_cases: "",
+        related: [],
+        formula: "",
+        is_complete: false,
+        missing_sections: [],
+    };
+}
+
+/// Parse a doc comment string into a DocComment struct
+///
+/// Handles both /// line comments (pass content without ///) and
+/// /** */ block comments (pass content without delimiters).
+///
+/// # Parameters
+/// - raw: Raw doc comment text (stripped of /// or /** */)
+///
+/// # Returns
+/// Parsed DocComment struct
+export fn parse_doc_comment(raw: String) -> DocComment {
+    mut doc = doc_comment_new();
+    mut lines = string_split_lines(raw);
+    mut i = 0;
+    mut current_section = "summary";
+    mut summary_done = false;
+    mut desc_lines = [];
+    mut current_param_name = "";
+    mut current_param_desc = "";
+    mut current_example_code = "";
+    mut current_example_desc = "";
+    mut in_example = false;
+
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+        i = i + 1;
+
+        // Strip leading /// if present
+        if string_starts_with(line, "/// ") {
+            line = string_substring(line, 4, string_length(line));
+        } else if line == "///" {
+            line = "";
+        }
+
+        // Detect section headers
+        if line == "# Parameters" || line == "# Params" {
+            current_section = "params";
+            // Save any pending param
+            if string_length(current_param_name) > 0 {
+                mut p = ParamDoc { name: current_param_name, description: current_param_desc, type_hint: "" };
+                doc.params = array_push(doc.params, p);
+                current_param_name = "";
+                current_param_desc = "";
+            }
+        } else if line == "# Returns" || line == "# Return" {
+            current_section = "returns";
+        } else if line == "# Examples" || line == "# Example" {
+            current_section = "examples";
+        } else if line == "# Complexity" {
+            current_section = "complexity";
+        } else if line == "# Edge Cases" || line == "# Edge cases" {
+            current_section = "edge_cases";
+        } else if line == "# Related" || line == "# See Also" {
+            current_section = "related";
+        } else if line == "# Formula" || line == "# Math" {
+            current_section = "formula";
+        } else if string_starts_with(line, "```") {
+            // Code block toggle
+            if in_example {
+                // End of example
+                mut ex = CodeExample { code: current_example_code, language: "ovie", description: current_example_desc };
+                doc.examples = array_push(doc.examples, ex);
+                current_example_code = "";
+                current_example_desc = "";
+                in_example = false;
+            } else {
+                in_example = true;
+                // Extract language hint if present
+                if string_length(line) > 3 {
+                    current_example_desc = string_substring(line, 3, string_length(line));
+                }
+            }
+        } else if in_example {
+            if string_length(current_example_code) > 0 {
+                current_example_code = current_example_code + "\n";
+            }
+            current_example_code = current_example_code + line;
+        } else if current_section == "summary" && !summary_done {
+            if string_length(line) == 0 {
+                summary_done = true;
+                current_section = "description";
+            } else {
+                if string_length(doc.summary) > 0 {
+                    doc.summary = doc.summary + " ";
+                }
+                doc.summary = doc.summary + line;
+            }
+        } else if current_section == "description" {
+            desc_lines = array_push(desc_lines, line);
+        } else if current_section == "params" {
+            // Lines like "- name: description" or "- `name`: description"
+            if string_starts_with(line, "- ") {
+                // Save previous param
+                if string_length(current_param_name) > 0 {
+                    mut p = ParamDoc { name: current_param_name, description: current_param_desc, type_hint: "" };
+                    doc.params = array_push(doc.params, p);
+                }
+                mut param_line = string_substring(line, 2, string_length(line));
+                mut colon_pos = string_find(param_line, ":");
+                if colon_pos > 0 {
+                    current_param_name = string_trim(string_substring(param_line, 0, colon_pos));
+                    current_param_desc = string_trim(string_substring(param_line, colon_pos + 1, string_length(param_line)));
+                    // Strip backticks from name
+                    current_param_name = string_replace(current_param_name, "`", "");
+                } else {
+                    current_param_name = string_trim(param_line);
+                    current_param_desc = "";
+                }
+            } else if string_length(current_param_name) > 0 && string_length(line) > 0 {
+                current_param_desc = current_param_desc + " " + line;
+            }
+        } else if current_section == "returns" {
+            if string_length(doc.returns) > 0 && string_length(line) > 0 {
+                doc.returns = doc.returns + " ";
+            }
+            doc.returns = doc.returns + line;
+        } else if current_section == "complexity" {
+            if string_length(doc.complexity) > 0 && string_length(line) > 0 {
+                doc.complexity = doc.complexity + " ";
+            }
+            doc.complexity = doc.complexity + line;
+        } else if current_section == "edge_cases" {
+            if string_length(doc.edge_cases) > 0 && string_length(line) > 0 {
+                doc.edge_cases = doc.edge_cases + "\n";
+            }
+            doc.edge_cases = doc.edge_cases + line;
+        } else if current_section == "related" {
+            if string_starts_with(line, "- ") {
+                mut rel = string_trim(string_substring(line, 2, string_length(line)));
+                doc.related = array_push(doc.related, rel);
+            }
+        } else if current_section == "formula" {
+            if string_length(doc.formula) > 0 && string_length(line) > 0 {
+                doc.formula = doc.formula + "\n";
+            }
+            doc.formula = doc.formula + line;
+        }
+    }
+
+    // Save any pending param
+    if string_length(current_param_name) > 0 {
+        mut p = ParamDoc { name: current_param_name, description: current_param_desc, type_hint: "" };
+        doc.params = array_push(doc.params, p);
+    }
+
+    // Build description from collected lines
+    mut desc = "";
+    mut di = 0;
+    while di < array_length(desc_lines) {
+        mut dl = array_get(desc_lines, di);
+        if string_length(desc) > 0 { desc = desc + "\n"; }
+        desc = desc + dl;
+        di = di + 1;
+    }
+    doc.description = desc;
+
+    return doc;
+}
+
+/// Extract doc comment text preceding a function definition
+///
+/// Scans backwards from the function line to collect /// comments.
+///
+/// # Parameters
+/// - lines: All source lines as array
+/// - fn_line_index: Index of the "fn" or "export fn" line
+///
+/// # Returns
+/// Raw doc comment string (without /// prefixes)
+export fn extract_doc_comment(lines: Array, fn_line_index: Number) -> String {
+    mut i = fn_line_index - 1;
+    mut comment_lines = [];
+
+    while i >= 0 {
+        mut line = string_trim(array_get(lines, i));
+        if string_starts_with(line, "///") {
+            comment_lines = array_push(comment_lines, line);
+            i = i - 1;
+        } else {
+            i = -1; // stop
+        }
+    }
+
+    // Reverse (we collected bottom-up)
+    mut result = "";
+    mut j = array_length(comment_lines) - 1;
+    while j >= 0 {
+        mut cl = array_get(comment_lines, j);
+        // Strip /// prefix
+        if string_starts_with(cl, "/// ") {
+            cl = string_substring(cl, 4, string_length(cl));
+        } else if cl == "///" {
+            cl = "";
+        }
+        if string_length(result) > 0 { result = result + "\n"; }
+        result = result + cl;
+        j = j - 1;
+    }
+
+    return result;
+}
+
+/// Validate a doc comment for completeness
+///
+/// Checks that all required sections are present based on function signature.
+///
+/// # Parameters
+/// - doc: Parsed DocComment to validate
+/// - param_count: Number of parameters the function has
+/// - has_return: Whether the function returns a non-void value
+/// - is_complex: Whether function has O(n log n) or higher complexity
+/// - has_formula: Whether function uses mathematical formulas
+///
+/// # Returns
+/// DocValidation with errors and warnings
+export fn validate_doc(doc: DocComment, param_count: Number, has_return: Boolean, is_complex: Boolean, has_formula: Boolean) -> DocValidation {
+    mut errors = [];
+    mut warnings = [];
+
+    // Summary is required
+    if string_length(doc.summary) == 0 {
+        errors = array_push(errors, "Missing summary description");
+    }
+
+    // Parameters must be documented
+    if param_count > 0 && array_length(doc.params) == 0 {
+        errors = array_push(errors, "Missing # Parameters section (" + number_to_string(param_count) + " parameters undocumented)");
+    } else if param_count > array_length(doc.params) {
+        mut missing = param_count - array_length(doc.params);
+        errors = array_push(errors, number_to_string(missing) + " parameter(s) not documented");
+    }
+
+    // Return value must be documented for non-void functions
+    if has_return && string_length(doc.returns) == 0 {
+        errors = array_push(errors, "Missing # Returns section");
+    }
+
+    // Examples required
+    if array_length(doc.examples) == 0 {
+        errors = array_push(errors, "Missing # Examples section (at least one example required)");
+    }
+
+    // Complexity required for complex functions
+    if is_complex && string_length(doc.complexity) == 0 {
+        errors = array_push(errors, "Missing # Complexity section (required for O(n log n) or higher)");
+    }
+
+    // Formula required for mathematical functions
+    if has_formula && string_length(doc.formula) == 0 {
+        warnings = array_push(warnings, "Missing # Formula section (recommended for mathematical functions)");
+    }
+
+    // Edge cases recommended
+    if string_length(doc.edge_cases) == 0 {
+        warnings = array_push(warnings, "Missing # Edge Cases section (recommended)");
+    }
+
+    // Related functions recommended
+    if array_length(doc.related) == 0 {
+        warnings = array_push(warnings, "Missing # Related section (recommended)");
+    }
+
+    mut valid = array_length(errors) == 0;
+
+    return DocValidation {
+        valid: valid,
+        errors: errors,
+        warnings: warnings,
+    };
+}
+
+/// Validate that code examples in a doc comment are syntactically valid Ovie
+///
+/// # Parameters
+/// - doc: DocComment containing examples to validate
+///
+/// # Returns
+/// DocValidation with any syntax errors found in examples
+export fn validate_examples(doc: DocComment) -> DocValidation {
+    mut errors = [];
+    mut warnings = [];
+
+    if array_length(doc.examples) == 0 {
+        warnings = array_push(warnings, "No examples to validate");
+        return DocValidation { valid: true, errors: errors, warnings: warnings };
+    }
+
+    mut i = 0;
+    while i < array_length(doc.examples) {
+        mut ex = array_get(doc.examples, i);
+        mut code = ex.code;
+
+        // Basic syntax checks: balanced braces, valid keywords
+        mut brace_count = 0;
+        mut paren_count = 0;
+        mut j = 0;
+        while j < string_length(code) {
+            mut ch = string_char_at(code, j);
+            if ch == "{" { brace_count = brace_count + 1; }
+            if ch == "}" { brace_count = brace_count - 1; }
+            if ch == "(" { paren_count = paren_count + 1; }
+            if ch == ")" { paren_count = paren_count - 1; }
+            j = j + 1;
+        }
+
+        if brace_count != 0 {
+            errors = array_push(errors, "Example " + number_to_string(i + 1) + ": unbalanced braces");
+        }
+        if paren_count != 0 {
+            errors = array_push(errors, "Example " + number_to_string(i + 1) + ": unbalanced parentheses");
+        }
+
+        i = i + 1;
+    }
+
+    return DocValidation {
+        valid: array_length(errors) == 0,
+        errors: errors,
+        warnings: warnings,
+    };
+}
+
+/// Generate HTML documentation for a single function
+///
+/// # Parameters
+/// - fn_name: Function name
+/// - doc: Parsed DocComment
+/// - signature: Full function signature string
+///
+/// # Returns
+/// HTML string for the function documentation
+export fn generate_fn_html(fn_name: String, doc: DocComment, signature: String) -> String {
+    mut html = "<div class=\"fn-doc\" id=\"fn-" + fn_name + "\">\n";
+    html = html + "  <h3><code>" + signature + "</code></h3>\n";
+
+    if string_length(doc.summary) > 0 {
+        html = html + "  <p class=\"summary\">" + doc.summary + "</p>\n";
+    }
+    if string_length(doc.description) > 0 {
+        html = html + "  <p class=\"description\">" + doc.description + "</p>\n";
+    }
+
+    if array_length(doc.params) > 0 {
+        html = html + "  <h4>Parameters</h4>\n  <ul>\n";
+        mut i = 0;
+        while i < array_length(doc.params) {
+            mut p = array_get(doc.params, i);
+            html = html + "    <li><code>" + p.name + "</code> — " + p.description + "</li>\n";
+            i = i + 1;
+        }
+        html = html + "  </ul>\n";
+    }
+
+    if string_length(doc.returns) > 0 {
+        html = html + "  <h4>Returns</h4>\n  <p>" + doc.returns + "</p>\n";
+    }
+
+    if array_length(doc.examples) > 0 {
+        html = html + "  <h4>Examples</h4>\n";
+        mut i = 0;
+        while i < array_length(doc.examples) {
+            mut ex = array_get(doc.examples, i);
+            html = html + "  <pre><code class=\"language-ovie\">" + ex.code + "</code></pre>\n";
+            i = i + 1;
+        }
+    }
+
+    if string_length(doc.complexity) > 0 {
+        html = html + "  <p class=\"complexity\"><strong>Complexity:</strong> " + doc.complexity + "</p>\n";
+    }
+
+    html = html + "</div>\n";
+    return html;
+}
+
+/// Generate Markdown documentation for a single function
+///
+/// # Parameters
+/// - fn_name: Function name
+/// - doc: Parsed DocComment
+/// - signature: Full function signature string
+///
+/// # Returns
+/// Markdown string for the function documentation
+export fn generate_fn_markdown(fn_name: String, doc: DocComment, signature: String) -> String {
+    mut md = "### `" + signature + "`\n\n";
+
+    if string_length(doc.summary) > 0 {
+        md = md + doc.summary + "\n\n";
+    }
+    if string_length(doc.description) > 0 {
+        md = md + doc.description + "\n\n";
+    }
+
+    if array_length(doc.params) > 0 {
+        md = md + "**Parameters:**\n\n";
+        mut i = 0;
+        while i < array_length(doc.params) {
+            mut p = array_get(doc.params, i);
+            md = md + "- `" + p.name + "` — " + p.description + "\n";
+            i = i + 1;
+        }
+        md = md + "\n";
+    }
+
+    if string_length(doc.returns) > 0 {
+        md = md + "**Returns:** " + doc.returns + "\n\n";
+    }
+
+    if array_length(doc.examples) > 0 {
+        md = md + "**Examples:**\n\n";
+        mut i = 0;
+        while i < array_length(doc.examples) {
+            mut ex = array_get(doc.examples, i);
+            md = md + "```ovie\n" + ex.code + "\n```\n\n";
+            i = i + 1;
+        }
+    }
+
+    if string_length(doc.complexity) > 0 {
+        md = md + "**Complexity:** " + doc.complexity + "\n\n";
+    }
+
+    return md;
+}
+
+/// Scan a module source file and generate documentation for all exported functions
+///
+/// # Parameters
+/// - module_name: Name of the module
+/// - source: Source code of the module
+/// - format: Output format ("html", "markdown", "json")
+///
+/// # Returns
+/// Generated documentation string
+export fn generate_module_docs(module_name: String, source: String, format: String) -> String {
+    mut lines = string_split_lines(source);
+    mut output = "";
+
+    if format == "html" {
+        output = "<div class=\"module-doc\">\n<h2>Module: " + module_name + "</h2>\n";
+    } else if format == "markdown" {
+        output = "# Module: " + module_name + "\n\n";
+    } else {
+        output = "{\"module\":\"" + module_name + "\",\"functions\":[\n";
+    }
+
+    mut i = 0;
+    mut first_fn = true;
+    while i < array_length(lines) {
+        mut line = string_trim(array_get(lines, i));
+
+        if string_starts_with(line, "export fn ") {
+            mut raw_doc = extract_doc_comment(lines, i);
+            mut doc = parse_doc_comment(raw_doc);
+            mut sig = string_substring(line, 10, string_length(line));
+            // Remove trailing { if present
+            mut brace = string_find(sig, "{");
+            if brace > 0 {
+                sig = string_trim(string_substring(sig, 0, brace));
+            }
+            mut fn_name = extract_fn_name_from_sig(sig);
+
+            if format == "html" {
+                output = output + generate_fn_html(fn_name, doc, sig);
+            } else if format == "markdown" {
+                output = output + generate_fn_markdown(fn_name, doc, sig);
+            } else {
+                if !first_fn { output = output + ",\n"; }
+                output = output + "  {\"name\":\"" + fn_name + "\",\"signature\":\"" + sig + "\",\"summary\":\"" + doc.summary + "\"}";
+                first_fn = false;
+            }
+        }
+
+        i = i + 1;
+    }
+
+    if format == "html" {
+        output = output + "</div>\n";
+    } else if format == "markdown" {
+        // nothing to close
+    } else {
+        output = output + "\n]}\n";
+    }
+
+    return output;
+}
+
+/// Extract function name from a signature like "add(a: Number, b: Number) -> Number"
+fn extract_fn_name_from_sig(sig: String) -> String {
+    mut i = 0;
+    mut name = "";
+    while i < string_length(sig) {
+        mut ch = string_char_at(sig, i);
+        if ch == "(" || ch == " " {
+            return name;
+        }
+        name = name + ch;
+        i = i + 1;
+    }
+    return name;
+}

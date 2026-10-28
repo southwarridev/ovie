@@ -1,66 +1,84 @@
 # Chapter 1: Introduction and Philosophy
 
-## The Ovie Vision
+## What is Ovie?
 
-Ovie is a low-level programming language with high-level features. It gives you direct control over memory and hardware — the kind of control you need for embedded systems, performance-critical applications, and systems programming — while keeping the syntax readable and the developer experience friendly.
+Ovie is a systems programming language built for people who want direct control over their machine without fighting the language to get it. It gives you low-level power — memory control, hardware access, predictable performance — wrapped in syntax that reads like what it means.
 
-The name "Ovie" comes from a name common in Southern Nigeria. The language carries that identity deliberately: it was built to be accessible to developers everywhere, not just those with access to expensive tooling or fast internet.
+The name comes from a name common in Southern Nigeria. That's intentional. Ovie was built to be accessible to developers everywhere, not just those with fast internet, expensive laptops, or a computer science degree.
 
 ## Why Ovie Exists
 
-Most systems languages demand a steep learning curve. Most high-level languages hide the machine from you. Ovie tries to sit in the middle — giving you the power of the machine with syntax that doesn't fight you.
+Most systems languages punish beginners. Most beginner languages hide the machine from you. Ovie tries to sit in the middle: the power of a systems language, syntax that doesn't fight you.
 
-Key motivations:
+Key principles behind the design:
 
-- **Offline-first**: You should be able to build software without an internet connection. All dependencies are vendored locally.
-- **Deterministic**: The same code always produces the same output. No surprises.
-- **Self-hosted**: Ovie compiles itself. This is proof the language is mature enough to build real things.
-- **Accessible syntax**: The `seeAm` keyword for printing comes from Nigerian Pidgin English. The language is designed to feel natural to a wider range of people.
+- **Offline-first** — build and run software with no internet. All dependencies are local.
+- **Deterministic** — the same code always produces the same output, always.
+- **Self-hosted** — Ovie compiles itself. That is proof the language works.
+- **Accessible** — `seeAm` comes from Nigerian Pidgin English. `oya` means "go ahead" or "now". The language borrows natural language patterns deliberately.
+
+## The Two Declaration Keywords
+
+If there is one thing to understand before writing a single line of Ovie, it is this:
+
+```ovie
+oya name = "Ovie"    // immutable — this value never changes
+mut count = 0        // mutable — this value can change
+```
+
+`oya` is Ovie's word for "this is fixed." It comes from Urhobo — it roughly means "go now" or "it is set." When you declare something with `oya`, you are saying: I know this will never change. Use `oya` by default. Reach for `mut` only when you actually need to reassign something.
+
+This distinction matters more as your programs grow. Constants, labels, error messages, configuration — all of these belong to `oya`. Loop counters, accumulators, input buffers — those are `mut`.
 
 ## Language Philosophy
 
-Ovie is built on ten immutable principles (see `SPEC.md`). The most important ones for day-to-day development:
+Ovie is built on a few firm commitments:
 
 1. No network required to build or run programs
 2. Identical inputs always produce identical outputs
-3. Exactly 13 keywords — no more, no less
-4. The compiler explains itself (via Aproko)
-5. No telemetry, no tracking
+3. The compiler explains itself — through Aproko, its built-in analysis engine
+4. No telemetry, no tracking, no hidden calls home
 
-## Southern Kaduna Development Context
+## The Aproko Engine
 
-Southern Kaduna is a region in Kaduna State, Nigeria. Developers here face real constraints: intermittent power, limited bandwidth, shared devices. Ovie's offline-first design isn't an academic exercise — it's a practical response to how software gets built in many parts of the world.
+Aproko (a Urhobo word for someone who tells things straight) is Ovie's built-in analysis engine. It catches mistakes before your program runs, explains why something went wrong, and suggests how to fix it. When Ovie gives you an error message, it is Aproko talking.
 
-This book was written with that context in mind. Examples are practical. Explanations assume you're building something real.
+## The Southern Kaduna Context
 
-## Getting Started
+This book was written with Southern Kaduna developers in mind — a region in Kaduna State, Nigeria, where developers work with intermittent power, limited bandwidth, and shared devices. Ovie's offline-first design is not academic. It is a direct response to how software actually gets built in many parts of the world.
 
-Install Ovie:
+The examples in this book are practical. They assume you are building something real.
 
-```bash
-# Linux
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
-
-# Windows (PowerShell)
-iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
-```
-
-Verify:
-
-```bash
-ovie --version
-```
-
-Your first program:
+## Your First Program
 
 ```ovie
-seeAm "Hello from Ovie!"
+oya greeting = "Hello from Ovie!"
+seeAm greeting
 ```
 
-Run it:
+Save it as `hello.ov`. Run it:
 
-```bash
+```
 oviec run hello.ov
 ```
 
-That's it. No build system to configure, no package manager to initialize. Just write code and run it.
+Output:
+```
+Hello from Ovie!
+```
+
+That is it. `oya` declares the value. `seeAm` shows it.
+
+## What is in This Book
+
+- Chapter 2 — Installation and setup
+- Chapter 3 — Language fundamentals: oya, mut, fn, if, loops
+- Chapter 4 — The module system
+- Chapter 5 — Standard library
+- Chapter 6 — Aproko: understanding the analysis engine
+- Chapter 7 — Building production programs
+- Chapter 8 — Testing
+- Chapter 9 — Performance
+- Chapter 10 — Deployment
+- Chapter 11 — Community
+- Chapter 12 — Stories from the field

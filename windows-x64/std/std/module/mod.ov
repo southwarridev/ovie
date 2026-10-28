@@ -1,0 +1,124 @@
+/// Ovie Module System
+/// 
+/// This module provides the core functionality for Ovie's module system,
+/// including module loading, path resolution, dependency management,
+/// and caching.
+///
+/// # Components
+/// - `types`: Core data structures for modules, imports, and exports
+/// - `loader`: Module loading and management
+/// - `resolver`: Module path resolution
+///
+/// # Examples
+/// ```
+/// use std::module::{load_module, resolve};
+/// 
+/// // Load a module
+/// let module = load_module("std/math/mod.ov")?;
+/// 
+/// // Resolve a module path
+/// let config = default_config();
+/// let resolved = resolve("std::math", config)?;
+/// ```
+
+// Re-export core types
+export use ./types::{
+    Module,
+    Import,
+    ExportTable,
+    FunctionSignature,
+    Parameter,
+    Type,
+    TypeDefinition,
+    TypeKind,
+    Field,
+    ConstantInfo,
+    EnumDefinition,
+    EnumVariant,
+    ModuleError,
+    ModuleResult
+};
+
+// Re-export loader functions
+export use ./loader::{
+    load_module,
+    load_dependencies,
+    is_loaded,
+    get_module,
+    register_export,
+    validate_imports,
+    load_module_from_source,
+    is_standalone_file,
+    load_standalone,
+    load_with_compat,
+    is_legacy_module,
+    default_compat_mode,
+    strict_compat_mode,
+    load_with_mode,
+    has_legacy_std_usage
+};
+
+// Re-export resolver functions
+export use ./resolver::{
+    ResolverConfig,
+    ResolvedModule,
+    ModuleType,
+    default_config,
+    resolve,
+    path_to_file,
+    search_paths,
+    normalize_path,
+    is_valid_module
+};
+
+// Re-export migration tools
+export use ./migrate::{
+    MigrateConfig,
+    MigrateResult,
+    MigrationChange,
+    ChangeKind,
+    migrate_file,
+    migrate_directory,
+    default_migrate_config,
+    generate_ovie_toml,
+    analyze_used_symbols
+};
+
+// Re-export performance optimization utilities
+export use ./performance::{
+    StringInterner,
+    HashState,
+    CacheIndex,
+    LoadTiming,
+    LoadStats,
+    new_interner,
+    intern,
+    resolve_interned,
+    new_hash_state,
+    update_hash,
+    finalize_hash,
+    compute_seeded_hash,
+    compute_deps_hash_fast,
+    new_cache_index,
+    hot_check,
+    update_hot_index,
+    invalidate_hot,
+    build_graph_fast,
+    prewarm_stdlib,
+    new_load_stats,
+    record_timing,
+    format_load_stats,
+    check_performance_targets
+};
+
+// Re-export security mitigations
+export use ./security::{
+    validate_module_path,
+    is_safe_path,
+    verify_cache_integrity,
+    compute_artifact_hash,
+    verify_package_checksum,
+    verify_file_checksum,
+    sanitize_doc_content,
+    contains_html
+};
