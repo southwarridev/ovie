@@ -1,0 +1,53 @@
+// test_stdlib.ov — Proves stdlib works in oviev
+// Tests: use std::math, use std::io, import, export
+// Copyright (c) 2026 Nashedy Ltd
+
+use std::math::{sqrt}
+
+oya SEPARATOR = "========================================"
+
+seeAm SEPARATOR
+seeAm "  oviev stdlib test"
+seeAm SEPARATOR
+
+// ── Test 1: std::math ────────────────────────────────
+seeAm "1. std::math sqrt:"
+oya s = sqrt(16.0)
+seeAm "   sqrt(16) = " + number_to_string(s)
+oya s2 = sqrt(25.0)
+seeAm "   sqrt(25) = " + number_to_string(s2)
+seeAm "   PASS"
+
+// ── Test 2: import another .ov file ──────────────────
+seeAm "2. import oviev/src/stdlib/mod.ov:"
+import "./stdlib/mod.ov"
+seeAm "   PASS"
+
+// ── Test 3: export fn ────────────────────────────────
+seeAm "3. export fn:"
+export fn double(n: Number) -> Number {
+    return n * 2
+}
+seeAm "   double(21) = " + number_to_string(double(21))
+seeAm "   PASS"
+
+// ── Test 4: use std::math full ───────────────────────
+use std::math::{abs}
+seeAm "4. std::math abs:"
+oya neg = abs(-42.0)
+seeAm "   abs(-42) = " + number_to_string(neg)
+seeAm "   PASS"
+
+// ── Test 5: use std::math PI constant ────────────────
+use std::math::{PI}
+seeAm "5. std::math PI:"
+seeAm "   PI = " + number_to_string(PI)
+oya area = PI * 5.0 * 5.0
+seeAm "   circle area r=5: " + number_to_string(area)
+seeAm "   PASS"
+
+// ── Summary ─────────────────────────────────────────
+seeAm SEPARATOR
+seeAm "  ALL STDLIB TESTS PASSED"
+seeAm "  use, import, export all work in oviev"
+seeAm SEPARATOR

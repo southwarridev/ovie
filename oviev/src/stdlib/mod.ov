@@ -1,0 +1,38 @@
+// stdlib/mod.ov — Standard library bridge for oviev
+// Copyright (c) 2026 Nashedy Ltd
+
+// When oviev runs via oviec (Stage 1), all stdlib modules are already
+// bundled inside the oviec binary via include_str! in get_bundled_module().
+// So use std::math::{sqrt} works automatically — no extra path needed.
+
+// This file documents what each std module provides for oviev source files.
+
+// --- std::math ---
+// use std::math::{sqrt, pow, abs, floor, ceil, min, max, sin, cos, tan}
+
+// --- std::io ---
+// use std::io::{println, print, read_line}
+
+// --- std::fs ---
+// use std::fs::{read_file, write_file, file_exists, make_dir}
+
+// --- std::core ---
+// use std::core::{Result, Option, Vec, HashMap}
+
+// --- std::time ---
+// use std::time::{now, sleep_ms, duration_ms}
+
+// --- std::env ---
+// use std::env::{get_var, args, hostname}
+
+// --- std::log ---
+// use std::log::{info, warn, error, debug}
+
+// --- std::testing ---
+// use std::testing::{assert_eq, assert_true, assert_false}
+
+// --- std::cli ---
+// use std::cli::{parse_args, flag_value}
+
+// Proof that stdlib works in oviev:
+seeAm "[oviev stdlib] stdlib bridge loaded"

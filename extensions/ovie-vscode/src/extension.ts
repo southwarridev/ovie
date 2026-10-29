@@ -8,6 +8,7 @@ import { OvieMobileCompiler } from './mobile-compiler';
 import { OvieDebugger } from './debugger';
 import { OvieFormatter } from './formatter';
 import { OvieProjectManager } from './project-manager';
+import { OvieTypeChecker } from './type-checker';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Ovie extension is now active!');
@@ -25,6 +26,18 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register language server
     languageServer.start();
+
+    // Ovie Type Safety — runs on every file open/change
+    const typeChecker = new OvieTypeChecker();
+    if (vscode.window.activeTextEditor) {
+        typeChecker.check(vscode.window.activeTextEditor.document);
+    }
+    context.subscriptions.push(
+        vscode.workspace.onDidOpenTextDocument(d => typeChecker.check(d)),
+        vscode.workspace.onDidChangeTextDocument(e => typeChecker.check(e.document)),
+        vscode.workspace.onDidCloseTextDocument(d => typeChecker.clear(d)),
+        typeChecker
+    );
 
     // Register commands
     registerCommands(context, {

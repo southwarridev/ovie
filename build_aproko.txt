@@ -1,0 +1,4 @@
+error: cyclic package dependency: package `aproko v2.3.0 (C:\Users\Home PC\Desktop\ovie\aproko)` depends on itself. Cycle:
+package `aproko v2.3.0 (C:\Users\Home PC\Desktop\ovie\aproko)`
+    ... which satisfies path dependency `aproko` (locked to 2.3.0) of package `oviec v2.3.0 (C:\Users\Home PC\Desktop\ovie\oviec)`
+    ... which satisfies path dependency `oviec` (locked to 2.3.0) of package `aproko v2.3.0 (C:\Users\Home PC\Desktop\ovie\aproko)`

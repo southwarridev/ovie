@@ -163,3 +163,14 @@ echo   Docs: https://southwarridev.github.io/ovie/docs/book/index.html
 echo.
 pause
 exit /b 0
+
+echo.
+echo  [oviev] Installing oviev self-hosted compiler...
+set OVIEV_SRC=%~dp0..\oviev
+set OVIEV_DST=%INSTALL_DIR%\oviev
+if exist %OVIEV_SRC% xcopy /E /I /Y %OVIEV_SRC% %OVIEV_DST% >nul 2>&1
+echo @echo off > %BIN_DIR%\oviev.bat
+echo %BIN_DIR%\oviec.exe run %OVIEV_DST%\src\main.ov %%* >> %BIN_DIR%\oviev.bat
+echo  [OK] oviev installed
+echo  [vscode] Installing VS Code extension...
+where code >nul 2>&1 && code --install-extension %~dp0..\extensions\ovie-vscode\ovie-lang.vsix --force >nul 2>&1 && echo  [OK] VS Code extension installed

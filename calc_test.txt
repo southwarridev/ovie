@@ -1,0 +1,29 @@
+===============================
+   OVIE CALCULATOR v1.0
+===============================
+Enter: <num> <op> <num>
+Operators:  + - * / %
+Type q to quit
+===============================
+
+> 
+Bye!
+---PIPE10+5---  
+===============================
+   OVIE CALCULATOR v1.0
+===============================
+Enter: <num> <op> <num>
+Operators:  + - * / %
+Type q to quit
+===============================
+
+> 
+= 15
+> 
+= 81
+> 
+= 25
+> 
+= Error: Unknown operator
+> 
+Bye!

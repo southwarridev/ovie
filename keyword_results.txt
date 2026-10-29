@@ -1,0 +1,12 @@
+
+error: Lexer error at line 1, column 1: Unexpected character: '﻿'
+ --> c:\Users\Home PC\Desktop\ovie\keyword_tests.ov
+   |
+  1 | ﻿// ============================================================
+   |
+
+
+== Hint =============================================
+Syntax error. Check for missing brackets, colons, or mismatched braces.
+=====================================================
+Error: Lexer error at line 1, column 1: Unexpected character: '﻿'

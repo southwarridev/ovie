@@ -1,0 +1,4 @@
+=== ELEVATED REPLACE 10/28/2026 07:24:57 ===
+REPLACED binaries
+VERIFY: Ovie Compiler (oviec) v2.3.0 - Stage 2.3
+DONE_OK

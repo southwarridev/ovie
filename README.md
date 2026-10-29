@@ -70,6 +70,7 @@ mut count = 0        // mutable — can be updated
 | Package Manager | `oviec init`, `oviec add`, `oviec install`, `ovie.lock` |
 | 11 stdlib modules | core, math, io, fs, time, env, cli, log, testing, module, aproko |
 | Self-hosted compiler | Stage 2.3 — compiles itself |
+| oviev | Ovie self-hosted compiler — 15 .ov files mirroring oviec/src |
 
 ---
 

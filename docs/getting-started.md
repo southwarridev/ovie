@@ -123,3 +123,11 @@ while n < 3 {
     seeAm n
 }
 ```
+## oviev - Ovie Self-Hosted Compiler
+
+Both `oviec` and `oviev` run .ov files.
+
+```
+oviec run hello.ov   # stable Rust compiler
+oviev run hello.ov   # Ovie self-hosted (Stage 1)
+```

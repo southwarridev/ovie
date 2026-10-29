@@ -196,3 +196,32 @@ echo "    GitHub  : https://github.com/southwarridev/ovie"
 echo "    Book    : https://southwarridev.github.io/ovie/docs/book/index.html"
 echo "    Discord : https://discord.gg/AuF4ubMyE"
 echo ""
+
+
+# -- oviev self-hosted compiler ------------------------
+info "Installing oviev self-hosted compiler..."
+OVIEV_SRC="${REPO_ROOT}/oviev"
+OVIEV_DST="${INSTALL_DIR}/oviev"
+if [ -d "$OVIEV_SRC" ]; then
+  cp -r "$OVIEV_SRC" "$OVIEV_DST"
+  cat >"${BIN_DIR}/oviev" <<'EOF'
+#!/bin/bash
+oviec run "$OVIEV_DST/src/main.ov" "$@"
+EOF
+  chmod +x "${BIN_DIR}/oviev"
+  ok "oviev installed"
+else
+  warn "oviev folder not found - skipping"
+fi
+
+# -- VS Code extension ----------------------------------
+VSIX="${REPO_ROOT}/extensions/ovie-vscode/ovie-lang.vsix"
+if [ -f "$VSIX" ]; then
+  if command -v code &>/dev/null; then
+    code --install-extension "$VSIX" --force &>/dev/null
+    ok "VS Code extension installed"
+  else
+    cp "$VSIX" "${INSTALL_DIR}/"
+    ok "Extension saved. Install with: code --install-extension ${INSTALL_DIR}/ovie-lang.vsix"
+  fi
+fi

@@ -3,53 +3,35 @@
   "name": "Ovie",
   "scopeName": "source.ovie",
   "patterns": [
-    {
-      "include": "#comments"
-    },
-    {
-      "include": "#strings"
-    },
-    {
-      "include": "#numbers"
-    },
-    {
-      "include": "#keywords"
-    },
-    {
-      "include": "#functions"
-    },
-    {
-      "include": "#types"
-    },
-    {
-      "include": "#operators"
-    },
-    {
-      "include": "#punctuation"
-    }
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#oya-declaration" },
+    { "include": "#mut-declaration" },
+    { "include": "#keywords-control" },
+    { "include": "#keywords-declaration" },
+    { "include": "#keywords-module" },
+    { "include": "#seeam" },
+    { "include": "#constants" },
+    { "include": "#types" },
+    { "include": "#function-definition" },
+    { "include": "#function-call" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
   ],
   "repository": {
     "comments": {
       "patterns": [
         {
           "name": "comment.line.double-slash.ovie",
-          "begin": "//",
-          "end": "$",
-          "captures": {
-            "0": {
-              "name": "punctuation.definition.comment.ovie"
-            }
-          }
+          "match": "//.*$",
+          "captures": { "0": { "name": "comment.line.double-slash.ovie" } }
         },
         {
           "name": "comment.block.ovie",
           "begin": "/\\*",
           "end": "\\*/",
-          "captures": {
-            "0": {
-              "name": "punctuation.definition.comment.ovie"
-            }
-          }
+          "captures": { "0": { "name": "comment.block.ovie" } }
         }
       ]
     },
@@ -60,143 +42,124 @@
           "begin": "\"",
           "end": "\"",
           "patterns": [
-            {
-              "name": "constant.character.escape.ovie",
-              "match": "\\\\."
-            }
-          ]
-        },
-        {
-          "name": "string.quoted.single.ovie",
-          "begin": "'",
-          "end": "'",
-          "patterns": [
-            {
-              "name": "constant.character.escape.ovie",
-              "match": "\\\\."
-            }
+            { "name": "constant.character.escape.ovie", "match": "\\\\." }
           ]
         }
       ]
     },
     "numbers": {
       "patterns": [
+        { "name": "constant.numeric.decimal.ovie", "match": "\\b\\d+\\.\\d+\\b" },
+        { "name": "constant.numeric.integer.ovie", "match": "\\b\\d+\\b" }
+      ]
+    },
+    "oya-declaration": {
+      "comment": "oya keyword — immutable declaration. Distinct golden color.",
+      "patterns": [
         {
-          "name": "constant.numeric.decimal.ovie",
-          "match": "\\b\\d+(\\.\\d+)?\\b"
-        },
-        {
-          "name": "constant.numeric.hex.ovie",
-          "match": "\\b0x[0-9a-fA-F]+\\b"
-        },
-        {
-          "name": "constant.numeric.binary.ovie",
-          "match": "\\b0b[01]+\\b"
+          "name": "meta.declaration.immutable.ovie",
+          "match": "\\b(oya)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.oya.ovie" },
+            "2": { "name": "variable.other.constant.ovie" }
+          }
         }
       ]
     },
-    "keywords": {
+    "mut-declaration": {
+      "comment": "mut keyword — mutable declaration.",
+      "patterns": [
+        {
+          "name": "meta.declaration.mutable.ovie",
+          "match": "\\b(mut)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.modifier.mut.ovie" },
+            "2": { "name": "variable.other.readwrite.ovie" }
+          }
+        }
+      ]
+    },
+    "keywords-control": {
       "patterns": [
         {
           "name": "keyword.control.ovie",
           "match": "\\b(if|else|for|while|loop|break|continue|return|match)\\b"
-        },
+        }
+      ]
+    },
+    "keywords-declaration": {
+      "patterns": [
         {
           "name": "keyword.declaration.ovie",
-          "match": "\\b(fn|struct|enum|trait|impl|mod|use|pub|const|static)\\b"
-        },
+          "match": "\\b(fn|struct|enum|impl|trait|const|type|unsafe)\\b"
+        }
+      ]
+    },
+    "keywords-module": {
+      "patterns": [
         {
-          "name": "keyword.other.ovie",
-          "match": "\\b(mut|ref|move|unsafe|async|await|yield)\\b"
-        },
+          "name": "keyword.other.module.ovie",
+          "match": "\\b(use|import|export|mod|pub|as|let)\\b"
+        }
+      ]
+    },
+    "seeam": {
+      "comment": "seeAm — Ovie print keyword, Nigerian Pidgin English.",
+      "patterns": [
         {
-          "name": "keyword.operator.ovie",
-          "match": "\\b(and|or|not|in|is)\\b"
-        },
-        {
-          "name": "constant.language.ovie",
-          "match": "\\b(true|false|null|none|some)\\b"
-        },
-        {
-          "name": "keyword.other.ovie.seeam",
+          "name": "keyword.other.seeam.ovie",
           "match": "\\bseeAm\\b"
         },
         {
-          "name": "keyword.other.ovie.test",
-          "match": "\\btest\\b"
+          "name": "keyword.other.print.ovie",
+          "match": "\\bprint\\b(?=\\()"
         }
       ]
     },
-    "functions": {
+    "constants": {
       "patterns": [
         {
-          "name": "entity.name.function.ovie",
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
-          "captures": {
-            "1": {
-              "name": "entity.name.function.ovie"
-            }
-          }
+          "name": "constant.language.boolean.ovie",
+          "match": "\\b(true|false)\\b"
         },
         {
-          "name": "meta.function.definition.ovie",
-          "begin": "\\b(fn)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
-          "beginCaptures": {
-            "1": {
-              "name": "keyword.declaration.ovie"
-            },
-            "2": {
-              "name": "entity.name.function.definition.ovie"
-            }
-          },
-          "end": "(?<=\\})|(?=;)",
-          "patterns": [
-            {
-              "include": "#function-parameters"
-            },
-            {
-              "include": "#function-body"
-            }
-          ]
-        }
-      ]
-    },
-    "function-parameters": {
-      "name": "meta.function.parameters.ovie",
-      "begin": "\\(",
-      "end": "\\)",
-      "patterns": [
-        {
-          "name": "variable.parameter.ovie",
-          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
-        },
-        {
-          "include": "#types"
-        },
-        {
-          "include": "#punctuation"
-        }
-      ]
-    },
-    "function-body": {
-      "name": "meta.function.body.ovie",
-      "begin": "\\{",
-      "end": "\\}",
-      "patterns": [
-        {
-          "include": "$self"
+          "name": "constant.language.null.ovie",
+          "match": "\\b(null|none|None)\\b"
         }
       ]
     },
     "types": {
       "patterns": [
         {
-          "name": "storage.type.primitive.ovie",
-          "match": "\\b(String|Number|Boolean|Array|Object|Function|Any)\\b"
+          "name": "support.type.primitive.ovie",
+          "match": "\\b(Number|String|Boolean|Array|Any|Result|Option|Vec|HashMap)\\b"
         },
         {
-          "name": "storage.type.custom.ovie",
+          "name": "entity.name.type.ovie",
           "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
+        }
+      ]
+    },
+    "function-definition": {
+      "patterns": [
+        {
+          "name": "meta.function.ovie",
+          "match": "\\b(fn)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.function.ovie" },
+            "2": { "name": "entity.name.function.ovie" }
+          }
+        }
+      ]
+    },
+    "function-call": {
+      "patterns": [
+        {
+          "name": "entity.name.function.call.ovie",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\s*\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.ovie" }
+          }
         }
       ]
     },
@@ -204,52 +167,35 @@
       "patterns": [
         {
           "name": "keyword.operator.arithmetic.ovie",
-          "match": "[+\\-*/%]"
+          "match": "\\+|-|\\*|/|%"
         },
         {
           "name": "keyword.operator.comparison.ovie",
-          "match": "(==|!=|<|>|<=|>=)"
-        },
-        {
-          "name": "keyword.operator.logical.ovie",
-          "match": "(&&|\\|\\||!)"
+          "match": "==|!=|<=|>=|<|>"
         },
         {
           "name": "keyword.operator.assignment.ovie",
-          "match": "(=|\\+=|-=|\\*=|/=|%=)"
+          "match": "\\+=|-=|\\*=|/=|="
+        },
+        {
+          "name": "keyword.operator.arrow.ovie",
+          "match": "->"
         },
         {
           "name": "keyword.operator.range.ovie",
           "match": "\\.\\."
-        },
-        {
-          "name": "keyword.operator.access.ovie",
-          "match": "\\."
         }
       ]
     },
     "punctuation": {
       "patterns": [
-        {
-          "name": "punctuation.separator.comma.ovie",
-          "match": ","
-        },
-        {
-          "name": "punctuation.terminator.semicolon.ovie",
-          "match": ";"
-        },
-        {
-          "name": "punctuation.section.braces.ovie",
-          "match": "[{}]"
-        },
-        {
-          "name": "punctuation.section.brackets.ovie",
-          "match": "[\\[\\]]"
-        },
-        {
-          "name": "punctuation.section.parens.ovie",
-          "match": "[()]"
-        }
+        { "name": "punctuation.terminator.ovie", "match": ";" },
+        { "name": "punctuation.separator.comma.ovie", "match": "," },
+        { "name": "punctuation.accessor.dot.ovie", "match": "\\." },
+        { "name": "punctuation.separator.colon.ovie", "match": ":" },
+        { "name": "meta.brace.curly.ovie", "match": "[{}]" },
+        { "name": "meta.brace.round.ovie", "match": "[()]" },
+        { "name": "meta.brace.square.ovie", "match": "[\\[\\]]" }
       ]
     }
   }

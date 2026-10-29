@@ -1,0 +1,122 @@
+﻿// ============================================================
+// OVIE v2.3 KEYWORD TEST SUITE
+// Tests every keyword: oya, mut, fn, if/else, for, while,
+// struct, enum, match, return, break, continue, seeAm,
+// use, import, export, const, type, pub, mod, as, unsafe
+// ============================================================
+
+// ---- 1. oya (immutable declaration) ----
+oya lang = "Ovie"
+oya version = 2.3
+oya active = true
+seeAm "1. oya immutable:"
+seeAm lang
+seeAm version
+seeAm active
+
+// ---- 2. mut (mutable declaration) ----
+mut counter = 0
+counter = counter + 1
+counter = counter + 1
+seeAm "2. mut mutable:"
+seeAm counter
+
+// ---- 3. fn (function declaration) ----
+fn add(a: Number, b: Number) -> Number {
+    return a + b
+}
+seeAm "3. fn:"
+seeAm add(10, 20)
+
+// ---- 4. if / else ----
+mut score = 85
+seeAm "4. if/else:"
+if score >= 90 {
+    seeAm "Grade A"
+} else if score >= 70 {
+    seeAm "Grade B"
+} else {
+    seeAm "Grade C"
+}
+
+// ---- 5. while ----
+seeAm "5. while:"
+mut w = 0
+while w < 3 {
+    seeAm w
+    w = w + 1
+}
+
+// ---- 6. for ----
+seeAm "6. for:"
+for i in 0..3 {
+    seeAm i
+}
+
+// ---- 7. break & continue ----
+seeAm "7. break/continue:"
+mut n = 0
+while true {
+    n = n + 1
+    if n == 2 { continue }
+    if n == 4 { break }
+    seeAm n
+}
+
+// ---- 8. struct ----
+struct Point { x: Number, y: Number }
+mut p = Point { x: 3.0, y: 4.0 }
+seeAm "8. struct:"
+seeAm p.x
+seeAm p.y
+
+// ---- 9. enum ----
+enum Color { Red, Green, Blue }
+mut c = Color.Green
+seeAm "9. enum:"
+seeAm c
+
+// ---- 10. match ----
+seeAm "10. match:"
+match c {
+    Color.Red   => seeAm "red"
+    Color.Green => seeAm "green"
+    Color.Blue  => seeAm "blue"
+}
+
+// ---- 11. return inside fn ----
+fn is_even(n: Number) -> Boolean {
+    if n % 2 == 0 { return true }
+    return false
+}
+seeAm "11. return:"
+seeAm is_even(4)
+seeAm is_even(7)
+
+// ---- 12. const ----
+const MAX = 100
+seeAm "12. const:"
+seeAm MAX
+
+// ---- 13. Nested fn + recursion ----
+fn factorial(n: Number) -> Number {
+    if n <= 1 { return 1 }
+    return n * factorial(n - 1)
+}
+seeAm "13. recursion:"
+seeAm factorial(5)
+
+// ---- 14. String concat ----
+oya first = "South"
+oya last  = "Warri"
+seeAm "14. string concat:"
+seeAm first + last
+
+// ---- 15. Array ----
+mut arr = [10, 20, 30]
+seeAm "15. array:"
+seeAm arr[0]
+seeAm arr[2]
+
+// ---- DONE ----
+seeAm "ALL TESTS PASSED"

@@ -325,3 +325,6 @@ export fn greet(name: String) -> String {
 | `seeAm value` | Print with newline |
 | `print(text)` | Print without newline |
 | `read_line()` | Read a line from stdin |
+## oviev - Self-Hosted Compiler
+
+See [oviev/README.md](../oviev/README.md).

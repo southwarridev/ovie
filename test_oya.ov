@@ -1,0 +1,5 @@
+oya name = "Ovie"
+mut count = 0
+count = count + 1
+seeAm name
+seeAm count

@@ -1,0 +1,143 @@
+warning: use of deprecated constant `std::f64::INFINITY`: replaced by the `INFINITY` associated constant on `f64`
+  --> oviec\src\stdlib\math.rs:23:32
+   |
+23 | pub const INFINITY: f64 = f64::INFINITY;
+   |                                ^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated constant `std::f64::NEG_INFINITY`: replaced by the `NEG_INFINITY` associated constant on `f64`
+  --> oviec\src\stdlib\math.rs:24:36
+   |
+24 | pub const NEG_INFINITY: f64 = f64::NEG_INFINITY;
+   |                                    ^^^^^^^^^^^^
+
+warning: use of deprecated constant `std::f64::NAN`: replaced by the `NAN` associated constant on `f64`
+  --> oviec\src\stdlib\math.rs:25:27
+   |
+25 | pub const NAN: f64 = f64::NAN;
+   |                           ^^^
+
+warning: use of deprecated constant `std::f64::EPSILON`: replaced by the `EPSILON` associated constant on `f64`
+  --> oviec\src\stdlib\math.rs:26:31
+   |
+26 | pub const EPSILON: f64 = f64::EPSILON;
+   |                               ^^^^^^^
+
+warning: method `Program` should have a snake case name
+  --> oviec\src\ast.rs:68:12
+   |
+68 |     pub fn Program(statements: Vec<Statement>) -> Self {
+   |            ^^^^^^^ help: convert the identifier to snake case: `program`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> oviec\src\stdlib\core.rs:303:17
+    |
+303 |     pub fn iter(&self) -> OvieVecIterator<T> {
+    |                 ^^^^^     ^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                 |
+    |                 the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+    = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+    |
+303 |     pub fn iter(&self) -> OvieVecIterator<'_, T> {
+    |                                           +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> oviec\src\stdlib\core.rs:311:21
+    |
+311 |     pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+    |                     ^^^^^^^^^     ^^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                     |
+    |                     the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+311 |     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
+    |                                                       +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> oviec\src\stdlib\core.rs:455:17
+    |
+455 |     pub fn iter(&self) -> OvieHashMapIterator<K, V> {
+    |                 ^^^^^     ^^^^^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                 |
+    |                 the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+455 |     pub fn iter(&self) -> OvieHashMapIterator<'_, K, V> {
+    |                                               +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> oviec\src\stdlib\core.rs:463:17
+    |
+463 |     pub fn keys(&self) -> OvieHashMapKeysIterator<K, V> {
+    |                 ^^^^^     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                 |
+    |                 the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+463 |     pub fn keys(&self) -> OvieHashMapKeysIterator<'_, K, V> {
+    |                                                   +++
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+   --> oviec\src\stdlib\core.rs:471:19
+    |
+471 |     pub fn values(&self) -> OvieHashMapValuesIterator<K, V> {
+    |                   ^^^^^     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+    |                   |
+    |                   the lifetime is elided here
+    |
+    = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+help: use `'_` for type paths
+    |
+471 |     pub fn values(&self) -> OvieHashMapValuesIterator<'_, K, V> {
+    |                                                       +++
+
+warning: comparison is useless due to type limits
+  --> oviec\src\../tests\property\security.rs:16:16
+   |
+16 |             Ok(security_report.network_security.total_network_calls >= 0) // Always true, but validates structure
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_comparisons)]` on by default
+
+warning: comparison is useless due to type limits
+  --> oviec\src\../tests\property\security.rs:34:8
+   |
+34 |     Ok(network_report.unauthorized_network_calls >= 0) // Should be 0 for offline-first compliance
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `oviec` (lib) generated 12 warnings (run `cargo fix --lib -p oviec` to apply 5 suggestions)
+   Compiling oviec v2.3.0 (C:\Users\Home PC\Desktop\ovie\oviec)
+warning: unused variable: `args`
+   --> oviec\src\main.rs:306:31
+    |
+306 | fn build_distribution_package(args: CliArgs) -> OvieResult<()> {
+    |                               ^^^^ help: if this is intentional, prefix it with an underscore: `_args`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `backend`
+   --> oviec\src\main.rs:767:20
+    |
+767 | fn create_compiler(backend: Option<Backend>, debug: bool) -> Compiler {
+    |                    ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_backend`
+
+warning: unused variable: `supply_chain_report`
+    --> oviec\src\main.rs:1222:9
+     |
+1222 |     let supply_chain_report = security_manager.generate_comprehensive_security_report();
+     |         ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_supply_chain_report`
+
+warning: `oviec` (bin "oviec") generated 3 warnings (run `cargo fix --bin "oviec" -p oviec` to apply 3 suggestions)
+    Finished `release` profile [optimized] target(s) in 1m 45s

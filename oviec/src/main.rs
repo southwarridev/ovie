@@ -1,3 +1,4 @@
+mod aproko_export;
 use oviec::{Compiler, OvieResult, Backend, AstInvariantValidation};
 use std::env;
 use std::fs;
@@ -36,6 +37,7 @@ enum Command {
     ExplainError,
     ExplainType,
     Analyze,
+    AprokoExport,
     SelfCheck,
     Env,
     Version,
@@ -125,6 +127,7 @@ fn parse_args() -> CliArgs {
                 }
             }
             "analyze" => cli_args.command = Command::Analyze,
+            "aproko" => { if i + 1 < args.len() && args[i+1] == "export" { i += 1; } cli_args.command = Command::AprokoExport; }
             "self-check" | "--self-check" => cli_args.command = Command::SelfCheck,
             "env" | "--env" => cli_args.command = Command::Env,
             "version" | "--version" | "-V" => cli_args.command = Command::Version,
@@ -201,6 +204,7 @@ fn run_command(args: CliArgs) -> OvieResult<()> {
         Command::ExplainError => explain_error(args),
         Command::ExplainType => explain_type(args),
         Command::Analyze => analyze_file(args),
+        Command::AprokoExport => aproko_export::aproko_export(args),
         Command::SelfCheck => self_check(args),
         Command::Env => show_env(args),
         Command::Version => show_version(),

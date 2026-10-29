@@ -82,3 +82,13 @@ That is it. `oya` declares the value. `seeAm` shows it.
 - Chapter 10 — Deployment
 - Chapter 11 — Community
 - Chapter 12 — Stories from the field
+## oviev - The Ovie Self-Hosted Compiler
+
+Ovie now ships two compilers. `oviec` is Rust. `oviev` is the same compiler rewritten in Ovie.
+
+Stage 1: oviev bootstraps via oviec. Stage 2: oviev compiles itself.
+
+```ovie
+oya STAGE = "1 - bootstrapped via oviec"
+seeAm "oviev is coming"
+```
