@@ -1,0 +1,43 @@
+// parser.ov — Token -> AST parser (mirrors parser.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+// Parser state
+struct Parser { tokens: Array, pos: Number, source: String }
+
+fn make_parser(tokens: Array, source: String) -> Parser {
+    return Parser { tokens: tokens, pos: 0, source: source }
+}
+
+fn current_token(p: Parser) -> Token {
+    return array_get(p.tokens, p.pos)
+}
+
+fn advance(mut p: Parser) -> Parser {
+    p.pos = p.pos + 1
+    return p
+}
+
+fn peek_kind(p: Parser) -> TokenKind {
+    oya tok = array_get(p.tokens, p.pos)
+    return tok.kind
+}
+
+fn expect(mut p: Parser, kind: TokenKind) -> Parser {
+    oya tok = current_token(p)
+    if tok.kind == kind {
+        return advance(p)
+    }
+    seeAm "Parse error: unexpected token at line " + number_to_string(tok.line)
+    return p
+}
+
+// Parse a complete program — returns array of statement strings
+// Stage 1: delegates to oviec for full parsing
+// Stage 2: full recursive descent parser in Ovie
+fn parse(source: String) -> Array {
+    mut tokens = tokenize(source)
+    mut parser = make_parser(tokens, source)
+    mut stmts = []
+    seeAm "[oviev parser] tokenized " + number_to_string(array_length(tokens)) + " tokens"
+    return stmts
+}

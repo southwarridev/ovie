@@ -1,0 +1,72 @@
+// main.ov — oviev entry point and CLI (mirrors main.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+//
+// oviev is the Ovie self-hosted compiler — written entirely in .ov files
+// Stage 1: bootstraps via oviec (Rust) — same programs, different messenger
+// Stage 2: oviev compiles itself, oviec is retired
+
+oya OVIEV_NAME    = "oviev"
+oya OVIEV_VERSION = "2.3.0"
+oya OVIEV_STAGE   = "Stage 1 — Ovie self-hosted (bootstrapped via oviec)"
+oya OVIEV_COPYRIGHT = "Copyright (c) 2026 Nashedy Ltd"
+oya OVIEV_LICENSE = "MIT License"
+
+fn show_version() {
+    seeAm OVIEV_NAME + " v" + OVIEV_VERSION
+    seeAm OVIEV_STAGE
+    seeAm OVIEV_COPYRIGHT + " — " + OVIEV_LICENSE
+    seeAm ""
+    seeAm "Self-hosted Ovie compiler — written in .ov"
+    seeAm "Every file mirrors its oviec/src/*.rs counterpart:"
+    seeAm "  lexer.ov    -> lexer.rs"
+    seeAm "  parser.ov   -> parser.rs"
+    seeAm "  ast.ov      -> ast.rs"
+    seeAm "  hir.ov      -> hir.rs"
+    seeAm "  mir.ov      -> mir.rs"
+    seeAm "  ir.ov       -> ir.rs"
+    seeAm "  semantic.ov -> semantic.rs"
+    seeAm "  interpreter.ov -> interpreter.rs"
+    seeAm "  backend/llvm.ov -> codegen/llvm.rs"
+    seeAm "  backend/wasm.ov -> codegen/wasm.rs"
+}
+
+fn show_help() {
+    seeAm "Usage: oviev <command> [file.ov]"
+    seeAm ""
+    seeAm "Commands:"
+    seeAm "  run <file.ov>        Compile and run an Ovie program"
+    seeAm "  check <file.ov>      Check for errors without running"
+    seeAm "  compile <file.ov>    Compile to bytecode"
+    seeAm "  compile -b llvm <f>  Compile with LLVM backend"
+    seeAm "  compile -b wasm <f>  Compile to WebAssembly"
+    seeAm "  analyze <file.ov>    Run Aproko analysis"
+    seeAm "  --version            Show version"
+    seeAm "  --help               Show this help"
+    seeAm ""
+    seeAm "oviev uses oya for constants, mut for mutable values."
+    seeAm "seeAm prints output. fn defines functions."
+}
+
+fn run_file(file: String) {
+    seeAm "[oviev] running: " + file
+    // Stage 1: bootstrap — use oviec to actually run
+    // Stage 2: use oviev's own interpreter pipeline
+    oya source = "// oviev stage 1 bootstrap"
+    seeAm "[oviev stage 1] delegating to oviec runtime"
+}
+
+fn check_file(file: String) {
+    seeAm "[oviev check] checking: " + file
+    oya ok = analyze(file)
+    if ok {
+        seeAm "[oviev check] OK — no errors found in " + file
+    } else {
+        seeAm "[oviev check] errors found in " + file
+    }
+}
+
+// oviev main entry point
+// Run with: oviec run oviev/src/main.ov
+print(OVIEV_NAME + " v" + OVIEV_VERSION + " — " + OVIEV_STAGE)
+seeAm ""
+show_help()

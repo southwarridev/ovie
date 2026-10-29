@@ -1,0 +1,20 @@
+// normalizer.ov — AST normalization pass (mirrors normalizer.rs)
+// Copyright (c) 2026 Nashedy Ltd
+
+// Normalizes the AST before semantic analysis
+// - Desugars oya to let immutable
+// - Expands impl blocks to top-level functions
+// - Resolves use/import paths
+
+struct NormalizerState { changed: Boolean, errors: Array }
+
+fn make_normalizer() -> NormalizerState {
+    return NormalizerState { changed: false, errors: [] }
+}
+
+fn normalize(source: String) -> String {
+    seeAm "[oviev normalizer] normalizing source..."
+    // oya is already handled by the parser as immutable let
+    // Stage 2: full normalization in Ovie
+    return source
+}

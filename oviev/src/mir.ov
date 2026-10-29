@@ -1,0 +1,18 @@
+// mir.ov — Mid-level Intermediate Representation (mirrors mir.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+// MIR is closer to machine code — basic blocks, simple instructions
+enum MirInstr { Const, Load, Store, Add, Sub, Mul, Div, Call, Return, Jump, JumpIf, Label }
+
+struct MirInstruction { op: MirInstr, dest: String, left: String, right: String, label: String }
+struct MirBlock { label: String, instructions: Array }
+struct MirFn { name: String, params: Array, blocks: Array }
+struct MirProgram { functions: Array }
+
+fn make_mir_program() -> MirProgram { return MirProgram { functions: [] } }
+
+// Lower HIR to MIR
+fn hir_to_mir(prog: HirProgram) -> MirProgram {
+    seeAm "[oviev mir] lowering HIR to MIR..."
+    return make_mir_program()
+}

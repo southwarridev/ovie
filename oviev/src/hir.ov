@@ -1,0 +1,26 @@
+// hir.ov — High-level Intermediate Representation (mirrors hir.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+// HIR is a simplified version of the AST after semantic analysis
+struct HirFn { name: String, params: Array, return_type: String, body: Array, line: Number }
+struct HirStruct { name: String, fields: Array }
+struct HirEnum { name: String, variants: Array }
+struct HirVar { name: String, var_type: String, mutable: Boolean, line: Number }
+struct HirProgram { functions: Array, structs: Array, enums: Array, globals: Array }
+
+fn make_hir_program() -> HirProgram {
+    return HirProgram { functions: [], structs: [], enums: [], globals: [] }
+}
+
+fn hir_add_fn(mut prog: HirProgram, f: HirFn) -> HirProgram {
+    prog.functions = array_push(prog.functions, f)
+    return prog
+}
+
+// Lower AST to HIR — main lowering pass
+// Stage 1: stub — delegates to oviec
+// Stage 2: full HIR lowering in Ovie
+fn ast_to_hir(source: String) -> HirProgram {
+    seeAm "[oviev hir] lowering AST to HIR..."
+    return make_hir_program()
+}

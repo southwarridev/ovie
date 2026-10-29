@@ -1,0 +1,21 @@
+// ast.ov — AST node definitions (mirrors ast.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+// Literal value types
+enum Literal { NumberVal, StringVal, BooleanVal, NullVal }
+
+// Binary operators
+enum BinaryOp { Add, Subtract, Multiply, Divide, Modulo, Equal, NotEqual, Less, Greater, LessEqual, GreaterEqual, And, Or }
+
+// Unary operators
+enum UnaryOp { Negate, Not }
+
+// Statement types — every statement in an Ovie program
+enum StatementKind { VarDecl, Assignment, FnDecl, If, While, For, Return, Print, Expression, Block, Struct, Enum, Match, Use, Import, Export, Break, Continue, Const }
+
+// AST Node — wraps a statement or expression
+struct AstNode { kind: StatementKind, line: Number, source: String }
+
+fn make_node(kind: StatementKind, line: Number) -> AstNode {
+    return AstNode { kind: kind, line: line, source: "" }
+}

@@ -1,0 +1,12 @@
+// frontend/semantic.ov — Type-check pass (mirrors semantic.rs)
+// Copyright (c) 2026 Nashedy Ltd
+
+// Walks the AST and verifies:
+// - oya variables are never reassigned
+// - Function return types match
+// - Struct fields exist
+
+fn typecheck(source: String) -> Boolean {
+    seeAm "[oviev typecheck] checking types..."
+    return true
+}

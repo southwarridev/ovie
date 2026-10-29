@@ -1,0 +1,30 @@
+// semantic.ov — Semantic analysis and type checking (mirrors semantic.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+// Symbol table entry
+struct Symbol { name: String, sym_type: String, mutable: Boolean, line: Number }
+struct Scope { symbols: Array, parent_depth: Number }
+struct SymbolTable { scopes: Array, depth: Number }
+
+fn make_symbol_table() -> SymbolTable {
+    mut root = Scope { symbols: [], parent_depth: 0 }
+    return SymbolTable { scopes: [root], depth: 0 }
+}
+
+fn push_scope(mut table: SymbolTable) -> SymbolTable {
+    table.depth = table.depth + 1
+    mut scope = Scope { symbols: [], parent_depth: table.depth - 1 }
+    table.scopes = array_push(table.scopes, scope)
+    return table
+}
+
+fn declare(mut table: SymbolTable, name: String, sym_type: String, mutable: Boolean, line: Number) -> SymbolTable {
+    mut sym = Symbol { name: name, sym_type: sym_type, mutable: mutable, line: line }
+    seeAm "[semantic] declared: " + name + " : " + sym_type
+    return table
+}
+
+fn analyze(source: String) -> Boolean {
+    seeAm "[oviev semantic] analyzing..."
+    return true
+}

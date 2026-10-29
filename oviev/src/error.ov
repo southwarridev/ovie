@@ -1,0 +1,28 @@
+// error.ov — Ovie error types (mirrors error.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+enum OvieErrorKind { LexerError, ParseError, SemanticError, TypeError, RuntimeError, IoError, CompileError }
+
+struct OvieError { kind: OvieErrorKind, message: String, file: String, line: Number, column: Number }
+
+fn make_error(kind: OvieErrorKind, msg: String, file: String, line: Number, col: Number) -> OvieError {
+    return OvieError { kind: kind, message: msg, file: file, line: line, column: col }
+}
+
+fn format_error(err: OvieError) -> String {
+    mut out = "error: " + err.message
+    out = out + " --> " + err.file
+    return out
+}
+
+fn lexer_error(msg: String, line: Number, col: Number) -> OvieError {
+    return make_error(OvieErrorKind.LexerError, msg, "<source>", line, col)
+}
+
+fn parse_error(msg: String, line: Number) -> OvieError {
+    return make_error(OvieErrorKind.ParseError, msg, "<source>", line, 0)
+}
+
+fn runtime_error(msg: String) -> OvieError {
+    return make_error(OvieErrorKind.RuntimeError, msg, "<runtime>", 0, 0)
+}

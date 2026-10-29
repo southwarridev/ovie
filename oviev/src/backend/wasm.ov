@@ -1,0 +1,13 @@
+// wasm.ov — WebAssembly backend
+// Copyright (c) 2026 Nashedy Ltd
+
+struct WasmBackend { target: String, memory_pages: Number }
+
+fn make_wasm_backend() -> WasmBackend {
+    return WasmBackend { target: "wasm32", memory_pages: 1 }
+}
+
+fn emit_wasm(out_file: String) -> Boolean {
+    seeAm "[oviev wasm] generating WebAssembly -> " + out_file
+    return true
+}

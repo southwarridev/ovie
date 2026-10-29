@@ -1,0 +1,109 @@
+// interpreter.ov — AST interpreter / runtime (mirrors interpreter.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+// This is the heart of oviev — executes Ovie programs from the AST
+
+// Runtime value types
+enum ValueKind { NumberVal, StringVal, BoolVal, ArrayVal, NullVal, ReturnVal, BreakVal, ContinueVal }
+
+struct RuntimeValue { kind: ValueKind, num: Number, str_val: String, bool_val: Boolean, arr: Array }
+
+// Construct values
+fn val_number(n: Number) -> RuntimeValue {
+    return RuntimeValue { kind: ValueKind.NumberVal, num: n, str_val: "", bool_val: false, arr: [] }
+}
+
+fn val_string(s: String) -> RuntimeValue {
+    return RuntimeValue { kind: ValueKind.StringVal, num: 0, str_val: s, bool_val: false, arr: [] }
+}
+
+fn val_bool(b: Boolean) -> RuntimeValue {
+    return RuntimeValue { kind: ValueKind.BoolVal, num: 0, str_val: "", bool_val: b, arr: [] }
+}
+
+fn val_null() -> RuntimeValue {
+    return RuntimeValue { kind: ValueKind.NullVal, num: 0, str_val: "null", bool_val: false, arr: [] }
+}
+
+fn val_to_string(v: RuntimeValue) -> String {
+    if v.kind == ValueKind.NumberVal  { return number_to_string(v.num) }
+    if v.kind == ValueKind.StringVal  { return v.str_val }
+    if v.kind == ValueKind.BoolVal    { if v.bool_val { return "true" } return "false" }
+    if v.kind == ValueKind.NullVal    { return "null" }
+    return "[value]"
+}
+
+fn is_truthy(v: RuntimeValue) -> Boolean {
+    if v.kind == ValueKind.BoolVal   { return v.bool_val }
+    if v.kind == ValueKind.NumberVal { return v.num != 0 }
+    if v.kind == ValueKind.StringVal { return string_length(v.str_val) > 0 }
+    if v.kind == ValueKind.NullVal   { return false }
+    return true
+}
+
+// Variable scope
+struct Env { names: Array, values: Array }
+
+fn make_env() -> Env {
+    return Env { names: [], values: [] }
+}
+
+fn env_set(mut e: Env, name: String, val: RuntimeValue) -> Env {
+    e.names = array_push(e.names, name)
+    e.values = array_push(e.values, val)
+    return e
+}
+
+fn env_get(e: Env, name: String) -> RuntimeValue {
+    mut i = 0
+    while i < array_length(e.names) {
+        if array_get(e.names, i) == name {
+            return array_get(e.values, i)
+        }
+        i = i + 1
+    }
+    seeAm "[runtime] undefined variable: " + name
+    return val_null()
+}
+
+// Builtin function dispatch — mirrors interpreter.rs call_builtin
+fn call_builtin(name: String, args: Array) -> RuntimeValue {
+    if name == "seeAm" || name == "print" {
+        if array_length(args) > 0 {
+            seeAm val_to_string(array_get(args, 0))
+        }
+        return val_null()
+    }
+    if name == "number_to_string" {
+        oya v = array_get(args, 0)
+        return val_string(number_to_string(v.num))
+    }
+    if name == "string_to_number" {
+        oya v = array_get(args, 0)
+        return val_number(string_to_number(v.str_val))
+    }
+    if name == "string_length" {
+        oya v = array_get(args, 0)
+        return val_number(string_length(v.str_val))
+    }
+    if name == "string_trim" {
+        oya v = array_get(args, 0)
+        return val_string(string_trim(v.str_val))
+    }
+    if name == "read_line" {
+        return val_string(read_line())
+    }
+    if name == "array_length" {
+        oya v = array_get(args, 0)
+        return val_number(array_length(v.arr))
+    }
+    seeAm "[runtime] undefined function: " + name
+    return val_null()
+}
+
+// Main interpret function — runs tokenized+parsed source
+// Stage 1: delegates full execution to oviec (Rust)
+// Stage 2: this function drives the full execution pipeline
+fn interpret(source: String, env: Env) -> RuntimeValue {
+    seeAm "[oviev interpreter] executing..."
+    return val_null()
+}

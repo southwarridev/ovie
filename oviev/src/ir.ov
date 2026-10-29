@@ -1,0 +1,16 @@
+// ir.ov — Shared IR types (mirrors ir.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+// Intermediate types used across HIR and MIR
+struct IrType { name: String, size: Number, is_primitive: Boolean }
+struct IrValue { val_type: IrType, data: String }
+
+oya IR_NUMBER  = "Number"
+oya IR_STRING  = "String"
+oya IR_BOOLEAN = "Boolean"
+oya IR_ARRAY   = "Array"
+oya IR_VOID    = "Void"
+
+fn make_type(name: String) -> IrType {
+    return IrType { name: name, size: 8, is_primitive: true }
+}

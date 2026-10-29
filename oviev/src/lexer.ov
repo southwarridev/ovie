@@ -1,0 +1,93 @@
+// lexer.ov — Tokenizer (mirrors lexer.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+enum TokenKind { Oya, Mut, Fn, If, Else, For, While, Return, Break, Continue, Struct, Enum, Match, Const, Use, Import, Export, True, False, SeeAm, Unsafe, Let, Identifier, NumberLiteral, StringLiteral, BoolLiteral, Plus, Minus, Star, Slash, Percent, Equal, EqualEqual, NotEqual, Less, Greater, LessEqual, GreaterEqual, PlusEqual, MinusEqual, StarEqual, SlashEqual, Arrow, DotDot, Bang, Comma, Colon, Semicolon, Dot, LeftBrace, RightBrace, LeftParen, RightParen, LeftBracket, RightBracket, Eof, Error }
+
+struct Token { kind: TokenKind, value: String, line: Number, col: Number }
+
+fn make_token(kind: TokenKind, value: String, line: Number, col: Number) -> Token {
+    return Token { kind: kind, value: value, line: line, col: col }
+}
+
+fn keyword_kind(word: String) -> TokenKind {
+    if word == "oya"      { return TokenKind.Oya }
+    if word == "mut"      { return TokenKind.Mut }
+    if word == "fn"       { return TokenKind.Fn }
+    if word == "if"       { return TokenKind.If }
+    if word == "else"     { return TokenKind.Else }
+    if word == "for"      { return TokenKind.For }
+    if word == "while"    { return TokenKind.While }
+    if word == "return"   { return TokenKind.Return }
+    if word == "break"    { return TokenKind.Break }
+    if word == "continue" { return TokenKind.Continue }
+    if word == "struct"   { return TokenKind.Struct }
+    if word == "enum"     { return TokenKind.Enum }
+    if word == "match"    { return TokenKind.Match }
+    if word == "const"    { return TokenKind.Const }
+    if word == "use"      { return TokenKind.Use }
+    if word == "import"   { return TokenKind.Import }
+    if word == "export"   { return TokenKind.Export }
+    if word == "true"     { return TokenKind.True }
+    if word == "false"    { return TokenKind.False }
+    if word == "seeAm"    { return TokenKind.SeeAm }
+    if word == "unsafe"   { return TokenKind.Unsafe }
+    return TokenKind.Identifier
+}
+
+fn tokenize(source: String) -> Array {
+    mut tokens = []
+    mut i = 0
+    mut line = 1
+    mut col = 1
+    oya len = string_length(source)
+
+    while i < len {
+        mut ch = string_char_at(source, i)
+
+        if ch == " " || ch == "\t" || ch == "\r" { i = i + 1; col = col + 1; continue }
+        if ch == "\n" { line = line + 1; col = 1; i = i + 1; continue }
+
+        // Skip line comments
+        if ch == "/" && i + 1 < len && string_char_at(source, i + 1) == "/" {
+            while i < len && string_char_at(source, i) != "\n" { i = i + 1 }
+            continue
+        }
+
+        // Number literal
+        if is_numeric(ch) {
+            mut start = i
+            while i < len && (is_numeric(string_char_at(source, i)) || string_char_at(source, i) == ".") { i = i + 1 }
+            mut num = string_substring(source, start, i)
+            tokens = array_push(tokens, make_token(TokenKind.NumberLiteral, num, line, col))
+            continue
+        }
+
+        // Identifier or keyword
+        if is_alphabetic(ch) || ch == "_" {
+            mut start = i
+            while i < len && (is_alphanumeric(string_char_at(source, i)) || string_char_at(source, i) == "_") { i = i + 1 }
+            mut word = string_substring(source, start, i)
+            tokens = array_push(tokens, make_token(keyword_kind(word), word, line, col))
+            continue
+        }
+
+        // Single char operators
+        if ch == "+" { tokens = array_push(tokens, make_token(TokenKind.Plus, ch, line, col)); i = i + 1; continue }
+        if ch == "-" { tokens = array_push(tokens, make_token(TokenKind.Minus, ch, line, col)); i = i + 1; continue }
+        if ch == "*" { tokens = array_push(tokens, make_token(TokenKind.Star, ch, line, col)); i = i + 1; continue }
+        if ch == "/" { tokens = array_push(tokens, make_token(TokenKind.Slash, ch, line, col)); i = i + 1; continue }
+        if ch == "%" { tokens = array_push(tokens, make_token(TokenKind.Percent, ch, line, col)); i = i + 1; continue }
+        if ch == "{" { tokens = array_push(tokens, make_token(TokenKind.LeftBrace, ch, line, col)); i = i + 1; continue }
+        if ch == "}" { tokens = array_push(tokens, make_token(TokenKind.RightBrace, ch, line, col)); i = i + 1; continue }
+        if ch == "(" { tokens = array_push(tokens, make_token(TokenKind.LeftParen, ch, line, col)); i = i + 1; continue }
+        if ch == ")" { tokens = array_push(tokens, make_token(TokenKind.RightParen, ch, line, col)); i = i + 1; continue }
+        if ch == "[" { tokens = array_push(tokens, make_token(TokenKind.LeftBracket, ch, line, col)); i = i + 1; continue }
+        if ch == "]" { tokens = array_push(tokens, make_token(TokenKind.RightBracket, ch, line, col)); i = i + 1; continue }
+        if ch == "," { tokens = array_push(tokens, make_token(TokenKind.Comma, ch, line, col)); i = i + 1; continue }
+        if ch == ";" { tokens = array_push(tokens, make_token(TokenKind.Semicolon, ch, line, col)); i = i + 1; continue }
+        i = i + 1
+    }
+
+    tokens = array_push(tokens, make_token(TokenKind.Eof, "", line, col))
+    return tokens
+}

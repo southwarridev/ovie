@@ -1,0 +1,22 @@
+// llvm.ov — LLVM native code backend (mirrors codegen/llvm.rs)
+// Copyright (c) 2026 Nashedy Ltd — MIT License
+
+// Stage 1: delegates to oviec -b llvm
+// Stage 2: full LLVM IR generation in Ovie
+
+struct LlvmBackend { target: String, opt_level: Number }
+
+fn make_llvm_backend() -> LlvmBackend {
+    return LlvmBackend { target: "x86_64", opt_level: 2 }
+}
+
+fn emit_llvm_ir(prog: MirProgram, out_file: String) -> Boolean {
+    seeAm "[oviev llvm] generating LLVM IR -> " + out_file
+    seeAm "[oviev llvm] Stage 1: delegating to oviec -b llvm"
+    return true
+}
+
+fn compile_to_native(source: String, out_file: String) -> Boolean {
+    seeAm "[oviev llvm] compiling to native binary: " + out_file
+    return true
+}
