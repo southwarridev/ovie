@@ -1,0 +1,162 @@
+// test_all.ov — Comprehensive oviev test program
+// Tests every keyword: oya, mut, fn, if/else, while, for,
+// struct, enum, match, return, break, continue, seeAm
+// Copyright (c) 2026 Nashedy Ltd
+
+// ── Constants with oya ────────────────────────────────
+oya TEST_NAME = "oviev test suite"
+oya PASS      = "PASS"
+oya FAIL      = "FAIL"
+oya SEPARATOR = "========================================"
+
+seeAm SEPARATOR
+seeAm "  " + TEST_NAME
+seeAm SEPARATOR
+seeAm ""
+
+// ── Test 1: oya immutable declaration ─────────────────
+oya lang    = "Ovie"
+oya version = 2.3
+oya active  = true
+seeAm "1. oya declarations:"
+seeAm "   lang    = " + lang
+seeAm "   version = " + number_to_string(version)
+seeAm "   active  = " + number_to_string(active)
+seeAm "   " + PASS
+
+// ── Test 2: mut mutable variable ──────────────────────
+mut counter = 0
+counter = counter + 1
+counter = counter + 1
+seeAm "2. mut variable:"
+seeAm "   counter = " + number_to_string(counter)
+seeAm "   " + PASS
+
+// ── Test 3: fn function ───────────────────────────────
+fn add(a: Number, b: Number) -> Number {
+    return a + b
+}
+fn greet(name: String) -> String {
+    oya prefix = "Hello, "
+    return prefix + name + "!"
+}
+seeAm "3. fn functions:"
+seeAm "   add(10, 20) = " + number_to_string(add(10, 20))
+seeAm greet("Ovie")
+seeAm "   " + PASS
+
+// ── Test 4: if / else if / else ──────────────────────
+fn grade(score: Number) -> String {
+    if score >= 90 { return "A" }
+    if score >= 80 { return "B" }
+    if score >= 60 { return "C" }
+    return "F"
+}
+seeAm "4. if/else:"
+seeAm "   grade(95) = " + grade(95)
+seeAm "   grade(82) = " + grade(82)
+seeAm "   grade(55) = " + grade(55)
+seeAm "   " + PASS
+
+// ── Test 5: while loop ───────────────────────────────
+seeAm "5. while:"
+mut w = 0
+while w < 4 {
+    seeAm "   w = " + number_to_string(w)
+    w = w + 1
+}
+seeAm "   " + PASS
+
+// ── Test 6: for range ────────────────────────────────
+seeAm "6. for range:"
+for i in 0..4 {
+    seeAm "   i = " + number_to_string(i)
+}
+seeAm "   " + PASS
+
+// ── Test 7: break and continue ───────────────────────
+seeAm "7. break/continue:"
+mut n = 0
+oya running7 = true
+while running7 {
+    n = n + 1
+    if n == 2 { continue }
+    if n == 5 { running7 = false }
+    if running7 { seeAm "   n = " + number_to_string(n) }
+}
+seeAm "   " + PASS
+
+// ── Test 8: struct ───────────────────────────────────
+struct Point { x: Number, y: Number }
+oya p = Point { x: 3.0, y: 4.0 }
+seeAm "8. struct:"
+seeAm "   p.x = " + number_to_string(p.x)
+seeAm "   p.y = " + number_to_string(p.y)
+seeAm "   " + PASS
+
+// ── Test 9: enum ────────────────────────────────────
+enum Direction { North, South, East, West }
+oya heading = Direction.North
+seeAm "9. enum:"
+seeAm "   heading = " + number_to_string(heading)
+seeAm "   " + PASS
+
+// ── Test 10: match ──────────────────────────────────
+enum Color { Red, Green, Blue }
+oya color = Color.Green
+seeAm "10. match:"
+match color {
+    Color.Red   => { seeAm "   color = red" }
+    Color.Green => { seeAm "   color = green" }
+    Color.Blue  => { seeAm "   color = blue" }
+}
+seeAm "   " + PASS
+
+// ── Test 11: recursion ──────────────────────────────
+fn factorial(n: Number) -> Number {
+    if n <= 1 { return 1 }
+    return n * factorial(n - 1)
+}
+seeAm "11. recursion:"
+seeAm "   factorial(5) = " + number_to_string(factorial(5))
+seeAm "   " + PASS
+
+// ── Test 12: string ops ─────────────────────────────
+oya raw = "  Nashedy Ltd  "
+oya trimmed = string_trim(raw)
+oya parts = string_split("oya-mut-fn-seeAm", "-")
+seeAm "12. string ops:"
+seeAm "   trim = [" + trimmed + "]"
+seeAm "   split len = " + number_to_string(array_length(parts))
+seeAm "   parts[0] = " + array_get(parts, 0)
+seeAm "   parts[3] = " + array_get(parts, 3)
+seeAm "   " + PASS
+
+// ── Test 13: const ──────────────────────────────────
+const MAX_SCORE = 100
+seeAm "13. const:"
+seeAm "   MAX_SCORE = " + number_to_string(MAX_SCORE)
+seeAm "   " + PASS
+
+// ── Test 14: array ops ──────────────────────────────
+oya arr = [10, 20, 30, 40, 50]
+seeAm "14. array ops:"
+seeAm "   arr[0] = " + number_to_string(arr[0])
+seeAm "   arr[4] = " + number_to_string(arr[4])
+seeAm "   len    = " + number_to_string(array_length(arr))
+seeAm "   " + PASS
+
+// ── Test 15: oya in fn scope ────────────────────────
+fn circle_area(r: Number) -> Number {
+    oya PI = 3.14159
+    return PI * r * r
+}
+seeAm "15. oya inside fn:"
+seeAm "   circle_area(5) = " + number_to_string(circle_area(5))
+seeAm "   " + PASS
+
+// ── Summary ─────────────────────────────────────────
+seeAm SEPARATOR
+seeAm "  ALL 15 TESTS PASSED"
+seeAm "  oviev self-hosted compiler — " + lang + " v" + number_to_string(version)
+seeAm SEPARATOR

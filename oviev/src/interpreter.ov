@@ -90,7 +90,7 @@ fn call_builtin(name: String, args: Array) -> RuntimeValue {
         return val_string(string_trim(v.str_val))
     }
     if name == "read_line" {
-        return val_string(read_line())
+        return val_string(string_trim(read_line()))
     }
     if name == "array_length" {
         oya v = array_get(args, 0)
