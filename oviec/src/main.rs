@@ -833,9 +833,16 @@ fn run_aproko_inline(file: &str) {
         if brace_depth == 0 && not_kw && (lc1 || lc2) && no_eq {
             let var = t.split_whitespace().next().unwrap_or("").to_string();
             if !var.is_empty() {
-                hints.push(H{line:ln,level:"warning",
-                    msg:format!("'{}' looks like a constant - use oya to prevent accidental changes",var),
-                    hint:format!("oya {} = ...",var)});
+                let bad: &[&str] = &["see","var","let","def","val","dim","function","set"];
+                if bad.contains(&var.as_str()) {
+                    hints.push(H{line:ln,level:"error",
+                        msg:format!("'{}' is not an Ovie keyword - use oya (immutable) or mut (mutable)",var),
+                        hint:format!("oya {} = value  or  mut {} = value",var,var)});
+                } else {
+                    hints.push(H{line:ln,level:"warning",
+                        msg:format!("'{}' looks like a constant - use oya to prevent accidental changes",var),
+                        hint:format!("oya {} = ...",var)});
+                }
             }
         }
         if t.starts_with("mut ") {
@@ -893,35 +900,30 @@ fn run_aproko_inline(file: &str) {
     eprintln!("=====================================================\n");
 }
 
-/// After a runtime or compile error, call aproko to explain it in plain language.
-/// Prints the explanation directly to stderr so the user sees it immediately.
+/// Aproko explains what went wrong in plain language.
+/// Shows source line + specific hint. No subprocess.
 fn explain_error_inline(file: &str, error: &oviec::OvieError) {
-    let bin_name = if cfg!(windows) { "oviec-analyze.exe" } else { "oviec-analyze" };
-    let analyze_path = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.join(bin_name)))
-        .filter(|p| p.exists())
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|| bin_name.to_string());
-
-    match std::process::Command::new(&analyze_path)
-        .args(["explain", file])
-        .output()
-    {
-        Ok(output) if output.status.success() => {
-            let explanation = String::from_utf8_lossy(&output.stdout);
-            if !explanation.trim().is_empty() {
-                eprintln!("\n== Aproko Explanation ================================");
-                eprintln!("{}", explanation.trim());
-                eprintln!("=====================================================");
+    let error_msg = error.to_string();
+    let hint = get_inline_hint(error);
+    if let Ok(source) = fs::read_to_string(file) {
+        let line_num = extract_line_number(&error_msg);
+        if let Some(ln) = line_num {
+            let lines: Vec<&str> = source.lines().collect();
+            if ln > 0 && ln <= lines.len() {
+                let line_content = lines[ln - 1].trim();
+                eprintln!("\n== Aproko Explanation =============================|");
+                eprintln!("  Line {}: {}", ln, line_content);
+                eprintln!("  Error: {}", &error_msg);
+                eprintln!("  What happened: {}", &hint);
+                eprintln!("==============================================|");
+                return;
             }
         }
-        _ => {
-            eprintln!("\n== Hint =============================================");
-            eprintln!("{}", get_inline_hint(error));
-            eprintln!("=====================================================");
-        }
     }
+    eprintln!("\n== Aproko Explanation =============================|");
+    eprintln!("  Error: {}", &error_msg);
+    eprintln!("  What happened: {}", &hint);
+    eprintln!("==============================================|");
 }
 
 /// Format an OvieError with source context for terminal display.
@@ -968,29 +970,31 @@ fn get_inline_hint(error: &oviec::OvieError) -> String {
     let msg = error.to_string().to_lowercase();
 
     if msg.contains("undefined variable") {
-        return "Variable not declared. Use 'mut name = value' or 'name = value' before using it.".to_string();
+        let var_name = msg.split(':').last().unwrap_or("").trim().to_string();
+        {
+            let var_name = var_name.as_str();
+            let bad_kw = ["see","var","let","def","val","dim","function"];
+            if bad_kw.contains(&var_name) {
+                return format!("'{}' is not an Ovie keyword. Use oya (immutable) or mut (mutable). Try: oya name = value", var_name);
+            }
+            return format!("Variable '{}' is not declared. Use: oya {} = value (immutable) or mut {} = value (mutable)", var_name, var_name, var_name);
+        }
+        return "Variable not declared. Use oya name = value (immutable) or mut name = value (mutable).".to_string();
     }
     if msg.contains("undefined function") {
-        return "Function not defined. Check spelling, or make sure the module is imported.".to_string();
+        let parts: Vec<&str> = msg.split(':').collect();
+        { let fn_name = msg.split('\'').nth(1).unwrap_or("unknown").trim(); return format!("Function '{}' is not defined. Check spelling or import the module.", fn_name); }
+        return "Function not defined. Check spelling or use std::module::{fn_name}.".to_string();
     }
     if msg.contains("parse error") || msg.contains("expected") {
-        return "Syntax error. Check for missing brackets, colons, or mismatched braces.".to_string();
+        return "Syntax error. Common causes: wrong keyword (use oya not see, use fn not function), missing brace, missing colon.".to_string();
     }
-    if msg.contains("division by zero") {
-        return "You divided by zero. Add a check: 'if b != 0 { ... }' before dividing.".to_string();
-    }
-    if msg.contains("type") || msg.contains("cannot") {
-        return "Type mismatch. Make sure both sides of the operation are the same type (e.g. Number + Number, not Number + String).".to_string();
-    }
-    if msg.contains("undefined struct") {
-        return "Struct not defined. Declare it with 'struct Name { field: Type }' before using it.".to_string();
-    }
-    if msg.contains("field") && msg.contains("not found") {
-        return "Field doesn't exist on this struct. Check the struct definition for the correct field name.".to_string();
-    }
-
-    "Run 'oviec analyze <file.ov>' for a detailed breakdown of this error.".to_string()
+    if msg.contains("division by zero") { return "Division by zero. Add guard: if b != 0 { result = a / b }".to_string(); }
+    if msg.contains("type") || msg.contains("cannot") { return "Type mismatch. Use number_to_string() to convert numbers before concatenating with strings.".to_string(); }
+    format!("Error: {}. Check the line shown above.", msg)
 }
+
+
 
 /// Locate and run `oviec-analyze` with the given arguments.
 ///
