@@ -1,5 +1,5 @@
 ---
-name: Ovie v2.3 — Unified Release
+name: Ovie Lang 1.0 — Unified Release
 
 # Triggered by:
 #   • Push of a version tag (v2.3.x, v2.4.x, v3.x)
@@ -171,8 +171,8 @@ jobs:
           Built    : $(date -u +"%Y-%m-%d %H:%M UTC")
           Commit   : ${{ github.sha }}
           License  : MIT
-          Website  : https://ovie-lang.org
-          GitHub   : https://github.com/southwarridev/ovie
+          Website  : https://github.com/Ovie-Lang/ovie
+          GitHub   : https://github.com/Ovie-Lang/ovie
           EOF
 
           echo "=== Package contents ==="
@@ -337,15 +337,15 @@ jobs:
 
             **Windows (PowerShell as Administrator):**
             ```powershell
-            iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
+            iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex
             ```
             **Linux:**
             ```bash
-            curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+            curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
             ```
             **macOS:**
             ```bash
-            curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
+            curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-macos-install.sh | bash
             ```
 
             ## Downloads

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-#  Ovie Programming Language v2.3.0 — Easy macOS One-Click Installer
+#  Ovie Programming Language 1.0 — Easy macOS Installer
 #
 #  Supports both Apple Silicon (M1/M2/M3) and Intel Macs.
 #
@@ -9,7 +9,7 @@
 #       bash easy-macos-install.sh
 #
 #    2. Fresh machine (just needs git):
-#       curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
+#       curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-macos-install.sh | bash
 #
 #  No Rust required. No release tarball needed.
 #  Uses the prebuilt binaries inside macos-arm64/ or macos-x64/ from the repo.
@@ -41,8 +41,8 @@ MACOS_VERSION="$(sw_vers -productVersion 2>/dev/null || echo unknown)"
 echo ""
 echo -e "${CYAN}  ============================================================================${NC}"
 echo -e "${CYAN}  |                                                                          |${NC}"
-echo -e "${CYAN}  |              OVIE PROGRAMMING LANGUAGE v2.3.0                           |${NC}"
-echo -e "${CYAN}  |              Complete Module System - Full Package                       |${NC}"
+echo -e "${CYAN}  |              OVIE PROGRAMMING LANGUAGE 1.0                           |${NC}"
+echo -e "${CYAN}  |              Ovie Lang 1.0                       |${NC}"
 echo -e "${CYAN}  |              Publisher: Nashedy Ltd  |  MIT License              |${NC}"
 echo -e "${CYAN}  |                                                                          |${NC}"
 echo -e "${CYAN}  ============================================================================${NC}"
@@ -53,7 +53,7 @@ echo "  Architecture      : $ARCH_NAME"
 OVIE_VERSION="2.3.0"
 INSTALL_DIR="$HOME/.local/ovie"
 BIN_DIR="$HOME/.local/bin"
-GITHUB_REPO="https://github.com/southwarridev/ovie.git"
+GITHUB_REPO="https://github.com/Ovie-Lang/ovie.git"
 
 echo "  Install directory : $INSTALL_DIR"
 echo "  Binaries added to : $BIN_DIR"
@@ -102,7 +102,7 @@ if [ ! -f "$SRC/oviec" ] && [ "$ARCH_SLUG" = "arm64" ]; then
     SRC="$REPO_ROOT/macos-x64"
 fi
 
-[ -f "$SRC/oviec" ] || fail "Cannot find oviec in $SRC. Please report this at https://github.com/southwarridev/ovie/issues"
+[ -f "$SRC/oviec" ] || fail "Cannot find oviec in $SRC. Please report this at https://github.com/Ovie-Lang/ovie/issues"
 
 ok "Binaries found in $SRC"
 
@@ -191,9 +191,9 @@ echo "    oviec run examples/hello.ov   # Run hello world"
 echo "    oviec new my-project          # Create new project"
 echo ""
 echo "  Resources:"
-echo "    Website : https://ovie.nashedy.io"
-echo "    GitHub  : https://github.com/southwarridev/ovie"
-echo "    Book    : https://southwarridev.github.io/ovie/docs/book/index.html"
+echo "    Website : https://github.com/Ovie-Lang/ovie"
+echo "    GitHub  : https://github.com/Ovie-Lang/ovie"
+echo "    Book    : https://github.com/Ovie-Lang/ovie/docs/book/index.html"
 echo "    Discord : https://discord.gg/AuF4ubMyE"
 echo ""
 

@@ -1,6 +1,6 @@
-# Ovie v2.3 Module System — API Reference
+# Ovie Ovie Lang 1.0 — API Reference
 
-This document is the complete API reference for the Ovie v2.3 module system. It covers CLI commands, file formats, and the `std::module` and `std::aproko` library APIs.
+This document is the complete API reference for the Ovie Lang 1.0 module system. It covers CLI commands, file formats, and the `std::module` and `std::aproko` library APIs.
 
 ---
 

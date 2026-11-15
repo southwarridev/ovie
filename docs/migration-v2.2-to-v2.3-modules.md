@@ -1,4 +1,4 @@
-# Migration Guide: Ovie v2.2 → v2.3 Module System
+# Migration Guide: Ovie v2.2 → Ovie Lang 1.0
 
 ## Overview
 

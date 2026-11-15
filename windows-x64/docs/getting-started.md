@@ -6,22 +6,22 @@ Ovie is a systems programming language with natural syntax. This guide gets you 
 
 **Windows (PowerShell as Admin):**
 ```powershell
-iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex
 ```
 
 **Linux:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
 ```
 
 **macOS:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-macos-install.sh | bash
 ```
 
 **From source:**
 ```bash
-git clone https://github.com/couragereward/ovie.git
+git clone https://github.com/Ovie-Lang/ovie.git
 cd ovie
 cargo build --release --bin oviec
 ```

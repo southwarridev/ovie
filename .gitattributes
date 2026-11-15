@@ -1,0 +1,8 @@
+# Ovie language - force GitHub to detect .ov as Ovie
+*.ov linguist-language=Ovie
+*.ov linguist-detectable=true
+# Override vendor detection
+windows-x64/** linguist-vendored
+linux-x64/** linguist-vendored
+macos-x64/** linguist-vendored
+macos-arm64/** linguist-vendored

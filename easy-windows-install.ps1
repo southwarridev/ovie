@@ -1,6 +1,6 @@
 #Requires -Version 5.0
 # ============================================================================
-#  Ovie Programming Language v2.3.0 — Easy One-Click Windows Installer
+#  Ovie Programming Language 1.0 — Easy One-Click Windows Installer
 #
 #  Can be run two ways:
 #    1. From inside the cloned repo  — uses local windows-x64\ binaries (fast)
@@ -9,7 +9,7 @@
 #  No Rust. No GitHub release zip. Just git + this script.
 #
 #  Usage (fresh PC, PowerShell as Admin):
-#    iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
+#    iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex
 #
 #  Usage (already cloned):
 #    powershell -ExecutionPolicy Bypass -File easy-windows-install.ps1
@@ -24,21 +24,21 @@ if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
         Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     } else {
         # Running via iwr | iex — re-download and run elevated
-        $relaunchCmd = "iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex"
+        $relaunchCmd = "iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex"
         Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"$relaunchCmd`"" -Verb RunAs
     }
     exit
 }
 
-$Host.UI.RawUI.WindowTitle = "Ovie Programming Language v2.3.0 - Installer"
+$Host.UI.RawUI.WindowTitle = "Ovie Programming Language 1.0 - Installer"
 
 # ── Banner ────────────────────────────────────────────────────────────────────
 Clear-Host
 Write-Host ""
 Write-Host "  ============================================================================" -ForegroundColor Cyan
 Write-Host "  |                                                                          |" -ForegroundColor Cyan
-Write-Host "  |              OVIE PROGRAMMING LANGUAGE v2.3.0                           |" -ForegroundColor Cyan
-Write-Host "  |              Complete Module System - Full Package                       |" -ForegroundColor Cyan
+Write-Host "  |              OVIE PROGRAMMING LANGUAGE 1.0                           |" -ForegroundColor Cyan
+Write-Host "  |              Ovie Lang 1.0                       |" -ForegroundColor Cyan
 Write-Host "  |              Publisher: Nashedy Ltd  |  MIT License              |" -ForegroundColor Cyan
 Write-Host "  |                                                                          |" -ForegroundColor Cyan
 Write-Host "  ============================================================================" -ForegroundColor Cyan
@@ -49,7 +49,7 @@ Write-Host ""
 $OvieVersion = "2.3.0"
 $InstallDir  = "C:\Program Files\Ovie"
 $BinDir      = "$InstallDir\bin"
-$GithubRepo  = "https://github.com/southwarridev/ovie.git"
+$GithubRepo  = "https://github.com/Ovie-Lang/ovie.git"
 
 Write-Host "  This installer will set up Ovie v$OvieVersion with:" -ForegroundColor White
 Write-Host "    [*] oviec.exe  - Ovie Compiler" -ForegroundColor Green
@@ -186,9 +186,9 @@ try {
     Write-Host "    oviec new my-project         # Create new project" -ForegroundColor White
     Write-Host ""
     Write-Host "  Resources:" -ForegroundColor Cyan
-    Write-Host "    Website:  https://ovie.nashedy.io" -ForegroundColor White
-    Write-Host "    GitHub:   https://github.com/southwarridev/ovie" -ForegroundColor White
-    Write-Host "    Book:     https://southwarridev.github.io/ovie/docs/book/index.html" -ForegroundColor White
+    Write-Host "    Website:  https://github.com/Ovie-Lang/ovie" -ForegroundColor White
+    Write-Host "    GitHub:   https://github.com/Ovie-Lang/ovie" -ForegroundColor White
+    Write-Host "    Book:     https://github.com/Ovie-Lang/ovie/docs/book/index.html" -ForegroundColor White
     Write-Host "    Discord:  https://discord.gg/AuF4ubMyE" -ForegroundColor White
     Write-Host ""
 
@@ -200,7 +200,7 @@ try {
     Write-Host "    * Make sure you are running as Administrator" -ForegroundColor White
     Write-Host "    * Make sure Git is installed: https://git-scm.com/download/win" -ForegroundColor White
     Write-Host "    * Check your internet connection" -ForegroundColor White
-    Write-Host "    * GitHub: https://github.com/southwarridev/ovie" -ForegroundColor White
+    Write-Host "    * GitHub: https://github.com/Ovie-Lang/ovie" -ForegroundColor White
     Write-Host ""
     exit 1
 }

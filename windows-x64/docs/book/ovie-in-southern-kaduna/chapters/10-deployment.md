@@ -24,9 +24,9 @@ oviec build-package
 ```
 
 Output goes to `target/dist/`:
-- `ovie-v2.3.0-linux-x64.tar.gz`
-- `ovie-v2.3.0-windows-x64.zip`
-- `ovie-v2.3.0-macos-arm64.tar.gz`
+- `ovie-1.0-linux-x64.tar.gz`
+- `ovie-1.0-windows-x64.zip`
+- `ovie-1.0-macos-arm64.tar.gz`
 
 ## Cross-Platform Compilation
 

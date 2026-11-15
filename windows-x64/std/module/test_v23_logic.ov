@@ -1,4 +1,4 @@
-// v2.3 Module System — Compatibility Test Suite
+// Ovie Lang 1.0 — Compatibility Test Suite
 // Tests the logic of all module system components using v2.2-compatible syntax
 // These tests validate the algorithms that the v2.3 .ov files implement
 
@@ -27,7 +27,7 @@ fn assert_eq(a, b, msg) {
 }
 
 seeAm "================================================"
-seeAm "  Ovie v2.3 Module System — Logic Test Suite"
+seeAm "  Ovie Ovie Lang 1.0 — Logic Test Suite"
 seeAm "================================================"
 
 // ============================================================

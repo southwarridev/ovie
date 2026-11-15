@@ -1,6 +1,6 @@
 @echo off
 :: ============================================================================
-::                    OVIE PROGRAMMING LANGUAGE v2.3.0
+::                    OVIE PROGRAMMING LANGUAGE 1.0
 ::                    Windows Installer - Full Package
 ::                    Publisher: Nashedy Ltd
 ::                    License: MIT
@@ -28,19 +28,19 @@ cls
 echo.
 echo  ============================================================================
 echo  ^|                                                                          ^|
-echo  ^|              OVIE PROGRAMMING LANGUAGE v2.3.0                           ^|
-echo  ^|              Complete Module System - Full Package                       ^|
+echo  ^|              OVIE PROGRAMMING LANGUAGE 1.0                           ^|
+echo  ^|              Ovie Lang 1.0                       ^|
 echo  ^|              Publisher: Nashedy Ltd                               ^|
 echo  ^|              License: MIT Open Source                                    ^|
 echo  ^|                                                                          ^|
 echo  ============================================================================
 echo.
-echo  This installer will set up Ovie v2.3.0 with:
+echo  This installer will set up Ovie 1.0 with:
 echo.
 echo    [*] oviec.exe  - Ovie Compiler (self-hosted)
 echo    [*] ovie.exe   - Ovie CLI and project manager
 echo    [*] std\       - Complete standard library (11 modules)
-echo    [*] std\module - v2.3 Module System
+echo    [*] std\module - Ovie Lang 1.0
 echo    [*] std\aproko - Aproko Knowledge Base
 echo    [*] examples\  - 22+ runnable example programs
 echo    [*] docs\      - Complete documentation
@@ -120,7 +120,7 @@ echo sLinkFile = "%PROGRAMDATA%\Microsoft\Windows\Start Menu\Programs\Ovie\Ovie 
 echo Set oLink = oWS.CreateShortcut(sLinkFile) >> "%temp%\ovie_shortcut.vbs"
 echo oLink.TargetPath = "C:\Program Files\Ovie\bin\oviec.exe" >> "%temp%\ovie_shortcut.vbs"
 echo oLink.WorkingDirectory = "C:\Program Files\Ovie" >> "%temp%\ovie_shortcut.vbs"
-echo oLink.Description = "Ovie Programming Language Compiler v2.3.0" >> "%temp%\ovie_shortcut.vbs"
+echo oLink.Description = "Ovie Programming Language Compiler 1.0" >> "%temp%\ovie_shortcut.vbs"
 echo oLink.Save >> "%temp%\ovie_shortcut.vbs"
 cscript //nologo "%temp%\ovie_shortcut.vbs" >nul 2>&1
 del "%temp%\ovie_shortcut.vbs" >nul 2>&1
@@ -131,7 +131,7 @@ echo  ==========================================================================
 echo  ^|                    INSTALLATION COMPLETE!                               ^|
 echo  ============================================================================
 echo.
-echo  Ovie v2.3.0 has been installed to: C:\Program Files\Ovie
+echo  Ovie 1.0 has been installed to: C:\Program Files\Ovie
 echo.
 echo  IMPORTANT: Please restart your terminal/PowerShell for PATH to take effect.
 echo.
@@ -150,8 +150,8 @@ echo    * 22+ example programs
 echo    * Complete documentation
 echo.
 echo  Resources:
-echo    Website:  https://ovie-lang.org
-echo    GitHub:   https://github.com/southwarridev/ovie
+echo    Website:  https://github.com/Ovie-Lang/ovie
+echo    GitHub:   https://github.com/Ovie-Lang/ovie
 echo    Docs:     C:\Program Files\Ovie\docs\
 echo    Examples: C:\Program Files\Ovie\examples\
 echo.

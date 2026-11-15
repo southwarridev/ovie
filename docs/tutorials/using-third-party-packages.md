@@ -5,7 +5,7 @@ This tutorial shows you how to add and use external packages in your Ovie projec
 ## Prerequisites
 
 - An existing Ovie project with `ovie.toml`
-- Ovie v2.3.0 installed
+- Ovie 1.0 installed
 
 ---
 

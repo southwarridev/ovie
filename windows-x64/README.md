@@ -3,16 +3,16 @@
 
   # Ovie — Systems Programming Made Accessible
 
-  **v2.3.0 · Self-Hosted · Complete Module System · MIT License**
+  **1.0 · Self-Hosted · Complete Module System · MIT License**
 
   Low-level control with high-level productivity.
   Natural syntax, complete standard library, Aproko analysis engine.
 
-  [![GitHub](https://img.shields.io/badge/GitHub-couragereward%2Fovie-blue?logo=github)](https://github.com/couragereward/ovie)
+  [![GitHub](https://img.shields.io/badge/GitHub-couragereward%2Fovie-blue?logo=github)](https://github.com/Ovie-Lang/ovie)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)](RELEASE_NOTES_v2.3.md)
 
-  [Website](https://ovie.nashedy.io) · [Book](https://southwarridev.github.io/ovie/docs/book/index.html) · [Install](#installation) · [Docs](#documentation)
+  [Website](https://github.com/Ovie-Lang/ovie) · [Book](https://github.com/Ovie-Lang/ovie/docs/book/index.html) · [Install](#installation) · [Docs](#documentation)
 </div>
 
 ---
@@ -69,7 +69,7 @@ mut count = 0        // mutable — can be updated
 | Aproko KB | AI/LLM-accessible type info and reasoning rules |
 | Package Manager | `oviec init`, `oviec add`, `oviec install`, `ovie.lock` |
 | 11 stdlib modules | core, math, io, fs, time, env, cli, log, testing, module, aproko |
-| Self-hosted compiler | Stage 2.3 — compiles itself |
+| Self-hosted compiler | Ovie Lang 1.0 — compiles itself |
 
 ---
 
@@ -77,29 +77,29 @@ mut count = 0        // mutable — can be updated
 
 **Windows (PowerShell as Admin):**
 ```powershell
-iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex
 ```
 
 **Linux:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
 ```
 
 **macOS:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-macos-install.sh | bash
 ```
 
 **Build from source:**
 ```bash
-git clone https://github.com/couragereward/ovie.git
+git clone https://github.com/Ovie-Lang/ovie.git
 cd ovie
 cargo build --release --bin oviec
 ```
 
 **Verify:**
 ```bash
-oviec --version     # Ovie Compiler v2.3.0
+oviec --version     # Ovie Compiler 1.0
 oviec --self-check  # Full validation
 ```
 
@@ -216,7 +216,7 @@ export fn distance(x: Number, y: Number) -> Number {
 ## Building and Contributing
 
 ```bash
-git clone https://github.com/couragereward/ovie.git
+git clone https://github.com/Ovie-Lang/ovie.git
 cd ovie
 cargo build --release --workspace
 cargo test --package aproko --lib
@@ -228,10 +228,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Community
 
-- GitHub: [github.com/couragereward/ovie](https://github.com/couragereward/ovie)
+- GitHub: [github.com/Ovie-Lang/ovie](https://github.com/Ovie-Lang/ovie)
 - GitLab: [gitlab.com/ovie1/ovie](https://gitlab.com/ovie1/ovie)
 - Discord: [discord.gg/AuF4ubMyE](https://discord.gg/AuF4ubMyE)
-- Website: [ovie.nashedy.io](https://ovie.nashedy.io)
+- Website: [github.com/Ovie-Lang/ovie](https://github.com/Ovie-Lang/ovie)
 
 ---
 

@@ -27,7 +27,7 @@ mut count = 0        // mutable — this can be updated
 
 | Chapter | Title | What You Learn |
 |---------|-------|----------------|
-| 1 | [Introduction](chapters/01-introduction.md) | What Ovie is, oya vs mut, the Aproko engine |
+| 1 | [Introduction](chapters/01-introduction.md) | What Ovie is, oya vs mut, Aproko, oviev self-hosted compiler |
 | 2 | [Installation](chapters/02-installation.md) | Install on Windows, Linux, macOS, or build from source |
 | 3 | [Language Fundamentals](chapters/03-fundamentals.md) | oya, mut, fn, if, loops, structs, enums, match |
 | 4 | [Module System](chapters/04-modules.md) | use, import, export, packages, ovie.toml |

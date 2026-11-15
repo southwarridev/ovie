@@ -21,13 +21,13 @@ This guide covers installing the Ovie Programming Language toolchain on various 
 ### One-Line Install (Unix/Linux/macOS)
 
 ```bash
-curl -sSf https://install.ovie-lang.org | sh
+curl -sSf https://install.github.com/Ovie-Lang/ovie | sh
 ```
 
 ### One-Line Install (Windows PowerShell)
 
 ```powershell
-iwr -useb https://install.ovie-lang.org/install.ps1 | iex
+iwr -useb https://install.github.com/Ovie-Lang/ovie/install.ps1 | iex
 ```
 
 ## Manual Installation

@@ -197,7 +197,7 @@ jobs:
       - name: Write job summary
         run: |
           {
-            echo "# Bootstrap Verification Summary — Ovie v2.3"
+            echo "# Bootstrap Verification Summary — Ovie Lang 1.0"
             echo ""
             echo "| Job | Result |"
             echo "|-----|--------|"

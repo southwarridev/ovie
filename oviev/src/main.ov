@@ -1,14 +1,14 @@
 // main.ov — oviev entry point and CLI (mirrors main.rs)
-// Copyright (c) 2026 Nashedy Ltd — MIT License
+// Nashedy Ltd. — MIT License
 //
 // oviev is the Ovie self-hosted compiler — written entirely in .ov files
 // Stage 1: bootstraps via oviec (Rust) — same programs, different messenger
 // Stage 2: oviev compiles itself, oviec is retired
 
 oya OVIEV_NAME    = "oviev"
-oya OVIEV_VERSION = "2.3.0"
-oya OVIEV_STAGE   = "Stage 1 — Ovie self-hosted (bootstrapped via oviec)"
-oya OVIEV_COPYRIGHT = "Copyright (c) 2026 Nashedy Ltd"
+oya OVIEV_VERSION = "1.0"
+oya OVIEV_STAGE   = "Ovie self-hosted compiler"
+oya OVIEV_COPYRIGHT = "Nashedy Ltd."
 oya OVIEV_LICENSE = "MIT License"
 
 fn show_version() {

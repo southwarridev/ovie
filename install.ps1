@@ -1,6 +1,6 @@
 #Requires -Version 5.0
 # ============================================================================
-#  Ovie Programming Language v2.3.0 — Windows PowerShell Installer
+#  Ovie Programming Language 1.0 — Windows PowerShell Installer
 #  Downloads prebuilt windows-x64 binaries from GitHub releases.
 #  No Rust, no manual cloning needed.
 # ============================================================================
@@ -31,8 +31,8 @@ Clear-Host
 Write-Host ""
 Write-Host "  ============================================================================" -ForegroundColor Cyan
 Write-Host "  |                                                                          |" -ForegroundColor Cyan
-Write-Host "  |              OVIE PROGRAMMING LANGUAGE v2.3.0                           |" -ForegroundColor Cyan
-Write-Host "  |              Complete Module System - Full Package                       |" -ForegroundColor Cyan
+Write-Host "  |              OVIE PROGRAMMING LANGUAGE 1.0                           |" -ForegroundColor Cyan
+Write-Host "  |              Ovie Lang 1.0                       |" -ForegroundColor Cyan
 Write-Host "  |              Publisher: Nashedy Ltd  |  MIT License              |" -ForegroundColor Cyan
 Write-Host "  |                                                                          |" -ForegroundColor Cyan
 Write-Host "  ============================================================================" -ForegroundColor Cyan
@@ -56,7 +56,7 @@ try {
     # ── Step 1: Download latest release ───────────────────────────────────────
     Write-Step "[1/3] Downloading latest Ovie release..."
 
-    $GITHUB_REPO = "southwarridev/ovie"
+    $GITHUB_REPO = "Ovie-Lang/ovie"
     $AssetName = "ovie-windows-x64.zip"
     $ApiUrl = "https://api.github.com/repos/$GITHUB_REPO/releases/latest"
 
@@ -167,7 +167,7 @@ try {
     Write-Host "    Linux x64    : https://github.com/$GITHUB_REPO/releases" -ForegroundColor White
     Write-Host "    Linux arm64  : https://github.com/$GITHUB_REPO/releases" -ForegroundColor White
     Write-Host ""
-    Write-Host "  Docs: https://southwarridev.github.io/ovie/docs/book/index.html" -ForegroundColor White
+    Write-Host "  Docs: https://github.com/Ovie-Lang/ovie/docs/book/index.html" -ForegroundColor White
     Write-Host ""
 
 } catch {

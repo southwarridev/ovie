@@ -1,4 +1,4 @@
-name: Build All Platforms — Ovie v2.3.0
+name: Build All Platforms — Ovie 1.0
 
 on:
   push:
@@ -232,12 +232,12 @@ jobs:
 
           **Windows (PowerShell as Administrator):**
           ```powershell
-          iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
+          iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex
           ```
 
           **Linux/macOS:**
           ```bash
-          curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+          curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
           ```
 
           ## Each Package Includes
@@ -245,7 +245,7 @@ jobs:
           - `bin/oviec` — Ovie compiler (self-hosted)
           - `bin/ovie` — Ovie CLI
           - `std/` — Complete standard library (11 modules)
-          - `std/module/` — v2.3 Module System
+          - `std/module/` — Ovie Lang 1.0
           - `std/aproko/` — Aproko Knowledge Base
           - `examples/` — 22+ runnable programs
           - `docs/` — Complete documentation
@@ -254,7 +254,7 @@ jobs:
           ## Verify Installation
 
           ```bash
-          oviec --version      # Ovie Compiler v2.3.0
+          oviec --version      # Ovie Compiler 1.0
           oviec --self-check   # Full validation
           ```
 

@@ -316,3 +316,17 @@ test_*.exe
 test_*.o
 test_*.rcgu.o
 *.long-type-*.txt
+# Build and test output files
+build_*.txt
+install*.txt
+aproko_*.txt
+rebrand.py
+do_all.py
+update_*.py
+fix_*.py
+wire*.py
+expand*.py
+gen_*.py
+*.log
+ver.txt
+status.txt

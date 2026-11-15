@@ -246,8 +246,8 @@ include_confidence = true
           "confidence": 0.92
         },
         "related_docs": [
-          "https://docs.ovie-lang.org/performance/strings",
-          "https://docs.ovie-lang.org/patterns/string-building"
+          "https://docs.github.com/Ovie-Lang/ovie/performance/strings",
+          "https://docs.github.com/Ovie-Lang/ovie/patterns/string-building"
         ],
         "ai_context": {
           "pattern_type": "loop_concatenation",

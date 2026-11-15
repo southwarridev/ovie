@@ -103,7 +103,7 @@ fn kb_entry_new(id: String, category: String, content: String) -> KnowledgeEntry
 
 /// Serialize a KnowledgeEntry to a JSON line
 fn kb_entry_to_json(entry: KnowledgeEntry) -> String {
-    mut json = "{";
+    oya json = "{";
     json = json + "\"id\":\"" + entry.id + "\",";
     json = json + "\"category\":\"" + entry.category + "\",";
     json = json + "\"symbol_name\":\"" + entry.symbol_name + "\",";
@@ -156,7 +156,7 @@ fn kb_parse_entry_json(json: String) -> KnowledgeEntry {
 
 /// Extract a string value from a simple JSON object by key
 fn kb_json_extract(json: String, key: String) -> String {
-    mut search = "\"" + key + "\":\"";
+    oya search = "\"" + key + "\":\"";
     mut pos = string_find(json, search);
     if pos < 0 { return ""; }
     mut start = pos + string_length(search);
@@ -167,7 +167,7 @@ fn kb_json_extract(json: String, key: String) -> String {
 
 /// Extract a raw (possibly non-string) value from JSON by key
 fn kb_json_extract_raw(json: String, key: String) -> String {
-    mut search = "\"" + key + "\":";
+    oya search = "\"" + key + "\":";
     mut pos = string_find(json, search);
     if pos < 0 { return "\"\""; }
     mut start = pos + string_length(search);
@@ -178,7 +178,7 @@ fn kb_json_extract_raw(json: String, key: String) -> String {
 
 /// Save entries array to a JSON file (one entry per line)
 fn kb_save_entries(file_path: String, entries: Array) {
-    mut content = "";
+    oya content = "";
     mut i = 0;
     while i < array_length(entries) {
         mut entry = array_get(entries, i);
@@ -199,7 +199,7 @@ export fn store_entry(entry: KnowledgeEntry) {
     mut entries = kb_load_entries(file_path);
 
     // Check if entry with same ID exists — update it
-    mut found = false;
+    oya found = false;
     mut i = 0;
     mut updated = [];
     while i < array_length(entries) {
@@ -260,7 +260,7 @@ export fn kb_query(q: KnowledgeQuery) -> KBResult {
     mut i = 0;
     while i < array_length(all_entries) {
         mut entry = array_get(all_entries, i);
-        mut is_match = true;
+        oya is_match = true;
 
         if string_length(q.symbol_name) > 0 && entry.symbol_name != q.symbol_name {
             is_match = false;
@@ -300,7 +300,7 @@ export fn update_entry(id: String, new_content: String) -> Boolean {
         mut cat = array_get(categories, ci);
         mut file = kb_category_file(cat);
         mut entries = kb_load_entries(file);
-        mut found = false;
+        oya found = false;
         mut updated = [];
         mut i = 0;
         while i < array_length(entries) {
@@ -392,7 +392,7 @@ export fn export_json(output_path: String) {
         ci = ci + 1;
     }
 
-    mut json = "{\n  \"knowledge_base\": [\n";
+    oya json = "{\n  \"knowledge_base\": [\n";
     mut i = 0;
     while i < array_length(all_entries) {
         mut entry = array_get(all_entries, i);

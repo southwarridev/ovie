@@ -3,7 +3,7 @@ title: "Build a Calculator in Ovie — A Hands-On Intro to the oya Keyword"
 published: false
 description: "Learn Ovie's natural immutable keyword oya by building an interactive terminal calculator from scratch."
 tags: ovie, beginners, systems-programming, tutorial
-cover_image: https://ovie.nashedy.io/assets/ovie.png
+cover_image: https://github.com/Ovie-Lang/ovie/assets/ovie.png
 ---
 
 # Build a Calculator in Ovie — Learning the oya Keyword
@@ -18,12 +18,12 @@ You need Ovie installed. On Windows:
 
 ```powershell
 # Run as Administrator
-iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex
 ```
 
 Or build from source:
 ```bash
-git clone https://github.com/couragereward/ovie.git
+git clone https://github.com/Ovie-Lang/ovie.git
 cd ovie
 cargo build --release --bin oviec
 ```

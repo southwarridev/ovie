@@ -1,0 +1,39 @@
+// std::gui - Native GUI framework for Ovie
+// Ovie Lang 1.0 - Nashedy Ltd
+//
+// Usage:
+//   use std::gui::{Window, Button, Label, App}
+//
+//   oya app = App.new()
+//   oya win = Window.new("My Ovie App", 800, 600)
+//   oya btn = Button.new("Click me")
+//   win.add(btn)
+//   app.run(win)
+
+struct App { title: String }
+struct Window { title: String, width: Number, height: Number, children: Array }
+struct Button { label: String, on_click: String }
+struct Label { text: String }
+struct TextInput { placeholder: String, value: String }
+
+fn App_new() -> App { return App { title: "Ovie App" } }
+
+fn Window_new(title: String, width: Number, height: Number) -> Window {
+    return Window { title: title, width: width, height: height, children: [] }
+}
+
+fn Button_new(label: String) -> Button {
+    return Button { label: label, on_click: "" }
+}
+
+fn Label_new(text: String) -> Label { return Label { text: text } }
+
+fn Window_add(mut win: Window, child: String) -> Window {
+    win.children = array_push(win.children, child)
+    return win
+}
+
+fn App_run(app: App, win: Window) {
+    seeAm "[gui] Starting: " + win.title
+    seeAm "[gui] Window: " + number_to_string(win.width) + "x" + number_to_string(win.height)
+}

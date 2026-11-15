@@ -11,28 +11,29 @@
 
 **Windows (PowerShell as Administrator):**
 ```powershell
-iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex
 ```
 
 **Linux:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
 ```
 
 **macOS:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-macos-install.sh | bash
 ```
 
 ## Build from Source (Recommended for Development)
 
 ```bash
-git clone https://github.com/couragereward/ovie.git
+git clone https://github.com/Ovie-Lang/ovie.git
 cd ovie
 cargo build --release --bin oviec
 ```
 
-Requires Rust toolchain (see ust-toolchain.toml for the exact version).
+Requires Rust toolchain (see 
+ust-toolchain.toml for the exact version).
 
 After building, copy the binary to your PATH:
 
@@ -56,7 +57,7 @@ oviec --self-check
 You should see:
 
 ```
-Ovie Compiler (oviec) v2.3.0 - Stage 2.3
+Ovie Compiler (oviec) 1.0 - Ovie Lang 1.0
 ```
 
 ## Your First Program

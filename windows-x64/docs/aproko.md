@@ -193,7 +193,7 @@ Example:
     for item in items { result = result + item }
     // Try:
     result = items.join("")
-  Learn more: docs.ovie-lang.org/performance/strings
+  Learn more: docs.github.com/Ovie-Lang/ovie/performance/strings
 ```
 
 ### Severity Levels

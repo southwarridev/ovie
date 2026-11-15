@@ -3,13 +3,13 @@ members = ["oviec", "aproko"]
 resolver = "2"
 
 [workspace.package]
-version = "2.3.0"
+version = "1.0.0"
 edition = "2021"
 license = "MIT"
-authors = ["Nashedy Ltd <team@ovie-lang.org>"]
-repository = "https://github.com/southwarridev/ovie"
-homepage = "https://ovie-lang.org"
-documentation = "https://docs.ovie-lang.org"
+authors = ["Nashedy Ltd <team@github.com/Ovie-Lang/ovie>"]
+repository = "https://github.com/Ovie-Lang/ovie"
+homepage = "https://github.com/Ovie-Lang/ovie"
+documentation = "https://docs.github.com/Ovie-Lang/ovie"
 
 [workspace.dependencies]
 # Lexer and parsing

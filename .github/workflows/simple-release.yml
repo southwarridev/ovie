@@ -3,7 +3,7 @@
 # Use this for quick patch releases or testing the release pipeline.
 # For a full multi-platform release use release-v2.3.yml or manual-release.yml.
 
-name: Simple Release — Ovie v2.3
+name: Simple Release — Ovie Lang 1.0
 
 on:
   workflow_dispatch:
@@ -121,7 +121,7 @@ jobs:
             **Standard library**: all 11 modules including `std::module` + `std::aproko` (v2.3)
 
             ```bash
-            curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+            curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
             oviec --version   # Ovie Compiler v${{ env.OVIE_VERSION }}
             oviec --self-check
             ```
