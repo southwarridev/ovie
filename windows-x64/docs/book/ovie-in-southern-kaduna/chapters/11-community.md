@@ -4,7 +4,7 @@
 
 Ovie is open source and community-driven. Contributions are welcome from everyone.
 
-- GitHub: [https://github.com/southwarridev/ovie](https://github.com/southwarridev/ovie)
+- GitHub: [https://github.com/Ovie-Lang/ovie](https://github.com/Ovie-Lang/ovie)
 - GitLab: [https://gitlab.com/ovie1/ovie](https://gitlab.com/ovie1/ovie)
 - Issues: Report bugs and request features on either platform
 - Discussions: GitHub Discussions for questions and ideas
@@ -14,7 +14,7 @@ Ovie is open source and community-driven. Contributions are welcome from everyon
 ### Development Setup
 
 ```bash
-git clone https://github.com/southwarridev/ovie.git
+git clone https://github.com/Ovie-Lang/ovie.git
 cd ovie
 make dev-setup
 make dev

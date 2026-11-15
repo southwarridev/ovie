@@ -2,7 +2,7 @@
 # CI pipeline — runs on every push/PR to main or develop
 # Builds the Rust workspace, runs tests, checks formatting, validates docs
 
-name: CI — Ovie v2.3
+name: CI — Ovie Lang 1.0
 
 on:
   push:

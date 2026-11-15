@@ -1,13 +1,13 @@
 #!/bin/bash
 # ============================================================================
-#  Ovie Programming Language v2.3.0 — Easy Linux One-Click Installer
+#  Ovie Programming Language 1.0 — Easy Linux Installer
 #
 #  Two ways to run:
 #    1. Already cloned the repo:
 #       bash easy-linux-install.sh
 #
 #    2. Fresh machine (just needs git):
-#       curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+#       curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
 #
 #  No Rust required. No release tarball needed.
 #  Uses the prebuilt binaries inside linux-x64/ from the repo.
@@ -28,8 +28,8 @@ fail() { echo -e "  ${RED}[ERROR]${NC} $*" >&2; exit 1; }
 echo ""
 echo -e "${CYAN}  ============================================================================${NC}"
 echo -e "${CYAN}  |                                                                          |${NC}"
-echo -e "${CYAN}  |              OVIE PROGRAMMING LANGUAGE v2.3.0                           |${NC}"
-echo -e "${CYAN}  |              Complete Module System - Full Package                       |${NC}"
+echo -e "${CYAN}  |              OVIE PROGRAMMING LANGUAGE 1.0                           |${NC}"
+echo -e "${CYAN}  |              Ovie Lang 1.0                       |${NC}"
 echo -e "${CYAN}  |              Publisher: Nashedy Ltd  |  MIT License              |${NC}"
 echo -e "${CYAN}  |                                                                          |${NC}"
 echo -e "${CYAN}  ============================================================================${NC}"
@@ -38,7 +38,7 @@ echo ""
 OVIE_VERSION="2.3.0"
 INSTALL_DIR="$HOME/.local/ovie"
 BIN_DIR="$HOME/.local/bin"
-GITHUB_REPO="https://github.com/southwarridev/ovie.git"
+GITHUB_REPO="https://github.com/Ovie-Lang/ovie.git"
 
 echo "  Install directory : $INSTALL_DIR"
 echo "  Binaries added to : $BIN_DIR"
@@ -84,7 +84,7 @@ else
 fi
 
 SRC="$REPO_ROOT/linux-x64"
-[ -f "$SRC/oviec" ] || fail "linux-x64/oviec not found in repo. Please report this at https://github.com/southwarridev/ovie/issues"
+[ -f "$SRC/oviec" ] || fail "linux-x64/oviec not found in repo. Please report this at https://github.com/Ovie-Lang/ovie/issues"
 
 # ── Step 3: Create directories ───────────────────────────────────────────────
 info "[3/5] Creating install directories..."
@@ -171,9 +171,9 @@ echo "    oviec run examples/hello.ov   # Run hello world"
 echo "    oviec new my-project          # Create new project"
 echo ""
 echo "  Resources:"
-echo "    Website : https://ovie.nashedy.io"
-echo "    GitHub  : https://github.com/southwarridev/ovie"
-echo "    Book    : https://southwarridev.github.io/ovie/docs/book/index.html"
+echo "    Website : https://github.com/Ovie-Lang/ovie"
+echo "    GitHub  : https://github.com/Ovie-Lang/ovie"
+echo "    Book    : https://github.com/Ovie-Lang/ovie/docs/book/index.html"
 echo "    Discord : https://discord.gg/AuF4ubMyE"
 echo ""
 

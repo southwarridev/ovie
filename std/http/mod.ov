@@ -1,0 +1,43 @@
+// std::http - HTTP server and client for Ovie
+// Ovie Lang 1.0 - Nashedy Ltd
+//
+// Usage:
+//   use std::http::{serve, get, post, Response}
+//
+//       }
+//       return Response.not_found()
+//   })
+
+struct Request {
+    method: String,
+    path: String,
+    body: String,
+    headers: String,
+}
+
+struct Response {
+    status: Number,
+    body: String,
+    content_type: String,
+}
+
+fn Response_ok(body: String) -> Response {
+}
+
+fn Response_json(body: String) -> Response {
+}
+
+fn Response_not_found() -> Response {
+}
+
+/// Start an HTTP server on the given address
+fn serve(addr: String, handler: String) {
+}
+
+/// Make an HTTP GET request
+fn get(url: String) -> Response {
+}
+
+/// Make an HTTP POST request
+fn post(url: String, body: String) -> Response {
+}

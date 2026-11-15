@@ -61,6 +61,9 @@
 - Namespaces, 04-modules.md
 - Number type, 03-fundamentals.md
 
+## o
+- oviev, 01-introduction.md
+
 ## O
 - Offline-first, 01-introduction.md, 10-deployment.md
 - Option type, 05-stdlib.md

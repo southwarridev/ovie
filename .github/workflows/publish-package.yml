@@ -2,11 +2,11 @@
 name: Publish Package to GHCR
 
 # Publishes the Ovie compiler as a Docker image to GitHub Container Registry.
-# Image will appear at: https://github.com/southwarridev/ovie/packages
+# Image will appear at: https://github.com/Ovie-Lang/ovie/packages
 #
 # Pull with:
-#   docker pull ghcr.io/southwarridev/ovie:latest
-#   docker pull ghcr.io/southwarridev/ovie:2.3.0
+#   docker pull ghcr.io/Ovie-Lang/ovie:latest
+#   docker pull ghcr.io/Ovie-Lang/ovie:2.3.0
 
 on:
   push:
@@ -73,7 +73,7 @@ jobs:
             org.opencontainers.image.version=${{ steps.version.outputs.version }}
             org.opencontainers.image.authors=Nashedy Ltd <ovielang@gmail.com>
             org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.url=https://southwarridev.github.io/ovie/
+            org.opencontainers.image.url=https://github.com/Ovie-Lang/ovie/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -92,15 +92,15 @@ jobs:
       - name: Print package URL
         run: |
           echo "Package published to:"
-          echo "  https://github.com/southwarridev/ovie/packages"
+          echo "  https://github.com/Ovie-Lang/ovie/packages"
           echo ""
           echo "Pull with:"
-          echo "  docker pull ghcr.io/southwarridev/ovie:latest"
-          echo "  docker pull ghcr.io/southwarridev/ovie:${{ steps.version.outputs.version }}"
+          echo "  docker pull ghcr.io/Ovie-Lang/ovie:latest"
+          echo "  docker pull ghcr.io/Ovie-Lang/ovie:${{ steps.version.outputs.version }}"
           echo ""
           echo "Run with:"
-          echo "  docker run --rm ghcr.io/southwarridev/ovie:latest --version"
-          echo "  docker run --rm -v \$(pwd):/workspace ghcr.io/southwarridev/ovie:latest run /workspace/main.ov"
+          echo "  docker run --rm ghcr.io/Ovie-Lang/ovie:latest --version"
+          echo "  docker run --rm -v \$(pwd):/workspace ghcr.io/Ovie-Lang/ovie:latest run /workspace/main.ov"
 
   # Also publish the Rust crates to crates.io (optional - requires CARGO_REGISTRY_TOKEN secret)
   publish-crates:

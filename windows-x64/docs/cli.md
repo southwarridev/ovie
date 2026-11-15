@@ -558,7 +558,7 @@ ovie config set build.parallel true
 - `ovie help`: General help
 - `ovie help <command>`: Command-specific help
 - `ovie <command> --help`: Detailed command help
-- **Documentation**: [docs.ovie-lang.org](https://docs.ovie-lang.org)
+- **Documentation**: [docs.github.com/Ovie-Lang/ovie](https://docs.github.com/Ovie-Lang/ovie)
 - **Community**: [Discord](https://discord.gg/ovie-lang)
 
 ---

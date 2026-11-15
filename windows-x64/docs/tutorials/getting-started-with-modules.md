@@ -4,7 +4,7 @@ This tutorial walks you through creating your first modular Ovie project from sc
 
 ## Prerequisites
 
-- Ovie v2.3.0 installed (`ovie --version`)
+- Ovie 1.0 installed (`ovie --version`)
 - Basic familiarity with Ovie syntax (see [Language Guide](../language-guide.md))
 
 ---

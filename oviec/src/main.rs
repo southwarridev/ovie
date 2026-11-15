@@ -306,7 +306,7 @@ fn build_project(args: CliArgs) -> OvieResult<()> {
 fn build_distribution_package(args: CliArgs) -> OvieResult<()> {
     use oviec::release::builder::{DistributionBuilder, Platform};
     
-    println!("Building distribution packages for Ovie v2.3.0...\n");
+    println!("Building distribution packages for Ovie 1.0...\n");
     
     // Get workspace root (current directory)
     let workspace_root = std::env::current_dir()
@@ -1035,15 +1035,15 @@ fn analyze_file(args: CliArgs) -> OvieResult<()> {
 }
 
 fn self_check(_args: CliArgs) -> OvieResult<()> {
-    println!("=== Ovie Compiler Self-Check - Stage 2.3 ===");
+    println!("=== Ovie Compiler Self-Check - Ovie Lang 1.0 ===");
     println!();
     
     // Version and stage information
     println!("🔍 Compiler Information:");
     println!("  Version: {}", env!("CARGO_PKG_VERSION"));
     println!("  Stage: 2.3 - Complete Module System");
-    println!("  Build Date: {}", option_env!("VERGEN_BUILD_DATE").unwrap_or("unknown"));
-    println!("  Git Hash: {}", option_env!("VERGEN_GIT_SHA").unwrap_or("unknown"));
+    println!("  Version: 1.0);
+    println!("  );
     println!("  Target: {}", std::env::consts::ARCH);
     println!("  OS: {}", std::env::consts::OS);
     println!();
@@ -1254,7 +1254,7 @@ fn self_check(_args: CliArgs) -> OvieResult<()> {
     println!("  ✅ Analysis engine functional");
     println!("  🚧 Real self-hosting in progress (lexer stage)");
     println!();
-    println!("Ovie Compiler v{} - Stage 2.3 Self-Check: PASSED ✅", env!("CARGO_PKG_VERSION"));
+    println!("Ovie Compiler v{} - Ovie Lang 1.0 Self-Check: PASSED ✅", env!("CARGO_PKG_VERSION"));
     println!("The compiler is ready for production use!");
     
     Ok(())
@@ -1364,17 +1364,17 @@ fn show_env(_args: CliArgs) -> OvieResult<()> {
 }
 
 fn show_version() -> OvieResult<()> {
-    println!("Ovie Compiler (oviec) v{} - Stage 2.3", env!("CARGO_PKG_VERSION"));
+    println!("Ovie Compiler (oviec) v{} - Ovie Lang 1.0", env!("CARGO_PKG_VERSION"));
     println!("Built with formal compiler invariants and real bootstrap verification");
     println!();
     println!("Build Information:");
     println!("  Version: {}", env!("CARGO_PKG_VERSION"));
-    println!("  Build Date: {}", option_env!("VERGEN_BUILD_DATE").unwrap_or("unknown"));
-    println!("  Git Hash: {}", option_env!("VERGEN_GIT_SHA").unwrap_or("unknown"));
+    println!("  Version: 1.0);
+    println!("  );
     println!("  Target: {}-{}", std::env::consts::ARCH, std::env::consts::OS);
     println!("  Rust Version: {}", option_env!("VERGEN_RUSTC_SEMVER").unwrap_or("unknown"));
     println!();
-    println!("Stage 2.3 Features:");
+    println!("Ovie Lang 1.0");
     println!("  ✅ Complete Module System (import/export)");
     println!("  ✅ Aproko Knowledge Base");
     println!("  ✅ Package Manager (oviec init, add, install)");
@@ -1389,10 +1389,10 @@ fn show_version() -> OvieResult<()> {
     println!("  ✅ Deterministic compilation and reproducible builds");
     println!("  ✅ Offline-first development environment");
     println!();
-    println!("Copyright (c) 2026 Nashedy Ltd");
+    println!("Copyright (c) 2026 Nashedy Ltd.");
     println!("Licensed under MIT License");
-    println!("Visit: https://ovie-lang.org");
-    println!("Source: https://github.com/southwarridev/ovie");
+    println!("Visit: https://github.com/Ovie-Lang/ovie");
+    println!("Source: https://github.com/Ovie-Lang/ovie");
     
     Ok(())
 }
@@ -1454,7 +1454,7 @@ fn write_output(output: String, output_file: Option<String>) -> OvieResult<()> {
 }
 
 fn print_help(program_name: &str) {
-    println!("Ovie Compiler - Stage 2.3 Complete Module System");
+    println!("Ovie Lang 1.0");
     println!();
     println!("USAGE:");
     println!("    {} <COMMAND> [OPTIONS] [INPUT_FILE]", program_name);
@@ -1534,7 +1534,7 @@ fn print_help(program_name: &str) {
     println!("    oviec --tokens file.ov                # Dump tokens for bootstrap verification");
     println!("    oviec env                             # Show environment info");
     println!();
-    println!("For more information, visit: https://ovie-lang.org/docs");
+    println!("For more information, visit: https://github.com/Ovie-Lang/ovie/docs");
 }
 
 /// Dump tokens from source file for bootstrap verification

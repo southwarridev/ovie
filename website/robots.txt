@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://southwarridev.github.io/ovie/sitemap.xml

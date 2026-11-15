@@ -1,5 +1,5 @@
 ---
-# Manual one-click release creator for Ovie v2.3+
+# Manual one-click release creator for Ovie Lang 1.0+
 # Builds real binaries via cargo, assembles packages, publishes a GitHub release.
 
 name: Create Ovie Release
@@ -212,9 +212,9 @@ jobs:
             - **11 Standard Library Modules** — including `std::module` and `std::aproko`
 
             ## Quick Install
-            **Windows:** `iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex`
-            **Linux:** `curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash`
-            **macOS:** `curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash`
+            **Windows:** `iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex`
+            **Linux:** `curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash`
+            **macOS:** `curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-macos-install.sh | bash`
 
             ## Downloads
             | Platform | File |

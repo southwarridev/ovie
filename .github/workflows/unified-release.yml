@@ -1,4 +1,4 @@
-name: Unified Ovie v2.3 Release
+name: Unified Ovie Lang 1.0 Release
 
 on:
   push:
@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., v2.3.0)'
+        description: 'Release version (e.g., 1.0)'
         required: true
-        default: 'v2.3.0'
+        default: '1.0'
       prerelease:
         description: 'Mark as pre-release'
         type: boolean
@@ -342,7 +342,7 @@ jobs:
         cat > RELEASE_NOTES.md << 'EOF'
         # 🚀 Ovie v${{ env.OVIE_VERSION }} - Low-Level Self-Hosted Programming Language
         
-        ## 🎯 Stage 2.3 - Complete Module System & Aproko KB
+        ## 🎯 Ovie Lang 1.0 - Complete Module System & Aproko KB
         
         Ovie v${{ env.OVIE_VERSION }} represents a major milestone in compiler correctness and self-hosting capabilities. This release introduces formal mathematical verification of compiler invariants and comprehensive bootstrap verification.
         
@@ -373,17 +373,17 @@ jobs:
         
         ### Windows
         ```cmd
-        curl -o install.bat https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.bat && install.bat
+        curl -o install.bat https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.bat && install.bat
         ```
         
         ### Linux
         ```bash
-        curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+        curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
         ```
         
         ### macOS
         ```bash
-        curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash
+        curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-macos-install.sh | bash
         ```
         
         ## 🧪 Verification
@@ -423,10 +423,10 @@ jobs:
         
         ## 📚 Documentation
         
-        - [Getting Started Guide](https://ovie-lang.org/docs/getting-started.html)
-        - [Language Reference](https://ovie-lang.org/docs/language-guide.html)
-        - [Compiler Internals](https://ovie-lang.org/docs/internals.html)
-        - [Bootstrap Verification](https://github.com/southwarridev/ovie/blob/main/docs/compiler_invariants.md)
+        - [Getting Started Guide](https://github.com/Ovie-Lang/ovie/docs/getting-started.html)
+        - [Language Reference](https://github.com/Ovie-Lang/ovie/docs/language-guide.html)
+        - [Compiler Internals](https://github.com/Ovie-Lang/ovie/docs/internals.html)
+        - [Bootstrap Verification](https://github.com/Ovie-Lang/ovie/blob/main/docs/compiler_invariants.md)
         
         ## 🛠️ Development Tools
         
@@ -466,11 +466,11 @@ jobs:
         
         ---
         
-        **Full Changelog**: https://github.com/southwarridev/ovie/compare/v2.3.0...v${{ env.OVIE_VERSION }}
+        **Full Changelog**: https://github.com/Ovie-Lang/ovie/compare/1.0...v${{ env.OVIE_VERSION }}
         
-        **Website**: https://ovie-lang.org  
-        **Documentation**: https://ovie-lang.org/docs  
-        **Community**: https://github.com/southwarridev/ovie/discussions
+        **Website**: https://github.com/Ovie-Lang/ovie  
+        **Documentation**: https://github.com/Ovie-Lang/ovie/docs  
+        **Community**: https://github.com/Ovie-Lang/ovie/discussions
         EOF
 
     - name: Create GitHub Release
@@ -554,4 +554,4 @@ jobs:
         echo "| VS Code Extension | ${{ needs.publish-vscode-extension.result }} |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "📦 Platforms: Windows (x64/x86/ARM64) · Linux (x64/ARM64/musl) · macOS (x64/ARM64)" >> $GITHUB_STEP_SUMMARY
-        echo "🔗 https://github.com/southwarridev/ovie/releases/latest" >> $GITHUB_STEP_SUMMARY
+        echo "🔗 https://github.com/Ovie-Lang/ovie/releases/latest" >> $GITHUB_STEP_SUMMARY

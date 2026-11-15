@@ -54,4 +54,4 @@ jobs:
       - name: Print deployed URL
         run: |
           echo "Website deployed to: ${{ steps.deployment.outputs.page_url }}"
-          echo "Direct URL: https://southwarridev.github.io/ovie/"
+          echo "Direct URL: https://github.com/Ovie-Lang/ovie/"

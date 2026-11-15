@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-#  Ovie Programming Language v2.3.0 — Linux/macOS Installer
+#  Ovie Programming Language 1.0 — Linux/macOS Installer
 #
 #  Downloads prebuilt binaries from GitHub releases for your platform.
 #  Supports: linux-x64, linux-arm64, macos-x64, macos-arm64
@@ -23,14 +23,14 @@ fail() { echo -e "  ${RED}[ERROR]${NC} $*" >&2; exit 1; }
 # ── banner ────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${CYAN}  ============================================================================${NC}"
-echo -e "${CYAN}  |              OVIE PROGRAMMING LANGUAGE v2.3.0                           |${NC}"
+echo -e "${CYAN}  |              OVIE PROGRAMMING LANGUAGE 1.0                           |${NC}"
 echo -e "${CYAN}  |              Publisher: Nashedy Ltd  |  MIT License              |${NC}"
 echo -e "${CYAN}  ============================================================================${NC}"
 echo ""
 
 INSTALL_DIR="$HOME/.local/ovie"
 BIN_DIR="$HOME/.local/bin"
-GITHUB_REPO="southwarridev/ovie"
+GITHUB_REPO="Ovie-Lang/ovie"
 
 # ── Detect platform ───────────────────────────────────────────────────────────
 OS="$(uname -s)"
@@ -203,8 +203,8 @@ echo "    Linux x64    : https://github.com/$GITHUB_REPO/releases"
 echo "    Linux arm64  : https://github.com/$GITHUB_REPO/releases"
 echo ""
 echo "  Resources:"
-echo "    Website : https://ovie.nashedy.io"
-echo "    GitHub  : https://github.com/southwarridev/ovie"
-echo "    Book    : https://southwarridev.github.io/ovie/docs/book/index.html"
+echo "    Website : https://github.com/Ovie-Lang/ovie"
+echo "    GitHub  : https://github.com/Ovie-Lang/ovie"
+echo "    Book    : https://github.com/Ovie-Lang/ovie/docs/book/index.html"
 echo "    Discord : https://discord.gg/AuF4ubMyE"
 echo ""

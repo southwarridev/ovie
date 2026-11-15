@@ -1,4 +1,4 @@
-# Ovie v2.3.0 — Complete Module System
+# Ovie 1.0 — Complete Module System
 
 **Release Date:** April 23, 2026  
 **Version:** 2.3.0  
@@ -90,7 +90,7 @@ ovie doc            # Generate HTML/Markdown/JSON docs
 ## 📦 What's Included
 
 Each installation includes:
-- Ovie compiler (`oviec`) and CLI (`ovie`) — v2.3.0
+- Ovie compiler (`oviec`) and CLI (`ovie`) — 1.0
 - Complete Runtime Environment (ORE)
 - Standard library — 11 modules, 160KB+
 - Aproko reasoning engine
@@ -112,10 +112,10 @@ Standalone `.ov` files without import/export statements continue to work exactly
 
 ```bash
 # Linux/macOS
-curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash
+curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash
 
 # Windows
-iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex
 
 # Verify
 ovie --version  # Should show 2.3.0
@@ -136,10 +136,10 @@ No code changes required for existing programs.
 
 ## 🔗 Links
 
-- GitHub: https://github.com/southwarridev/ovie
+- GitHub: https://github.com/Ovie-Lang/ovie
 - GitLab: https://gitlab.com/ovie1/ovie
-- Website: https://ovie-lang.org
-- Book: https://ovie-lang.org/docs/book/
+- Website: https://github.com/Ovie-Lang/ovie
+- Book: https://github.com/Ovie-Lang/ovie/docs/book/
 
 ---
 

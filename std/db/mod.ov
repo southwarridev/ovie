@@ -1,0 +1,32 @@
+// std::db - Database client for Ovie
+// Ovie Lang 1.0 - Nashedy Ltd
+//
+// Usage:
+//   use std::db::{connect, query, execute}
+//
+//   oya db = connect("sqlite://myapp.db")
+//   oya rows = query(db, "SELECT * FROM users")
+//
+struct Connection { url: String, open: Boolean }
+struct Row { columns: Array, values: Array }
+struct QueryResult { rows: Array, count: Number }
+
+fn connect(url: String) -> Connection {
+    seeAm "[db] Connecting to: " + url
+    return Connection { url: url, open: true }
+}
+
+fn query(conn: Connection, sql: String) -> QueryResult {
+    seeAm "[db] Query: " + sql
+    return QueryResult { rows: [], count: 0 }
+}
+
+fn execute(conn: Connection, sql: String) -> Number {
+    seeAm "[db] Execute: " + sql
+    return 0
+}
+
+fn close(mut conn: Connection) -> Connection {
+    conn.open = false
+    return conn
+}

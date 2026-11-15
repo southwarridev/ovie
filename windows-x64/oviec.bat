@@ -5,7 +5,7 @@ REM Get the directory where this batch file is located
 set "OVIE_DIR=%~dp0"
 
 REM Show branding information
-echo Ovie Compiler (oviec) v2.3.0 - Complete Module System
+echo Ovie Compiler (oviec) 1.0 - Complete Module System
 echo Development Mode - Source Installation
 
 REM Check if we're running from the correct directory

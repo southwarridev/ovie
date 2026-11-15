@@ -1,8 +1,8 @@
 ---
-# Manual trigger release for Ovie v2.3+
+# Manual trigger release for Ovie Lang 1.0+
 # Identical to create-release.yml but with an extra "create tag" toggle.
 
-name: Manual Release — Ovie v2.3
+name: Manual Release — Ovie Lang 1.0
 
 on:
   workflow_dispatch:
@@ -192,9 +192,9 @@ jobs:
             **New in v2.3**: Module System · Aproko KB · Package Manager · `oviec-analyze` · 11 stdlib modules
 
             **Quick install:**
-            - Windows: `iwr -useb https://raw.githubusercontent.com/southwarridev/ovie/main/easy-windows-install.ps1 | iex`
-            - Linux: `curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-linux-install.sh | bash`
-            - macOS: `curl -sSL https://raw.githubusercontent.com/southwarridev/ovie/main/easy-macos-install.sh | bash`
+            - Windows: `iwr -useb https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-windows-install.ps1 | iex`
+            - Linux: `curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-linux-install.sh | bash`
+            - macOS: `curl -sSL https://raw.githubusercontent.com/Ovie-Lang/ovie/main/easy-macos-install.sh | bash`
 
             SHA256 checksums in `checksums.txt`.
             Verify: `oviec --version` · `oviec --self-check`
@@ -206,4 +206,4 @@ jobs:
         run: |
           echo "## ✅ Ovie v${{ env.OVIE_VERSION }} Released" >> $GITHUB_STEP_SUMMARY
           echo "**Platforms**: Windows x64 · Linux x64 · macOS arm64 · macOS x64" >> $GITHUB_STEP_SUMMARY
-          echo "**Release**: https://github.com/southwarridev/ovie/releases/tag/v${{ env.OVIE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Release**: https://github.com/Ovie-Lang/ovie/releases/tag/v${{ env.OVIE_VERSION }}" >> $GITHUB_STEP_SUMMARY

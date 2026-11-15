@@ -1,0 +1,9 @@
+Ovie:
+  type: programming
+  color: "#f59e0b"
+  extensions:
+    - .ov
+  filenames: []
+  tm_scope: source.ovie
+  ace_mode: text
+  language_id: 1000001

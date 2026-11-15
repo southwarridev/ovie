@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================================
-REM  Ovie Programming Language v2.3.0 — Windows Batch Installer
+REM  Ovie Programming Language 1.0 — Windows Batch Installer
 REM  Works by downloading prebuilt windows-x64 binaries from GitHub releases.
 REM  No Rust, no manual cloning needed.
 REM ============================================================================
@@ -10,13 +10,13 @@ setlocal enabledelayedexpansion
 set "OVIE_VERSION=2.3.0"
 set "INSTALL_DIR=C:\Program Files\Ovie"
 set "BIN_DIR=%INSTALL_DIR%\bin"
-set "GITHUB_REPO=southwarridev/ovie"
+set "GITHUB_REPO=Ovie-Lang/ovie"
 
 echo.
 echo   ============================================================================
 echo   ^|                                                                          ^|
-echo   ^|              OVIE PROGRAMMING LANGUAGE v2.3.0                           ^|
-echo   ^|              Complete Module System - Full Package                       ^|
+echo   ^|              OVIE PROGRAMMING LANGUAGE 1.0                           ^|
+echo   ^|              Ovie Lang 1.0                       ^|
 echo   ^|              Publisher: Nashedy Ltd  |  MIT License              ^|
 echo   ^|                                                                          ^|
 echo   ============================================================================
@@ -159,7 +159,7 @@ echo     macOS arm64  : https://github.com/%GITHUB_REPO%/releases
 echo     Linux x64    : https://github.com/%GITHUB_REPO%/releases
 echo     Linux arm64  : https://github.com/%GITHUB_REPO%/releases
 echo.
-echo   Docs: https://southwarridev.github.io/ovie/docs/book/index.html
+echo   Docs: https://github.com/Ovie-Lang/ovie/docs/book/index.html
 echo.
 pause
 exit /b 0
